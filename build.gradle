@@ -1,15 +1,14 @@
 // Default tasks
 defaultTasks 'licenseFormatMain', 'licenseFormatTest', 'build'
 
-apply plugin: 'application'
 apply plugin: 'java'
 apply plugin: 'license'
+apply plugin: 'maven'
 
 // Basic project information
 group = 'org.spongepowered'
 archivesBaseName = 'event-impl-gen'
 version = '0.0.1-SNAPSHOT'
-mainClassName = 'org.spongepowered.api.eventimplgen.Main'
 
 // Extended project information
 ext.projectName = 'Event Implementation Generator'
@@ -57,10 +56,15 @@ repositories {
         name 'Sponge maven repo'
         url 'http://repo.spongepowered.org/maven'
     }
+    maven {
+        name 'Gradle'
+        url 'http://repo.gradle.org/gradle/libs-releases-local'
+    }
 }
 
 dependencies {
-    testCompile 'junit:junit:4.8.2'
+    compile gradleApi()
+    compile 'fr.inria.gforge.spoon:spoon-core:4.2.0'
 }
 
 // License header formatting
@@ -100,8 +104,4 @@ jar {
                 "Implementation-Version": version + "+" + ciSystem + "-b" + buildNumber + ".git-" + commit,
                 "Implementation-Vendor": url
     }
-}
-
-run {
-    standardInput = System.in
 }

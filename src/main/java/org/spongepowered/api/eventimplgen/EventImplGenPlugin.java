@@ -23,10 +23,18 @@
  */
 package org.spongepowered.api.eventimplgen;
 
-public class Main {
+import org.gradle.api.Plugin;
+import org.gradle.api.Project;
+import org.gradle.api.tasks.TaskContainer;
 
-    public static void main(String[] args) {
-        System.out.println("hello world");
+public class EventImplGenPlugin implements Plugin<Project> {
+
+    @Override
+    public void apply(Project project) {
+        final TaskContainer tasks = project.getTasks();
+        final EventImplGenTask task = tasks.create("genEventImpl", EventImplGenTask.class);
+        task.dependsOn(project.getConfigurations().getByName("compile"));
+        tasks.getByName("compileJava").dependsOn(task);
     }
 
 }
