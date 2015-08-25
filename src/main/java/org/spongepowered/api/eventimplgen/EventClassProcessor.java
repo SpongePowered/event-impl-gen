@@ -26,43 +26,16 @@ package org.spongepowered.api.eventimplgen;
 import spoon.processing.AbstractProcessor;
 import spoon.reflect.declaration.CtInterface;
 
-import java.util.Arrays;
-import java.util.List;
-
 public class EventClassProcessor extends AbstractProcessor<CtInterface<?>> {
-
-    private static final String EVENT_PACKAGE = "org.spongepowered.api.event";
-    private static final List<String> BASE_EVENTS = Arrays.asList("Event", "GameEvent");
 
     @Override
     public boolean isToBeProcessed(CtInterface<?> candidate) {
-        /*
-
-            Allow:
-                - org.spongepowered.api.event.Event
-                - org.spongepowered.api.event.GameEvent
-                - org.spongepowered.api.event.action.*
-                - org.spongepowered.api.event.inventory.*
-                - org.spongepowered.api.event.source.*
-                - org.spongepowered.api.event.target.*
-
-        */
-        final String name = candidate.getQualifiedName();
-        final boolean isInEventPackage = name.startsWith(EVENT_PACKAGE);
-        if (!isInEventPackage) {
-            return false;
-        }
-        final boolean isCause = name.startsWith("cause", EVENT_PACKAGE.length() + 1);
-        if (isCause) {
-            return false;
-        }
-        final boolean isInRoot = name.indexOf('.', EVENT_PACKAGE.length() + 1) < 0;
-        final boolean isBaseEvent = BASE_EVENTS.contains(candidate.getSimpleName());
-        return !isInRoot || isBaseEvent;
+        return EventImplGenExtension.isIncluded(candidate.getPosition().getCompilationUnit().getFile());
     }
 
     @Override
     public void process(CtInterface<?> element) {
         System.out.println(element.getQualifiedName());
     }
+
 }

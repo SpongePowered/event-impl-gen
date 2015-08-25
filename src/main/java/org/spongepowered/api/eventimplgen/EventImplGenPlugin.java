@@ -35,6 +35,8 @@ public class EventImplGenPlugin implements Plugin<Project> {
         final EventImplGenTask task = tasks.create("genEventImpl", EventImplGenTask.class);
         task.dependsOn(project.getConfigurations().getByName("compile"));
         tasks.getByName("compileJava").dependsOn(task);
+
+        project.getExtensions().add("genEventImpl", EventImplGenExtension.class);
     }
 
 }

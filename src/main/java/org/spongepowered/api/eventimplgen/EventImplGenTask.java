@@ -32,9 +32,6 @@ import spoon.Launcher;
 import spoon.SpoonAPI;
 import spoon.compiler.Environment;
 import spoon.compiler.SpoonCompiler;
-import spoon.compiler.SpoonFile;
-import spoon.compiler.SpoonFolder;
-import spoon.support.compiler.FileSystemFolder;
 
 import java.io.File;
 import java.util.Collections;
@@ -46,35 +43,26 @@ public class EventImplGenTask extends DefaultTask {
     private static final String EVENT_CLASS_PROCESSOR = EventClassProcessor.class.getCanonicalName();
 
     static {
+        SPOON.addProcessor(EVENT_CLASS_PROCESSOR);
         final Environment environment = SPOON.getEnvironment();
         environment.setAutoImports(true);
         environment.setComplianceLevel(6);
         environment.setGenerateJavadoc(true);
-        SPOON.addProcessor(EVENT_CLASS_PROCESSOR);
     }
 
     @TaskAction
     public void task() {
-        final SourceSet sourceSet = getProject().getConvention().getPlugin(JavaPluginConvention.class).getSourceSets().getByName("main");
-
-
+        final SourceSet sourceSet =
+            getProject().getConvention().getPlugin(JavaPluginConvention.class).getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
         final SpoonCompiler compiler = SPOON.createCompiler();
         compiler.setSourceClasspath(toStringArray(sourceSet.getCompileClasspath()));
-        compiler.addInputSource(new File("src/main/java/"));
+        for (File sourceFile : sourceSet.getAllJava().getSrcDirs()) {
+            compiler.addInputSource(sourceFile);
+        }
         compiler.setOutputDirectory(new File("output/"));
         compiler.build();
         compiler.process(Collections.singletonList(EVENT_CLASS_PROCESSOR));
         //compiler.generateProcessedSourceFiles(OutputType.COMPILATION_UNITS);
-    }
-
-    private static void addFilesFrom(SpoonCompiler compiler, String folder) {
-        final SpoonFolder sourceFolder = new FileSystemFolder(new File(folder));
-        for (final SpoonFile sourceFile : sourceFolder.getAllJavaFiles()) {
-            if ("package-info.java".equals(sourceFile.getName())) {
-                continue;
-            }
-            compiler.addInputSource(sourceFile);
-        }
     }
 
     private static String[] toStringArray(FileCollection fileCollection) {
