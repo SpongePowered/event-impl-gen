@@ -23,10 +23,22 @@
  */
 package org.spongepowered.api.eventimplgen;
 
+import com.google.common.collect.Maps;
 import spoon.processing.AbstractProcessor;
 import spoon.reflect.declaration.CtInterface;
+import spoon.reflect.declaration.CtMethod;
+import spoon.reflect.reference.CtTypeReference;
+
+import java.util.List;
+import java.util.Map;
 
 public class EventClassProcessor extends AbstractProcessor<CtInterface<?>> {
+
+    public static final Map<CtInterface<?>, Map<String, CtTypeReference<?>>> GENERATED_FIELDS = Maps.newHashMap();
+
+    public EventClassProcessor() {
+        GENERATED_FIELDS.clear();
+    }
 
     @Override
     public boolean isToBeProcessed(CtInterface<?> candidate) {
@@ -35,7 +47,99 @@ public class EventClassProcessor extends AbstractProcessor<CtInterface<?>> {
 
     @Override
     public void process(CtInterface<?> element) {
-        System.out.println(element.getQualifiedName());
+        final Map<String, CtTypeReference<?>> fields = Maps.newLinkedHashMap();
+        for (CtMethod<?> method : element.getMethods()) {
+            String fieldName = null;
+            CtTypeReference<?> fieldType = null;
+            for (MethodType methodType : MethodType.values()) {
+                if (methodType.matches(method)) {
+                    fieldName = methodType.generateFieldName(method);
+                    fieldType = methodType.extractFieldType(method);
+                    break;
+                }
+            }
+            if (fieldName == null || fieldName.isEmpty()) {
+                System.out.println("Unknown method type " + method.getSignature() + " in" + element.getQualifiedName());
+            } else {
+                final CtTypeReference<?> existingFieldType = fields.get(fieldName);
+                if (existingFieldType != null) {
+                    if (!fieldType.equals(existingFieldType)) {
+                        System.out.println("Conflicting types " + existingFieldType.getQualifiedName() + " and " + fieldType.getQualifiedName()
+                            + " for field name " + fieldName + " in" + element.getQualifiedName());
+                    }
+                } else {
+                    fields.put(fieldName, fieldType);
+                }
+            }
+        }
+        GENERATED_FIELDS.put(element, fields);
+    }
+
+    private enum MethodType {
+
+        GETTER("get") {
+            @Override
+            protected boolean matches(CtMethod<?> method) {
+                return method.getSimpleName().startsWith(prefix) || method.getParameters().isEmpty();
+            }
+
+            @Override
+            protected CtTypeReference<?> extractFieldType(CtMethod<?> method) {
+                CtTypeReference<?> type = method.getType();
+                // Unbox optionals
+                if (type.getSimpleName().equals("Optional")) {
+                    final List<CtTypeReference<?>> generics = type.getActualTypeArguments();
+                    if (generics.size() == 1) {
+                        type = generics.get(0);
+                    }
+                }
+                return type;
+            }
+
+        },
+        SETTER("set") {
+            @Override
+            protected boolean matches(CtMethod<?> method) {
+                return method.getSimpleName().startsWith(prefix) && method.getParameters().size() == 1;
+            }
+
+            @Override
+            protected CtTypeReference<?> extractFieldType(CtMethod<?> method) {
+                return method.getParameters().get(0).getType();
+            }
+
+        },
+        FILTER("filter") {
+            @Override
+            protected boolean matches(CtMethod<?> method) {
+                return method.getSimpleName().startsWith(prefix) && method.getParameters().size() == 1;
+            }
+
+            @Override
+            protected CtTypeReference<?> extractFieldType(CtMethod<?> method) {
+                return method.getType();
+            }
+
+        };
+
+        protected final String prefix;
+
+        MethodType(String prefix) {
+            this.prefix = prefix;
+        }
+
+        protected abstract boolean matches(CtMethod<?> method);
+
+        protected abstract CtTypeReference<?> extractFieldType(CtMethod<?> method);
+
+        private String generateFieldName(CtMethod<?> method) {
+            String name = method.getSimpleName();
+            if (name.startsWith(prefix)) {
+                name = name.substring(prefix.length());
+            }
+            return Character.toLowerCase(name.charAt(0)) + name.substring(1);
+        }
+
     }
 
 }

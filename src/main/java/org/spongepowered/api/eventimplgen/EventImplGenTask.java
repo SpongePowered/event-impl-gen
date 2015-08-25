@@ -23,6 +23,10 @@
  */
 package org.spongepowered.api.eventimplgen;
 
+import com.google.common.base.Function;
+import com.google.common.base.Joiner;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.plugins.JavaPluginConvention;
@@ -32,9 +36,13 @@ import spoon.Launcher;
 import spoon.SpoonAPI;
 import spoon.compiler.Environment;
 import spoon.compiler.SpoonCompiler;
+import spoon.reflect.declaration.CtInterface;
+import spoon.reflect.reference.CtTypeReference;
 
 import java.io.File;
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class EventImplGenTask extends DefaultTask {
@@ -62,7 +70,23 @@ public class EventImplGenTask extends DefaultTask {
         compiler.setOutputDirectory(new File("output/"));
         compiler.build();
         compiler.process(Collections.singletonList(EVENT_CLASS_PROCESSOR));
-        //compiler.generateProcessedSourceFiles(OutputType.COMPILATION_UNITS);
+
+        for (Map.Entry<CtInterface<?>, Map<String, CtTypeReference<?>>> entry : EventClassProcessor.GENERATED_FIELDS.entrySet()) {
+            final Map<String, String> constructorSignature = Maps.newLinkedHashMap();
+            addToSignature(constructorSignature, entry.getKey(), entry.getValue());
+            System.out.println(entry.getKey().getQualifiedName() + "(");
+            final int size = constructorSignature.size();
+            int i = 0;
+            for (Map.Entry<String, String> parameter : constructorSignature.entrySet()) {
+                System.out.print("    " + parameter.getValue() + " " + parameter.getKey());
+                if (i < size - 1) {
+                    System.out.print(',');
+                }
+                System.out.print('\n');
+                i++;
+            }
+            System.out.println(")");
+        }
     }
 
     private static String[] toStringArray(FileCollection fileCollection) {
@@ -73,6 +97,38 @@ public class EventImplGenTask extends DefaultTask {
             strings[i++] = file.getAbsolutePath();
         }
         return strings;
+    }
+
+    private static void addToSignature(Map<String, String> signature, CtInterface<?> event, Map<String, CtTypeReference<?>> fields) {
+        if (fields == null) {
+            return;
+        }
+        for (CtTypeReference<?> superEventReference : event.getSuperInterfaces()) {
+            final CtInterface<?> superEvent = (CtInterface<?>) superEventReference.getDeclaration();
+            addToSignature(signature, superEvent, EventClassProcessor.GENERATED_FIELDS.get(superEvent));
+        }
+        for (Map.Entry<String, CtTypeReference<?>> entry : fields.entrySet()) {
+            signature.put(entry.getKey(), toStringWithGeneric(entry.getValue()));
+        }
+    }
+
+    private static String toStringWithGeneric(CtTypeReference<?> type) {
+        String string = type.getQualifiedName();
+        final List<CtTypeReference<?>> generics = type.getActualTypeArguments();
+        if (!generics.isEmpty()) {
+            string += '<' + Joiner.on(", ").join(Lists.transform(generics, TypeToString.INSTANCE)) + '>';
+        }
+        return string;
+    }
+
+    private static class TypeToString implements Function<CtTypeReference<?>, String> {
+
+        private static final TypeToString INSTANCE = new TypeToString();
+
+        @Override
+        public String apply(CtTypeReference<?> type) {
+            return toStringWithGeneric(type);
+        }
     }
 
 }
