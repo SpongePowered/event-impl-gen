@@ -29,12 +29,20 @@ import spoon.reflect.declaration.CtInterface;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.reference.CtTypeReference;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
 public class EventClassProcessor extends AbstractProcessor<CtInterface<?>> {
 
-    public static final Map<CtInterface<?>, Map<String, CtTypeReference<?>>> GENERATED_FIELDS = Maps.newHashMap();
+    public static final Map<CtInterface<?>, Map<String, CtTypeReference<?>>> GENERATED_FIELDS = Maps.newTreeMap(new Comparator<CtInterface<?>>() {
+
+        @Override
+        public int compare(CtInterface<?> o1, CtInterface<?> o2) {
+            return o1.getQualifiedName().compareTo(o2.getQualifiedName());
+        }
+
+    });
 
     public EventClassProcessor() {
         GENERATED_FIELDS.clear();
