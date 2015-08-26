@@ -25,9 +25,12 @@ package org.spongepowered.api.eventimplgen;
 
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.logging.Logger;
 import org.gradle.api.tasks.TaskContainer;
 
 public class EventImplGenPlugin implements Plugin<Project> {
+
+    public static Logger LOGGER;
 
     @Override
     public void apply(Project project) {
@@ -37,6 +40,8 @@ public class EventImplGenPlugin implements Plugin<Project> {
         tasks.getByName("compileJava").dependsOn(task);
 
         project.getExtensions().add("genEventImpl", EventImplGenExtension.class);
+
+        LOGGER = project.getLogger();
     }
 
 }

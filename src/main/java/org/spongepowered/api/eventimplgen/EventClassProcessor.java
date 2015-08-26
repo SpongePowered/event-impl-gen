@@ -59,13 +59,14 @@ public class EventClassProcessor extends AbstractProcessor<CtInterface<?>> {
                 }
             }
             if (fieldName == null || fieldName.isEmpty()) {
-                System.out.println("Unknown method type " + method.getSignature() + " in" + element.getQualifiedName());
+                EventImplGenPlugin.LOGGER.warn("Unknown method type " + method.getSignature() + " in " + element.getQualifiedName());
             } else {
                 final CtTypeReference<?> existingFieldType = fields.get(fieldName);
                 if (existingFieldType != null) {
                     if (!fieldType.equals(existingFieldType)) {
-                        System.out.println("Conflicting types " + existingFieldType.getQualifiedName() + " and " + fieldType.getQualifiedName()
-                            + " for field name " + fieldName + " in" + element.getQualifiedName());
+                        EventImplGenPlugin.LOGGER.warn(
+                            "Conflicting types " + existingFieldType.getQualifiedName() + " and " + fieldType.getQualifiedName() + " for field name "
+                                + fieldName + " in " + element.getQualifiedName());
                     }
                 } else {
                     fields.put(fieldName, fieldType);
