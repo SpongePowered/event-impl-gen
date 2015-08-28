@@ -24,18 +24,20 @@
 package org.spongepowered.api.eventimplgen;
 
 import com.google.common.collect.Maps;
+import org.gradle.api.logging.Logger;
 import spoon.processing.AbstractProcessor;
 import spoon.reflect.declaration.CtInterface;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.reference.CtTypeReference;
+import spoon.support.processing.XmlProcessorProperties;
 
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
-public class EventClassProcessor extends AbstractProcessor<CtInterface<?>> {
+public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
 
-    public static final Map<CtInterface<?>, Map<String, CtTypeReference<?>>> GENERATED_FIELDS = Maps.newTreeMap(new Comparator<CtInterface<?>>() {
+    private final Map<CtInterface<?>, Map<String, CtTypeReference<?>>> generatedFields = Maps.newTreeMap(new Comparator<CtInterface<?>>() {
 
         @Override
         public int compare(CtInterface<?> o1, CtInterface<?> o2) {
@@ -43,14 +45,25 @@ public class EventClassProcessor extends AbstractProcessor<CtInterface<?>> {
         }
 
     });
+    private EventImplGenExtension extension;
+    private Logger logger;
 
-    public EventClassProcessor() {
-        GENERATED_FIELDS.clear();
+    @Override
+    public void init() {
+        try {
+            final XmlProcessorProperties properties = (XmlProcessorProperties) getEnvironment().getProcessorProperties(getClass().getCanonicalName());
+            properties.addProperty("generatedFields", generatedFields);
+            extension = Util.getProperty(properties, "extension");
+            logger = Util.getProperty(properties, "logger");
+        } catch (Exception exception) {
+            exception.printStackTrace();
+            throw new RuntimeException(exception);
+        }
     }
 
     @Override
     public boolean isToBeProcessed(CtInterface<?> candidate) {
-        return EventImplGenExtension.isIncluded(candidate.getPosition().getCompilationUnit().getFile());
+        return extension.isIncluded(candidate.getPosition().getCompilationUnit().getFile());
     }
 
     @Override
@@ -67,12 +80,12 @@ public class EventClassProcessor extends AbstractProcessor<CtInterface<?>> {
                 }
             }
             if (fieldName == null || fieldName.isEmpty()) {
-                EventImplGenPlugin.LOGGER.warn("Unknown method type " + method.getSignature() + " in " + element.getQualifiedName());
+                logger.warn("Unknown method type " + method.getSignature() + " in " + element.getQualifiedName());
             } else {
                 final CtTypeReference<?> existingFieldType = fields.get(fieldName);
                 if (existingFieldType != null) {
                     if (!fieldType.equals(existingFieldType)) {
-                        EventImplGenPlugin.LOGGER.warn(
+                        logger.warn(
                             "Conflicting types " + existingFieldType.getQualifiedName() + " and " + fieldType.getQualifiedName() + " for field name "
                                 + fieldName + " in " + element.getQualifiedName());
                     }
@@ -81,7 +94,7 @@ public class EventClassProcessor extends AbstractProcessor<CtInterface<?>> {
                 }
             }
         }
-        GENERATED_FIELDS.put(element, fields);
+        generatedFields.put(element, fields);
     }
 
     private enum MethodType {

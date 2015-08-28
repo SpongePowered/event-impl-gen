@@ -38,6 +38,7 @@ import spoon.compiler.Environment;
 import spoon.compiler.SpoonCompiler;
 import spoon.reflect.declaration.CtInterface;
 import spoon.reflect.reference.CtTypeReference;
+import spoon.support.processing.XmlProcessorProperties;
 
 import java.io.File;
 import java.util.Collections;
@@ -47,12 +48,12 @@ import java.util.Set;
 
 public class EventImplGenTask extends DefaultTask {
 
-    private static final SpoonAPI SPOON = new Launcher();
-    private static final String EVENT_CLASS_PROCESSOR = EventClassProcessor.class.getCanonicalName();
+    private static final String EVENT_CLASS_PROCESSOR = EventInterfaceProcessor.class.getCanonicalName();
+    private final SpoonAPI spoon = new Launcher();
 
-    static {
-        SPOON.addProcessor(EVENT_CLASS_PROCESSOR);
-        final Environment environment = SPOON.getEnvironment();
+    public EventImplGenTask() {
+        spoon.addProcessor(EVENT_CLASS_PROCESSOR);
+        final Environment environment = spoon.getEnvironment();
         environment.setAutoImports(true);
         environment.setComplianceLevel(6);
         environment.setGenerateJavadoc(true);
@@ -62,19 +63,23 @@ public class EventImplGenTask extends DefaultTask {
     public void task() {
         final SourceSet sourceSet =
             getProject().getConvention().getPlugin(JavaPluginConvention.class).getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
-        final SpoonCompiler compiler = SPOON.createCompiler();
+        final SpoonCompiler compiler = spoon.createCompiler();
         compiler.setSourceClasspath(toStringArray(sourceSet.getCompileClasspath()));
         for (File sourceFile : sourceSet.getAllJava().getSrcDirs()) {
             compiler.addInputSource(sourceFile);
         }
-        compiler.setOutputDirectory(new File("output/"));
+        final XmlProcessorProperties properties = new XmlProcessorProperties(compiler.getFactory(), EVENT_CLASS_PROCESSOR);
+        properties.addProperty("extension", getProject().getExtensions().getByName("genEventImpl"));
+        properties.addProperty("logger", getLogger());
+        spoon.getEnvironment().setProcessorProperties(EVENT_CLASS_PROCESSOR, properties);
         compiler.build();
         compiler.process(Collections.singletonList(EVENT_CLASS_PROCESSOR));
 
-        for (Map.Entry<CtInterface<?>, Map<String, CtTypeReference<?>>> entry : EventClassProcessor.GENERATED_FIELDS.entrySet()) {
+        final Map<CtInterface<?>, Map<String, CtTypeReference<?>>> generatedFields = Util.getProperty(properties, "generatedFields");
+        for (CtInterface<?> event : generatedFields.keySet()) {
             final Map<String, String> constructorSignature = Maps.newLinkedHashMap();
-            addToSignature(constructorSignature, entry.getKey(), entry.getValue());
-            System.out.println(entry.getKey().getQualifiedName() + "(");
+            addToSignature(constructorSignature, generatedFields, event);
+            System.out.println(event.getQualifiedName() + "(");
             final int size = constructorSignature.size();
             int i = 0;
             for (Map.Entry<String, String> parameter : constructorSignature.entrySet()) {
@@ -87,6 +92,7 @@ public class EventImplGenTask extends DefaultTask {
             }
             System.out.println(")");
         }
+        //compiler.getFactory().Class().create()
     }
 
     private static String[] toStringArray(FileCollection fileCollection) {
@@ -99,13 +105,15 @@ public class EventImplGenTask extends DefaultTask {
         return strings;
     }
 
-    private static void addToSignature(Map<String, String> signature, CtInterface<?> event, Map<String, CtTypeReference<?>> fields) {
+    private static void addToSignature(Map<String, String> signature, Map<CtInterface<?>, Map<String, CtTypeReference<?>>> eventFields,
+        CtInterface<?> event) {
+        final Map<String, CtTypeReference<?>> fields = eventFields.get(event);
         if (fields == null) {
             return;
         }
         for (CtTypeReference<?> superEventReference : event.getSuperInterfaces()) {
             final CtInterface<?> superEvent = (CtInterface<?>) superEventReference.getDeclaration();
-            addToSignature(signature, superEvent, EventClassProcessor.GENERATED_FIELDS.get(superEvent));
+            addToSignature(signature, eventFields, superEvent);
         }
         for (Map.Entry<String, CtTypeReference<?>> entry : fields.entrySet()) {
             signature.put(entry.getKey(), toStringWithGeneric(entry.getValue()));
