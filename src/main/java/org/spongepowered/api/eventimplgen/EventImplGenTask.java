@@ -27,6 +27,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import org.gradle.api.DefaultTask;
+import org.gradle.api.file.FileCollection;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskAction;
@@ -52,7 +53,6 @@ import spoon.reflect.reference.CtExecutableReference;
 import spoon.reflect.reference.CtTypeReference;
 import spoon.reflect.visitor.DefaultJavaPrettyPrinter;
 import spoon.support.JavaOutputProcessor;
-import spoon.support.processing.XmlProcessorProperties;
 
 import java.io.File;
 import java.util.Collections;
@@ -81,14 +81,14 @@ public class EventImplGenTask extends DefaultTask {
         final SourceSet sourceSet =
             getProject().getConvention().getPlugin(JavaPluginConvention.class).getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
         final SpoonCompiler compiler = spoon.createCompiler();
-        compiler.setSourceClasspath(Util.toStringArray(sourceSet.getCompileClasspath()));
+        compiler.setSourceClasspath(toStringArray(sourceSet.getCompileClasspath()));
         for (File sourceFile : sourceSet.getAllJava().getSrcDirs()) {
             compiler.addInputSource(sourceFile);
         }
         final Factory factory = compiler.getFactory();
-        final XmlProcessorProperties properties = new XmlProcessorProperties(factory, EVENT_CLASS_PROCESSOR);
-        properties.addProperty("extension", extension);
-        properties.addProperty("logger", getLogger());
+        final ObjectProcessorProperties properties = new ObjectProcessorProperties(EVENT_CLASS_PROCESSOR);
+        properties.put("extension", extension);
+        properties.put("logger", getLogger());
         spoon.getEnvironment().setProcessorProperties(EVENT_CLASS_PROCESSOR, properties);
         // Generate AST
         compiler.build();
@@ -96,7 +96,7 @@ public class EventImplGenTask extends DefaultTask {
         compiler.process(Collections.singletonList(EVENT_CLASS_PROCESSOR));
         // Modify factory class AST
         final CtType<?> factoryClass = factory.Type().get(extension.outputFactory);
-        final Map<CtInterface<?>, Map<String, CtTypeReference<?>>> eventFields = Util.getProperty(properties, "eventFields");
+        final Map<CtInterface<?>, Map<String, CtTypeReference<?>>> eventFields = properties.get(Map.class, "eventFields");
         for (CtInterface<?> event : eventFields.keySet()) {
             final CtMethod<?> method = factory.Core().createMethod();
             method.setParent(factoryClass);
@@ -182,6 +182,16 @@ public class EventImplGenTask extends DefaultTask {
         _return.setReturnedExpression((CtInvocation) createEventImplValues);
         body.addStatement(_return);
         return body;
+    }
+
+    public static String[] toStringArray(FileCollection fileCollection) {
+        final Set<File> files = fileCollection.getFiles();
+        final String[] strings = new String[files.size()];
+        int i = 0;
+        for (File file : files) {
+            strings[i++] = file.getAbsolutePath();
+        }
+        return strings;
     }
 
 }

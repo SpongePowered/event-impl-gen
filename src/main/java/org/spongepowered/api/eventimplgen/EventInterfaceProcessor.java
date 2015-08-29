@@ -29,7 +29,6 @@ import spoon.processing.AbstractProcessor;
 import spoon.reflect.declaration.CtInterface;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.reference.CtTypeReference;
-import spoon.support.processing.XmlProcessorProperties;
 
 import java.util.Comparator;
 import java.util.List;
@@ -51,10 +50,10 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
     @Override
     public void init() {
         try {
-            final XmlProcessorProperties properties = (XmlProcessorProperties) getEnvironment().getProcessorProperties(getClass().getCanonicalName());
-            properties.addProperty("eventFields", eventFields);
-            extension = Util.getProperty(properties, "extension");
-            logger = Util.getProperty(properties, "logger");
+            final ObjectProcessorProperties properties = (ObjectProcessorProperties) getEnvironment().getProcessorProperties(getClass().getCanonicalName());
+            properties.put("eventFields", eventFields);
+            extension = properties.get(EventImplGenExtension.class, "extension");
+            logger = properties.get(Logger.class, "logger");
         } catch (Exception exception) {
             exception.printStackTrace();
             throw new RuntimeException(exception);
