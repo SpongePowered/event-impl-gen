@@ -37,7 +37,7 @@ import java.util.Map;
 
 public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
 
-    private final Map<CtInterface<?>, Map<String, CtTypeReference<?>>> generatedFields = Maps.newTreeMap(new Comparator<CtInterface<?>>() {
+    private final Map<CtInterface<?>, Map<String, CtTypeReference<?>>> eventFields = Maps.newTreeMap(new Comparator<CtInterface<?>>() {
 
         @Override
         public int compare(CtInterface<?> o1, CtInterface<?> o2) {
@@ -52,7 +52,7 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
     public void init() {
         try {
             final XmlProcessorProperties properties = (XmlProcessorProperties) getEnvironment().getProcessorProperties(getClass().getCanonicalName());
-            properties.addProperty("generatedFields", generatedFields);
+            properties.addProperty("eventFields", eventFields);
             extension = Util.getProperty(properties, "extension");
             logger = Util.getProperty(properties, "logger");
         } catch (Exception exception) {
@@ -67,9 +67,9 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
     }
 
     @Override
-    public void process(CtInterface<?> element) {
+    public void process(CtInterface<?> event) {
         final Map<String, CtTypeReference<?>> fields = Maps.newLinkedHashMap();
-        for (CtMethod<?> method : element.getMethods()) {
+        for (CtMethod<?> method : event.getMethods()) {
             String fieldName = null;
             CtTypeReference<?> fieldType = null;
             for (MethodType methodType : MethodType.values()) {
@@ -80,21 +80,21 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
                 }
             }
             if (fieldName == null || fieldName.isEmpty()) {
-                logger.warn("Unknown method type " + method.getSignature() + " in " + element.getQualifiedName());
+                logger.warn("Unknown method type " + method.getSignature() + " in " + event.getQualifiedName());
             } else {
                 final CtTypeReference<?> existingFieldType = fields.get(fieldName);
                 if (existingFieldType != null) {
                     if (!fieldType.equals(existingFieldType)) {
                         logger.warn(
                             "Conflicting types " + existingFieldType.getQualifiedName() + " and " + fieldType.getQualifiedName() + " for field name "
-                                + fieldName + " in " + element.getQualifiedName());
+                                + fieldName + " in " + event.getQualifiedName());
                     }
                 } else {
                     fields.put(fieldName, fieldType);
                 }
             }
         }
-        generatedFields.put(element, fields);
+        eventFields.put(event, fields);
     }
 
     private enum MethodType {
@@ -102,7 +102,8 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
         GETTER("get") {
             @Override
             protected boolean matches(CtMethod<?> method) {
-                return method.getSimpleName().startsWith(prefix) || method.getParameters().isEmpty();
+                final String name = method.getSimpleName();
+                return name.length() > prefix.length() && name.startsWith(prefix) || method.getParameters().isEmpty();
             }
 
             @Override
@@ -122,7 +123,8 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
         SETTER("set") {
             @Override
             protected boolean matches(CtMethod<?> method) {
-                return method.getSimpleName().startsWith(prefix) && method.getParameters().size() == 1;
+                final String name = method.getSimpleName();
+                return name.length() > prefix.length() && name.startsWith(prefix) && method.getParameters().size() == 1;
             }
 
             @Override
@@ -134,7 +136,9 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
         FILTER("filter") {
             @Override
             protected boolean matches(CtMethod<?> method) {
-                return method.getSimpleName().startsWith(prefix) && method.getParameters().size() == 1;
+                final String name = method.getSimpleName();
+                return name.length() > prefix.length() && name.startsWith(prefix) && method.getParameters().size() == 1 && !"void".equals(
+                    method.getType().getSimpleName());
             }
 
             @Override

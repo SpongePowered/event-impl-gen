@@ -23,10 +23,8 @@
  */
 package org.spongepowered.api.eventimplgen;
 
-import com.google.common.base.Function;
-import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.plugins.JavaPluginConvention;
@@ -36,8 +34,19 @@ import spoon.Launcher;
 import spoon.SpoonAPI;
 import spoon.compiler.Environment;
 import spoon.compiler.SpoonCompiler;
+import spoon.reflect.code.CtBlock;
+import spoon.reflect.code.CtReturn;
+import spoon.reflect.declaration.CtClass;
 import spoon.reflect.declaration.CtInterface;
+import spoon.reflect.declaration.CtMethod;
+import spoon.reflect.declaration.CtParameter;
+import spoon.reflect.declaration.CtType;
+import spoon.reflect.declaration.ModifierKind;
+import spoon.reflect.factory.Factory;
+import spoon.reflect.factory.MethodFactory;
 import spoon.reflect.reference.CtTypeReference;
+import spoon.reflect.visitor.DefaultJavaPrettyPrinter;
+import spoon.support.JavaOutputProcessor;
 import spoon.support.processing.XmlProcessorProperties;
 
 import java.io.File;
@@ -54,13 +63,14 @@ public class EventImplGenTask extends DefaultTask {
     public EventImplGenTask() {
         spoon.addProcessor(EVENT_CLASS_PROCESSOR);
         final Environment environment = spoon.getEnvironment();
-        environment.setAutoImports(true);
         environment.setComplianceLevel(6);
         environment.setGenerateJavadoc(true);
     }
 
+    @SuppressWarnings("unchecked")
     @TaskAction
     public void task() {
+        // Configure AST generator
         final SourceSet sourceSet =
             getProject().getConvention().getPlugin(JavaPluginConvention.class).getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
         final SpoonCompiler compiler = spoon.createCompiler();
@@ -68,31 +78,50 @@ public class EventImplGenTask extends DefaultTask {
         for (File sourceFile : sourceSet.getAllJava().getSrcDirs()) {
             compiler.addInputSource(sourceFile);
         }
-        final XmlProcessorProperties properties = new XmlProcessorProperties(compiler.getFactory(), EVENT_CLASS_PROCESSOR);
-        properties.addProperty("extension", getProject().getExtensions().getByName("genEventImpl"));
+        final Factory factory = compiler.getFactory();
+        final XmlProcessorProperties properties = new XmlProcessorProperties(factory, EVENT_CLASS_PROCESSOR);
+        final EventImplGenExtension extension = getProject().getExtensions().getByType(EventImplGenExtension.class);
+        properties.addProperty("extension", extension);
         properties.addProperty("logger", getLogger());
         spoon.getEnvironment().setProcessorProperties(EVENT_CLASS_PROCESSOR, properties);
+        // Generate AST
         compiler.build();
+        // Analyse AST
         compiler.process(Collections.singletonList(EVENT_CLASS_PROCESSOR));
-
-        final Map<CtInterface<?>, Map<String, CtTypeReference<?>>> generatedFields = Util.getProperty(properties, "generatedFields");
-        for (CtInterface<?> event : generatedFields.keySet()) {
-            final Map<String, String> constructorSignature = Maps.newLinkedHashMap();
-            addToSignature(constructorSignature, generatedFields, event);
-            System.out.println(event.getQualifiedName() + "(");
-            final int size = constructorSignature.size();
-            int i = 0;
-            for (Map.Entry<String, String> parameter : constructorSignature.entrySet()) {
-                System.out.print("    " + parameter.getValue() + " " + parameter.getKey());
-                if (i < size - 1) {
-                    System.out.print(',');
-                }
-                System.out.print('\n');
-                i++;
-            }
-            System.out.println(")");
+        // Generate factory class AST
+        final CtClass<?> factoryClass = factory.Class().create(extension.outputFactory);
+        factoryClass.addModifier(ModifierKind.PUBLIC);
+        factoryClass.addModifier(ModifierKind.FINAL);
+        final Map<CtInterface<?>, Map<String, CtTypeReference<?>>> eventFields = Util.getProperty(properties, "eventFields");
+        for (CtInterface<?> event : eventFields.keySet()) {
+            final CtMethod<?> method = factory.Core().createMethod();
+            method.addModifier(ModifierKind.PUBLIC);
+            method.addModifier(ModifierKind.STATIC);
+            method.setType((CtTypeReference) event.getReference());
+            method.setSimpleName(generateMethodName(event));
+            method.setParameters(generateConstructorParameters(factory.Method(), eventFields, event));
+            final CtBlock<?> body = factory.Core().createBlock();
+            final CtReturn<Object> _return = factory.Core().createReturn();
+            _return.setReturnedExpression(factory.Code().createLiteral(null));
+            body.addStatement(_return);
+            method.setBody((CtBlock) body);
+            factoryClass.addMethod(method);
         }
-        //compiler.getFactory().Class().create()
+        // Output source code from AST
+        final JavaOutputProcessor outputProcessor =
+            new JavaOutputProcessor(new File(extension.outputDir), new DefaultJavaPrettyPrinter(factory.getEnvironment()));
+        outputProcessor.setFactory(factory);
+        outputProcessor.createJavaFile(factoryClass);
+    }
+
+    private String generateMethodName(CtType<?> event) {
+        final StringBuilder name = new StringBuilder();
+        do {
+            name.insert(0, event.getSimpleName());
+            event = event.getDeclaringType();
+        } while (event != null);
+        name.insert(0, "create");
+        return name.toString();
     }
 
     private static String[] toStringArray(FileCollection fileCollection) {
@@ -105,37 +134,25 @@ public class EventImplGenTask extends DefaultTask {
         return strings;
     }
 
-    private static void addToSignature(Map<String, String> signature, Map<CtInterface<?>, Map<String, CtTypeReference<?>>> eventFields,
-        CtInterface<?> event) {
+    private static List<CtParameter<?>> generateConstructorParameters(MethodFactory factory, Map<CtInterface<?>, Map<String, CtTypeReference<?>>>
+        eventFields, CtInterface<?> event) {
+        final Set<CtParameter<?>> parameters = Sets.newLinkedHashSet();
+        addConstructorParameters(factory, parameters, eventFields, event);
+        return Lists.newArrayList(parameters);
+    }
+
+    private static void addConstructorParameters(MethodFactory factory, Set<CtParameter<?>> parameters,
+        Map<CtInterface<?>, Map<String, CtTypeReference<?>>> eventFields, CtInterface<?> event) {
         final Map<String, CtTypeReference<?>> fields = eventFields.get(event);
         if (fields == null) {
             return;
         }
         for (CtTypeReference<?> superEventReference : event.getSuperInterfaces()) {
             final CtInterface<?> superEvent = (CtInterface<?>) superEventReference.getDeclaration();
-            addToSignature(signature, eventFields, superEvent);
+            addConstructorParameters(factory, parameters, eventFields, superEvent);
         }
-        for (Map.Entry<String, CtTypeReference<?>> entry : fields.entrySet()) {
-            signature.put(entry.getKey(), toStringWithGeneric(entry.getValue()));
-        }
-    }
-
-    private static String toStringWithGeneric(CtTypeReference<?> type) {
-        String string = type.getQualifiedName();
-        final List<CtTypeReference<?>> generics = type.getActualTypeArguments();
-        if (!generics.isEmpty()) {
-            string += '<' + Joiner.on(", ").join(Lists.transform(generics, TypeToString.INSTANCE)) + '>';
-        }
-        return string;
-    }
-
-    private static class TypeToString implements Function<CtTypeReference<?>, String> {
-
-        private static final TypeToString INSTANCE = new TypeToString();
-
-        @Override
-        public String apply(CtTypeReference<?> type) {
-            return toStringWithGeneric(type);
+        for (Map.Entry<String, CtTypeReference<?>> parameter : fields.entrySet()) {
+            parameters.add(factory.createParameter(null, parameter.getValue(), parameter.getKey()));
         }
     }
 
