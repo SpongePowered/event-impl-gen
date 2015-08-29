@@ -76,6 +76,8 @@ public class EventImplGenTask extends DefaultTask {
     @TaskAction
     public void task() {
         // Configure AST generator
+        final EventImplGenExtension extension = getProject().getExtensions().getByType(EventImplGenExtension.class);
+        spoon.getEnvironment().setNoClasspath(!extension.validateCode);
         final SourceSet sourceSet =
             getProject().getConvention().getPlugin(JavaPluginConvention.class).getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
         final SpoonCompiler compiler = spoon.createCompiler();
@@ -85,7 +87,6 @@ public class EventImplGenTask extends DefaultTask {
         }
         final Factory factory = compiler.getFactory();
         final XmlProcessorProperties properties = new XmlProcessorProperties(factory, EVENT_CLASS_PROCESSOR);
-        final EventImplGenExtension extension = getProject().getExtensions().getByType(EventImplGenExtension.class);
         properties.addProperty("extension", extension);
         properties.addProperty("logger", getLogger());
         spoon.getEnvironment().setProcessorProperties(EVENT_CLASS_PROCESSOR, properties);

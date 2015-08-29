@@ -8,6 +8,7 @@ public class EventImplGenExtension {
     public String[] excludeSrc = new String[0];
     public String outputDir = "";
     public String outputFactory = "";
+    public boolean validateCode = true;
 
     public boolean isIncluded(File file) {
         file = file.getAbsoluteFile();
