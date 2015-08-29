@@ -1,9 +1,12 @@
 package org.spongepowered.api.eventimplgen;
 
+import org.gradle.api.file.FileCollection;
 import spoon.support.processing.XmlProcessorProperties;
 
+import java.io.File;
 import java.lang.reflect.Field;
 import java.util.Map;
+import java.util.Set;
 
 public class Util {
 
@@ -17,6 +20,16 @@ public class Util {
         } catch (Exception exception) {
             throw new RuntimeException(exception);
         }
+    }
+
+    public static String[] toStringArray(FileCollection fileCollection) {
+        final Set<File> files = fileCollection.getFiles();
+        final String[] strings = new String[files.size()];
+        int i = 0;
+        for (File file : files) {
+            strings[i++] = file.getAbsolutePath();
+        }
+        return strings;
     }
 
 }
