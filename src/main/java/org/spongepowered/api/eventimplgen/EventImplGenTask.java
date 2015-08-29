@@ -57,6 +57,7 @@ import spoon.support.JavaOutputProcessor;
 
 import java.io.File;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -109,7 +110,7 @@ public class EventImplGenTask extends DefaultTask {
             final List<CtParameter<?>> parameters = generateMethodParameters(factory.Method(), eventFields, event);
             method.setParameters(parameters);
             method.setBody((CtBlock) generateMethodBody(factory, factoryClass, extension.eventImplCreateMethod, event, parameters));
-            factoryClass.removeMethod(method);
+            removeMethodsByName(factoryClass, method.getSimpleName());
             factoryClass.addMethod(method);
         }
         // Output source code from AST
@@ -186,7 +187,15 @@ public class EventImplGenTask extends DefaultTask {
         return body;
     }
 
-    public static String[] toStringArray(FileCollection fileCollection) {
+    private static void removeMethodsByName(CtType<?> type, String name) {
+        for (Iterator<CtMethod<?>> iterator = type.getMethods().iterator(); iterator.hasNext(); ) {
+            if (iterator.next().getSimpleName().equals(name)) {
+                iterator.remove();
+            }
+        }
+    }
+
+    private static String[] toStringArray(FileCollection fileCollection) {
         final Set<File> files = fileCollection.getFiles();
         final String[] strings = new String[files.size()];
         int i = 0;

@@ -33,6 +33,7 @@ public class EventImplGenExtension {
     public String outputFactory = "";
     public boolean validateCode = true;
     public String eventImplCreateMethod = "";
+    public String disambAnnot = "";
 
     public boolean isIncluded(File file) {
         file = file.getAbsoluteFile();

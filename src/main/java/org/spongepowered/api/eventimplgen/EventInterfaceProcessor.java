@@ -23,13 +23,17 @@
  */
 package org.spongepowered.api.eventimplgen;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import org.gradle.api.logging.Logger;
 import spoon.processing.AbstractProcessor;
+import spoon.reflect.declaration.CtAnnotation;
+import spoon.reflect.declaration.CtElement;
 import spoon.reflect.declaration.CtInterface;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.reference.CtTypeReference;
 
+import java.lang.annotation.Annotation;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -50,7 +54,8 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
     @Override
     public void init() {
         try {
-            final ObjectProcessorProperties properties = (ObjectProcessorProperties) getEnvironment().getProcessorProperties(getClass().getCanonicalName());
+            final ObjectProcessorProperties properties =
+                (ObjectProcessorProperties) getEnvironment().getProcessorProperties(getClass().getCanonicalName());
             properties.put("eventFields", eventFields);
             extension = properties.get(EventImplGenExtension.class, "extension");
             logger = properties.get(Logger.class, "logger");
@@ -68,7 +73,13 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
     @Override
     public void process(CtInterface<?> event) {
         final Map<String, CtTypeReference<?>> fields = Maps.newLinkedHashMap();
+        if (searchForExplicitFields(fields, event)) {
+            return;
+        }
         for (CtMethod<?> method : event.getMethods()) {
+            if (searchForExplicitFields(fields, method)) {
+                continue;
+            }
             String fieldName = null;
             CtTypeReference<?> fieldType = null;
             for (MethodType methodType : MethodType.values()) {
@@ -94,6 +105,27 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
             }
         }
         eventFields.put(event, fields);
+    }
+
+    private boolean searchForExplicitFields(Map<String, CtTypeReference<?>> fields, CtElement element) {
+        if (!extension.disambAnnot.isEmpty()) {
+            for (CtAnnotation<? extends Annotation> annotation : element.getAnnotations()) {
+                if (extension.disambAnnot.equals(annotation.getType().getQualifiedName())) {
+                    parseExplicitFields(fields, (String[]) annotation.getElementValue("value"));
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private void parseExplicitFields(Map<String, CtTypeReference<?>> fields, String[] explicitFields) {
+        for (String field : explicitFields) {
+            final String[] nameAndType = field.split(":");
+            Preconditions.checkArgument(nameAndType.length == 2, "Expected a name and type separated by ':'");
+            final CtTypeReference<?> type = getFactory().Type().createReference(nameAndType[1]);
+            fields.put(nameAndType[0], type);
+        }
     }
 
     private enum MethodType {
