@@ -23,6 +23,7 @@
  */
 package org.spongepowered.api.eventimplgen;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -77,6 +78,7 @@ public class EventImplGenTask extends DefaultTask {
     public void task() {
         // Configure AST generator
         final EventImplGenExtension extension = getProject().getExtensions().getByType(EventImplGenExtension.class);
+        Preconditions.checkState(!extension.eventImplCreateMethod.isEmpty(), "Gradle property eventImplCreateMethod isn't defined");
         spoon.getEnvironment().setNoClasspath(!extension.validateCode);
         final SourceSet sourceSet =
             getProject().getConvention().getPlugin(JavaPluginConvention.class).getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
@@ -106,7 +108,7 @@ public class EventImplGenTask extends DefaultTask {
             method.setSimpleName(generateMethodName(event));
             final List<CtParameter<?>> parameters = generateMethodParameters(factory.Method(), eventFields, event);
             method.setParameters(parameters);
-            method.setBody((CtBlock) generateMethodBody(factory, factoryClass, event, parameters));
+            method.setBody((CtBlock) generateMethodBody(factory, factoryClass, extension.eventImplCreateMethod, event, parameters));
             factoryClass.removeMethod(method);
             factoryClass.addMethod(method);
         }
@@ -150,7 +152,7 @@ public class EventImplGenTask extends DefaultTask {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private static CtBlock<?> generateMethodBody(Factory factory, CtType<?> factoryClass, CtInterface<?> event,
+    private static CtBlock<?> generateMethodBody(Factory factory, CtType<?> factoryClass, String eventImplCreationMethod, CtInterface<?> event,
         List<CtParameter<?>> parameters) {
         final CtBlock<?> body = factory.Core().createBlock();
         // Map<String, Object> values = Maps.newHashMap();
@@ -175,7 +177,7 @@ public class EventImplGenTask extends DefaultTask {
         }
         // return createEventImpl(Event.class, values);
         final CtExecutableReference<?> createEventImpl = factory.Method().createReference(factoryClass.getReference(), true, event.getReference(),
-            "createEventImpl", factory.Type().createReference(Class.class), map);
+            eventImplCreationMethod, factory.Type().createReference(Class.class), map);
         final CtFieldAccess<? extends Class<?>> eventClass = factory.Code().createClassAccess(event.getReference());
         final CtInvocation<?> createEventImplValues = factory.Code().createInvocation(_null, createEventImpl, eventClass, values);
         final CtReturn<?> _return = factory.Core().createReturn();

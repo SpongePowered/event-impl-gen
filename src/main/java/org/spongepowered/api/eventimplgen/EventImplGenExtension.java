@@ -32,6 +32,7 @@ public class EventImplGenExtension {
     public String outputDir = "";
     public String outputFactory = "";
     public boolean validateCode = true;
+    public String eventImplCreateMethod = "";
 
     public boolean isIncluded(File file) {
         file = file.getAbsoluteFile();
