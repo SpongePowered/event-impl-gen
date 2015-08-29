@@ -24,6 +24,7 @@
 package org.spongepowered.api.eventimplgen;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.plugins.JavaPluginConvention;
@@ -34,8 +35,12 @@ import spoon.SpoonAPI;
 import spoon.compiler.Environment;
 import spoon.compiler.SpoonCompiler;
 import spoon.reflect.code.CtBlock;
+import spoon.reflect.code.CtFieldAccess;
+import spoon.reflect.code.CtInvocation;
+import spoon.reflect.code.CtLiteral;
+import spoon.reflect.code.CtLocalVariable;
 import spoon.reflect.code.CtReturn;
-import spoon.reflect.declaration.CtClass;
+import spoon.reflect.code.CtVariableAccess;
 import spoon.reflect.declaration.CtInterface;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtParameter;
@@ -43,6 +48,7 @@ import spoon.reflect.declaration.CtType;
 import spoon.reflect.declaration.ModifierKind;
 import spoon.reflect.factory.Factory;
 import spoon.reflect.factory.MethodFactory;
+import spoon.reflect.reference.CtExecutableReference;
 import spoon.reflect.reference.CtTypeReference;
 import spoon.reflect.visitor.DefaultJavaPrettyPrinter;
 import spoon.support.JavaOutputProcessor;
@@ -87,23 +93,20 @@ public class EventImplGenTask extends DefaultTask {
         compiler.build();
         // Analyse AST
         compiler.process(Collections.singletonList(EVENT_CLASS_PROCESSOR));
-        // Generate factory class AST
-        final CtClass<?> factoryClass = factory.Class().create(extension.outputFactory);
-        factoryClass.addModifier(ModifierKind.PUBLIC);
-        factoryClass.addModifier(ModifierKind.FINAL);
+        // Modify factory class AST
+        final CtType<?> factoryClass = factory.Type().get(extension.outputFactory);
         final Map<CtInterface<?>, Map<String, CtTypeReference<?>>> eventFields = Util.getProperty(properties, "eventFields");
         for (CtInterface<?> event : eventFields.keySet()) {
             final CtMethod<?> method = factory.Core().createMethod();
+            method.setParent(factoryClass);
             method.addModifier(ModifierKind.PUBLIC);
             method.addModifier(ModifierKind.STATIC);
             method.setType((CtTypeReference) event.getReference());
             method.setSimpleName(generateMethodName(event));
-            method.setParameters(generateConstructorParameters(factory.Method(), eventFields, event));
-            final CtBlock<?> body = factory.Core().createBlock();
-            final CtReturn<Object> _return = factory.Core().createReturn();
-            _return.setReturnedExpression(factory.Code().createLiteral(null));
-            body.addStatement(_return);
-            method.setBody((CtBlock) body);
+            final List<CtParameter<?>> parameters = generateMethodParameters(factory.Method(), eventFields, event);
+            method.setParameters(parameters);
+            method.setBody((CtBlock) generateMethodBody(factory, factoryClass, event, parameters));
+            factoryClass.removeMethod(method);
             factoryClass.addMethod(method);
         }
         // Output source code from AST
@@ -123,14 +126,14 @@ public class EventImplGenTask extends DefaultTask {
         return name.toString();
     }
 
-    private static List<CtParameter<?>> generateConstructorParameters(MethodFactory factory, Map<CtInterface<?>, Map<String, CtTypeReference<?>>>
+    private static List<CtParameter<?>> generateMethodParameters(MethodFactory factory, Map<CtInterface<?>, Map<String, CtTypeReference<?>>>
         eventFields, CtInterface<?> event) {
         final Set<CtParameter<?>> parameters = Sets.newLinkedHashSet();
-        addConstructorParameters(factory, parameters, eventFields, event);
+        addMethodParameters(factory, parameters, eventFields, event);
         return Lists.newArrayList(parameters);
     }
 
-    private static void addConstructorParameters(MethodFactory factory, Set<CtParameter<?>> parameters,
+    private static void addMethodParameters(MethodFactory factory, Set<CtParameter<?>> parameters,
         Map<CtInterface<?>, Map<String, CtTypeReference<?>>> eventFields, CtInterface<?> event) {
         final Map<String, CtTypeReference<?>> fields = eventFields.get(event);
         if (fields == null) {
@@ -138,11 +141,46 @@ public class EventImplGenTask extends DefaultTask {
         }
         for (CtTypeReference<?> superEventReference : event.getSuperInterfaces()) {
             final CtInterface<?> superEvent = (CtInterface<?>) superEventReference.getDeclaration();
-            addConstructorParameters(factory, parameters, eventFields, superEvent);
+            addMethodParameters(factory, parameters, eventFields, superEvent);
         }
         for (Map.Entry<String, CtTypeReference<?>> parameter : fields.entrySet()) {
             parameters.add(factory.createParameter(null, parameter.getValue(), parameter.getKey()));
         }
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static CtBlock<?> generateMethodBody(Factory factory, CtType<?> factoryClass, CtInterface<?> event,
+        List<CtParameter<?>> parameters) {
+        final CtBlock<?> body = factory.Core().createBlock();
+        // Map<String, Object> values = Maps.newHashMap();
+        final CtTypeReference<Maps> maps = factory.Type().createReference(Maps.class);
+        final CtTypeReference<Map> map = factory.Type().createReference(Map.class);
+        final CtExecutableReference<Map> newHashMap = factory.Method().createReference(maps, true, map, "newHashMap");
+        final CtLiteral<Object> _null = factory.Code().createLiteral(null);
+        final CtInvocation<Map> mapsNewHashMap = factory.Code().createInvocation(_null, newHashMap);
+        final CtTypeReference<Map> mapStringObject = factory.Type().createReference(Map.class);
+        final CtTypeReference<Object> object = factory.Type().createReference(Object.class);
+        mapStringObject.setActualTypeArguments(Lists.newArrayList(factory.Type().createReference(String.class), object));
+        final CtLocalVariable<Map> mapValues = factory.Code().createLocalVariable(mapStringObject, "values", mapsNewHashMap);
+        body.addStatement(mapValues);
+        // values.put("param1", param1); values.put("param2", param2); ...
+        final CtVariableAccess<Map> values = factory.Code().createVariableRead(mapValues.getReference(), false);
+        for (CtParameter<?> parameter : parameters) {
+            final CtLiteral<String> key = factory.Code().createLiteral(parameter.getSimpleName());
+            final CtVariableAccess<?> value = factory.Code().createVariableRead(parameter.getReference(), false);
+            final CtExecutableReference<Object> put = factory.Method().createReference(map, false, object, "put");
+            final CtInvocation<Object> valuesPut = factory.Code().createInvocation(values, put, key, value);
+            body.addStatement(valuesPut);
+        }
+        // return createEventImpl(Event.class, values);
+        final CtExecutableReference<?> createEventImpl = factory.Method().createReference(factoryClass.getReference(), true, event.getReference(),
+            "createEventImpl", factory.Type().createReference(Class.class), map);
+        final CtFieldAccess<? extends Class<?>> eventClass = factory.Code().createClassAccess(event.getReference());
+        final CtInvocation<?> createEventImplValues = factory.Code().createInvocation(_null, createEventImpl, eventClass, values);
+        final CtReturn<?> _return = factory.Core().createReturn();
+        _return.setReturnedExpression((CtInvocation) createEventImplValues);
+        body.addStatement(_return);
+        return body;
     }
 
 }
