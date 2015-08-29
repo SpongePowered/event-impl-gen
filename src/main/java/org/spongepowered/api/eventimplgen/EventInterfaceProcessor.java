@@ -132,20 +132,6 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
                 return method.getParameters().get(0).getType();
             }
 
-        },
-        FILTER("filter") {
-            @Override
-            protected boolean matches(CtMethod<?> method) {
-                final String name = method.getSimpleName();
-                return name.length() > prefix.length() && name.startsWith(prefix) && method.getParameters().size() == 1 && !"void".equals(
-                    method.getType().getSimpleName());
-            }
-
-            @Override
-            protected CtTypeReference<?> extractFieldType(CtMethod<?> method) {
-                return method.getType();
-            }
-
         };
 
         protected final String prefix;
