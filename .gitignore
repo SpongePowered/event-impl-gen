@@ -2,6 +2,7 @@
 #########
 MANIFEST.MF
 dependency-reduced-pom.xml
+.checkstyle
 
 # Compiled #
 ############
@@ -31,7 +32,6 @@ target
 *.dmg
 *.gz
 *.iso
-*.jar
 *.rar
 *.tar
 *.zip
@@ -60,6 +60,7 @@ Thumbs.db
 .classpath
 .externalToolBuilders
 .gradle
+.nb-gradle
 .idea
 .project
 .settings
@@ -70,18 +71,3 @@ nb-configuration.xml
 *.iml
 *.ipr
 *.iws
-
-# Runtime #
-###########
-/cache
-/config
-/data
-/eclipse
-/natives
-/plugins
-/resources
-/update
-/updates
-config.yml
-/.nb-gradle/profiles/private/
-/.nb-gradle/private/
