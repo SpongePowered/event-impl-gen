@@ -56,6 +56,7 @@ import spoon.reflect.visitor.DefaultJavaPrettyPrinter;
 import spoon.support.JavaOutputProcessor;
 
 import java.io.File;
+import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -118,6 +119,7 @@ public class EventImplGenTask extends DefaultTask {
         // Output source code from AST
         final JavaOutputProcessor outputProcessor =
             new JavaOutputProcessor(new File(extension.outputDir), new DefaultJavaPrettyPrinter(factory.getEnvironment()));
+        setField(outputProcessor, "writePackageAnnotationFile", false);
         outputProcessor.setFactory(factory);
         outputProcessor.createJavaFile(factoryClass);
     }
@@ -241,6 +243,16 @@ public class EventImplGenTask extends DefaultTask {
             strings[i++] = file.getAbsolutePath();
         }
         return strings;
+    }
+
+    private static void setField(Object object, String name, Object value) {
+        try {
+            final Field field = object.getClass().getDeclaredField(name);
+            field.setAccessible(true);
+            field.set(object, value);
+        } catch (Exception exception) {
+            throw new RuntimeException(exception);
+        }
     }
 
 }
