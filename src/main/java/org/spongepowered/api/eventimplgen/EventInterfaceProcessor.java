@@ -133,8 +133,7 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
         GETTER("get") {
             @Override
             protected boolean matches(CtMethod<?> method) {
-                final String name = method.getSimpleName();
-                return name.length() > prefix.length() && name.startsWith(prefix) || method.getParameters().isEmpty();
+                return method.getParameters().isEmpty() && !"void".equals(method.getType().getQualifiedName());
             }
 
             @Override
