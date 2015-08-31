@@ -106,11 +106,13 @@ public class EventImplGenTask extends DefaultTask {
             method.addModifier(ModifierKind.PUBLIC);
             method.addModifier(ModifierKind.STATIC);
             method.setType((CtTypeReference) event.getReference());
-            method.setSimpleName(generateMethodName(event));
+            final String name = generateMethodName(event);
+            method.setSimpleName(name);
             final List<CtParameter<?>> parameters = generateMethodParameters(factory.Method(), eventFields, event);
             method.setParameters(parameters);
             method.setBody((CtBlock) generateMethodBody(factory, factoryClass, extension.eventImplCreateMethod, event, parameters));
-            removeMethodsByName(factoryClass, method.getSimpleName());
+            method.setDocComment(generateDocComment(event, parameters));
+            removeMethodsByName(factoryClass, name);
             factoryClass.addMethod(method);
         }
         // Output source code from AST
@@ -185,6 +187,42 @@ public class EventImplGenTask extends DefaultTask {
         _return.setReturnedExpression((CtInvocation) createEventImplValues);
         body.addStatement(_return);
         return body;
+    }
+
+    private static String generateDocComment(CtType<?> event, List<CtParameter<?>> parameters) {
+        final StringBuilder comment = new StringBuilder();
+        comment.append("AUTOMATICALLY GENERATED, DO NOT EDIT.\n");
+        comment.append("Creates a new instance of\n");
+        comment.append("{@link ").append(event.getQualifiedName().replace('$', '.')).append("}.\n");
+        comment.append('\n');
+        for (CtParameter<?> parameter : parameters) {
+            final String name = parameter.getSimpleName();
+            comment.append("@param ").append(name).append(" The ").append(camelCaseToWords(name)).append('\n');
+        }
+        comment.append("@return A new ");
+        do {
+            comment.append(camelCaseToWords(event.getSimpleName())).append(' ');
+            event = event.getDeclaringType();
+        } while (event != null);
+        return comment.toString();
+    }
+
+    private static String camelCaseToWords(String camelCase) {
+        final StringBuilder words = new StringBuilder();
+        int nextUppercase = camelCase.length();
+        for (int i = 1; i < nextUppercase; i++) {
+            if (Character.isUpperCase(camelCase.charAt(i))) {
+                nextUppercase = i;
+                break;
+            }
+        }
+        words.append(Character.toLowerCase(camelCase.charAt(0)));
+        words.append(camelCase.substring(1, nextUppercase));
+        if (nextUppercase < camelCase.length()) {
+            words.append(' ');
+            words.append(camelCaseToWords(camelCase.substring(nextUppercase)));
+        }
+        return words.toString();
     }
 
     private static void removeMethodsByName(CtType<?> type, String name) {
