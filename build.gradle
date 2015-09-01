@@ -1,75 +1,80 @@
 plugins {
-    id 'java-gradle-plugin'
-
-    id 'eclipse'
-    id 'idea'
-
-    id 'maven'
-
     id 'com.github.hierynomus.license' version '0.11.0'
 }
 
 // Default tasks
 defaultTasks 'licenseFormat', 'build'
 
-// Basic project information
-group = 'org.spongepowered'
-version = '0.1-SNAPSHOT'
+allprojects {
+    apply plugin: 'java'
 
-// Minimum version of Java required
-sourceCompatibility = '1.6'
-targetCompatibility = '1.6'
+    apply plugin: 'eclipse'
+    apply plugin: 'idea'
 
-// Project repositories and dependencies
-repositories {
-    mavenCentral()
+    apply plugin: 'com.github.hierynomus.license'
+
+    // Basic project information
+    group = 'org.spongepowered'
+    version = '0.1-SNAPSHOT'
+
+    // Minimum version of Java required
+    sourceCompatibility = '1.6'
+    targetCompatibility = '1.6'
+
+    // Project repositories and dependencies
+    repositories {
+        mavenCentral()
+    }
+
+    // License header formatting
+    license {
+        ext {
+            name = rootProject.projectName
+            organization = rootProject.organization
+            url = rootProject.url
+        }
+
+        header rootProject.file('HEADER.txt')
+        include '**/*.java'
+
+        ignoreFailures true
+        strictCheck true
+
+        mapping {
+            java = 'SLASHSTAR_STYLE'
+        }
+    }
+
+    // Source compiler configuration
+    configure([compileJava, compileTestJava]) {
+        options.compilerArgs += ['-Xlint:all', '-Xlint:-path']
+        options.deprecation = true
+        options.encoding = 'UTF-8'
+    }
+
+    // JAR manifest configuration
+    jar {
+        manifest {
+            attributes(
+                    'Built-By': System.properties['user.name'],
+                    'Created-By': "${System.properties['java.vm.version']} (${System.properties['java.vm.vendor']})",
+                    'Implementation-Name': project.name,
+                    'Implementation-Version': project.version,
+                    'Implementation-Vendor': project.url,
+            )
+        }
+    }
+
+    // Deployment configuration
+    apply from: rootProject.file('gradle/deploy.gradle')
 }
+
+apply plugin: 'java-gradle-plugin'
 
 dependencies {
+    compile project(':event-gen-core')
     compile 'fr.inria.gforge.spoon:spoon-core:4.2.0'
 }
-
-// License header formatting
-license {
-    ext {
-        name = project.projectName
-        organization = project.organization
-        url = project.url
-    }
-
-    header rootProject.file('HEADER.txt')
-    include '**/*.java'
-
-    ignoreFailures true
-    strictCheck true
-
-    mapping {
-        java = 'SLASHSTAR_STYLE'
-    }
-}
-
-// Source compiler configuration
-configure([compileJava, compileTestJava]) {
-    options.compilerArgs += ['-Xlint:all', '-Xlint:-path']
-    options.deprecation = true
-    options.encoding = 'UTF-8'
-}
-
-// JAR manifest configuration
-jar {
-    manifest {
-        attributes(
-                'Built-By': System.properties['user.name'],
-                'Created-By': "${System.properties['java.vm.version']} (${System.properties['java.vm.vendor']})",
-                'Implementation-Name': project.name,
-                'Implementation-Version': project.version,
-                'Implementation-Vendor': project.url,
-        )
-    }
-}
-
-// Deployment configuration
-apply from: 'gradle/deploy.gradle'
 
 task wrapper(type: Wrapper) {
     gradleVersion = '2.4'
