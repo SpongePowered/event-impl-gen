@@ -1,88 +1,48 @@
-// Default tasks
-defaultTasks 'licenseFormatMain', 'licenseFormatTest', 'build'
+plugins {
+    id 'java-gradle-plugin'
 
-apply plugin: 'java'
-apply plugin: 'license'
-apply plugin: 'maven'
+    id 'eclipse'
+    id 'idea'
+
+    id 'maven'
+
+    id 'com.github.hierynomus.license' version '0.11.0'
+}
+
+// Default tasks
+defaultTasks 'licenseFormat', 'build'
 
 // Basic project information
 group = 'org.spongepowered'
-archivesBaseName = 'event-impl-gen'
-version = '0.0.1-SNAPSHOT'
-
-// Extended project information
-ext.projectName = 'Event Implementation Generator'
-ext.inceptionYear = '2015'
-ext.currentYear = '2015'
-ext.packaging = 'jar'
-ext.url = 'http://spongepowered.org'
-ext.description = 'Event implementation generator for SpongeAPI'
-ext.author = 'SpongePowered'
+version = '0.1-SNAPSHOT'
 
 // Minimum version of Java required
 sourceCompatibility = '1.6'
 targetCompatibility = '1.6'
 
-// Define variables
-ext.buildNumber = project.hasProperty("buildNumber") ? buildNumber : '0'
-ext.ciSystem = project.hasProperty("ciSystem") ? ciSystem : 'unknown'
-ext.commit = project.hasProperty("commit") ? commit : 'unknown'
-
-// Configuration settings
-configurations.all {
-    resolutionStrategy.cacheChangingModulesFor 0, 'seconds' // Always check for new snapshots
-}
-
-// Plugin repositories and dependencies
-buildscript {
-    repositories {
-        mavenCentral()
-        jcenter()
-    }
-    dependencies {
-        classpath 'nl.javadude.gradle.plugins:license-gradle-plugin:0.7.0'
-    }
-}
-
-// Non-plugin repositories and dependencies
+// Project repositories and dependencies
 repositories {
-    mavenLocal()
     mavenCentral()
-    maven {
-        name 'Sonatype'
-        url 'https://oss.sonatype.org/content/repositories/snapshots/'
-    }
-    maven {
-        name 'Sponge maven repo'
-        url 'http://repo.spongepowered.org/maven'
-    }
-    maven {
-        name 'Gradle'
-        url 'http://repo.gradle.org/gradle/libs-releases-local'
-    }
 }
 
 dependencies {
-    compile gradleApi()
     compile 'fr.inria.gforge.spoon:spoon-core:4.2.0'
 }
 
 // License header formatting
-import nl.javadude.gradle.plugins.license.License
-
-tasks.withType(License).each { licenseTask ->
-    licenseTask.exclude '**/*.ttf'
-    licenseTask.exclude '**/*.yml'
-    licenseTask.exclude '**/*.xml'
-}
 license {
-    ext.name = projectName
-    ext.author = author
-    ext.url = url
-    ext.year = inceptionYear + '-' + currentYear
+    ext {
+        name = project.projectName
+        organization = project.organization
+        url = project.url
+    }
+
     header rootProject.file('HEADER.txt')
+    include '**/*.java'
+
     ignoreFailures true
     strictCheck true
+
     mapping {
         java = 'SLASHSTAR_STYLE'
     }
@@ -90,20 +50,27 @@ license {
 
 // Source compiler configuration
 configure([compileJava, compileTestJava]) {
-    options.compilerArgs << '-Xlint:all'
-    options.compilerArgs << '-Xlint:-path'
+    options.compilerArgs += ['-Xlint:all', '-Xlint:-path']
     options.deprecation = true
+    options.encoding = 'UTF-8'
 }
 
 // JAR manifest configuration
 jar {
     manifest {
-        attributes "Built-By": System.properties['user.name'],
-                "Created-By": System.properties['java.vm.version'] + " (" + System.properties['java.vm.vendor'] + ")",
-                "Implementation-Title": name,
-                "Implementation-Version": version + "+" + ciSystem + "-b" + buildNumber + ".git-" + commit,
-                "Implementation-Vendor": url
+        attributes(
+                'Built-By': System.properties['user.name'],
+                'Created-By': "${System.properties['java.vm.version']} (${System.properties['java.vm.vendor']})",
+                'Implementation-Name': project.name,
+                'Implementation-Version': project.version,
+                'Implementation-Vendor': project.url,
+        )
     }
 }
 
+// Deployment configuration
 apply from: 'gradle/deploy.gradle'
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.4'
+}
