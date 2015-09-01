@@ -22,21 +22,28 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.api.eventimplgen;
+package org.spongepowered.api.eventgencore.annotation;
 
-import org.gradle.api.Plugin;
-import org.gradle.api.Project;
-import org.gradle.api.tasks.TaskContainer;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Inherited;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-public class EventImplGenPlugin implements Plugin<Project> {
+/**
+ * Used to indicate the base class that a generated event class extends from.
+ */
+@Inherited
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface ImplementedBy {
 
-    @Override
-    public void apply(Project project) {
-        final TaskContainer tasks = project.getTasks();
-        final EventImplGenTask task = tasks.create("genEventImpl", EventImplGenTask.class);
-        task.dependsOn(project.getConfigurations().getByName("compile"));
-
-        project.getExtensions().add("genEventImpl", EventImplGenExtension.class);
-    }
+    /**
+     * Gets the class which serves as the base class which the generated class for this
+     * event interface will extend.
+     *
+     * @return The base class to use
+     */
+    Class<?> value();
 
 }

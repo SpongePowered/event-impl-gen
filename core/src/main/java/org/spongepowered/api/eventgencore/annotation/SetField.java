@@ -22,21 +22,29 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.api.eventimplgen;
+package org.spongepowered.api.eventgencore.annotation;
 
-import org.gradle.api.Plugin;
-import org.gradle.api.Project;
-import org.gradle.api.tasks.TaskContainer;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-public class EventImplGenPlugin implements Plugin<Project> {
+/**
+ * Used to mark fields which should be set by the class generator, despite
+ * the abstract class having an implementation of the property.
+ */
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.FIELD)
+public @interface SetField {
 
-    @Override
-    public void apply(Project project) {
-        final TaskContainer tasks = project.getTasks();
-        final EventImplGenTask task = tasks.create("genEventImpl", EventImplGenTask.class);
-        task.dependsOn(project.getConfigurations().getByName("compile"));
-
-        project.getExtensions().add("genEventImpl", EventImplGenExtension.class);
-    }
-
+    /**
+     * Indicates whether the field is required to be passed in to an event
+     * constructor.
+     *
+     * <p>Setting this to <code>true</code> will enable the null check in the
+     * event constructor.</p>
+     *
+     * @return Whether having the field is required to be passed in.
+     */
+    boolean isRequired() default false;
 }

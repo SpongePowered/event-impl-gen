@@ -22,21 +22,48 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.api.eventimplgen;
+package org.spongepowered.api.eventgencore;
 
-import org.gradle.api.Plugin;
-import org.gradle.api.Project;
-import org.gradle.api.tasks.TaskContainer;
+import java.util.AbstractQueue;
+import java.util.ArrayDeque;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Queue;
+import java.util.Set;
 
-public class EventImplGenPlugin implements Plugin<Project> {
+/**
+ * A queue implementation that only permits an object to be added to the
+ * queue once, while also rejecting null offers.
+ *
+ * @param <E> The contained type
+ */
+public class NonNullUniqueQueue<E> extends AbstractQueue<E> implements Queue<E> {
+
+    private final Queue<E> queue = new ArrayDeque<E>();
+    private final Set<E> set = new HashSet<E>();
 
     @Override
-    public void apply(Project project) {
-        final TaskContainer tasks = project.getTasks();
-        final EventImplGenTask task = tasks.create("genEventImpl", EventImplGenTask.class);
-        task.dependsOn(project.getConfigurations().getByName("compile"));
-
-        project.getExtensions().add("genEventImpl", EventImplGenExtension.class);
+    public Iterator<E> iterator() {
+        return this.queue.iterator();
     }
 
+    @Override
+    public int size() {
+        return this.queue.size();
+    }
+
+    @Override
+    public boolean offer(E o) {
+        return o != null && this.set.add(o) && this.queue.offer(o);
+    }
+
+    @Override
+    public E poll() {
+        return this.queue.poll();
+    }
+
+    @Override
+    public E peek() {
+        return this.queue.peek();
+    }
 }

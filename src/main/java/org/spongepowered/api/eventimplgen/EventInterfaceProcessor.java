@@ -1,5 +1,5 @@
 /*
- * This file is part of Event Implementation Generator, licensed under the MIT License (MIT).
+ * This file is part of SpongeAPI, licensed under the MIT License (MIT).
  *
  * Copyright (c) SpongePowered <https://www.spongepowered.org>
  * Copyright (c) contributors
@@ -24,19 +24,20 @@
  */
 package org.spongepowered.api.eventimplgen;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import org.gradle.api.logging.Logger;
+import org.spongepowered.api.eventgencore.AccessorFirstStrategy;
+import org.spongepowered.api.eventgencore.Property;
+import org.spongepowered.api.eventgencore.PropertySearchStrategy;
+import org.spongepowered.api.eventimplgen.classwrapper.spoon.SpoonClassWrapper;
 import spoon.processing.AbstractProcessor;
-import spoon.reflect.declaration.CtAnnotation;
-import spoon.reflect.declaration.CtElement;
 import spoon.reflect.declaration.CtInterface;
 import spoon.reflect.declaration.CtMethod;
+import spoon.reflect.declaration.CtType;
 import spoon.reflect.reference.CtTypeReference;
 
-import java.lang.annotation.Annotation;
+import java.util.Collection;
 import java.util.Comparator;
-import java.util.List;
 import java.util.Map;
 
 public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
@@ -49,6 +50,9 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
         }
 
     });
+
+    private final Map<CtType<?>, Collection<? extends Property<CtTypeReference<?>, CtMethod<?>>>> foundProperties = Maps.newHashMap();
+
     private EventImplGenExtension extension;
     private Logger logger;
 
@@ -58,6 +62,7 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
             final ObjectProcessorProperties properties =
                 (ObjectProcessorProperties) getEnvironment().getProcessorProperties(getClass().getCanonicalName());
             properties.put("eventFields", eventFields);
+            properties.put("properties", foundProperties);
             extension = properties.get(EventImplGenExtension.class, "extension");
             logger = properties.get(Logger.class, "logger");
         } catch (Exception exception) {
@@ -73,116 +78,12 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
 
     @Override
     public void process(CtInterface<?> event) {
-        final Map<String, CtTypeReference<?>> fields = Maps.newLinkedHashMap();
-        if (searchForExplicitFields(fields, event)) {
-            return;
-        }
-        for (CtMethod<?> method : event.getMethods()) {
-            if (searchForExplicitFields(fields, method)) {
-                continue;
-            }
-            String fieldName = null;
-            CtTypeReference<?> fieldType = null;
-            for (MethodType methodType : MethodType.values()) {
-                if (methodType.matches(method)) {
-                    fieldName = methodType.generateFieldName(method);
-                    fieldType = methodType.extractFieldType(method);
-                    break;
-                }
-            }
-            if (fieldName == null || fieldName.isEmpty()) {
-                logger.warn("Unknown method type " + method.getSignature() + " in " + event.getQualifiedName());
-            } else {
-                final CtTypeReference<?> existingFieldType = fields.get(fieldName);
-                if (existingFieldType != null) {
-                    if (!fieldType.equals(existingFieldType)) {
-                        logger.warn(
-                            "Conflicting types " + existingFieldType.getQualifiedName() + " and " + fieldType.getQualifiedName() + " for field name "
-                                + fieldName + " in " + event.getQualifiedName());
-                    }
-                } else {
-                    fields.put(fieldName, fieldType);
-                }
-            }
-        }
-        eventFields.put(event, fields);
+
+        PropertySearchStrategy<CtTypeReference<?>, CtMethod<?>> searchStrategy = new AccessorFirstStrategy<CtTypeReference<?>, CtMethod<?>>();
+
+        Collection<? extends Property<CtTypeReference<?>, CtMethod<?>>> eventProps = searchStrategy.findProperties(new SpoonClassWrapper(event.getReference()));
+
+        foundProperties.put(event, eventProps);
+        return;
     }
-
-    private boolean searchForExplicitFields(Map<String, CtTypeReference<?>> fields, CtElement element) {
-        if (!extension.disambAnnot.isEmpty()) {
-            for (CtAnnotation<? extends Annotation> annotation : element.getAnnotations()) {
-                if (extension.disambAnnot.equals(annotation.getType().getQualifiedName())) {
-                    parseExplicitFields(fields, (String[]) annotation.getElementValue("value"));
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private void parseExplicitFields(Map<String, CtTypeReference<?>> fields, String[] explicitFields) {
-        for (String field : explicitFields) {
-            final String[] nameAndType = field.split(":");
-            Preconditions.checkArgument(nameAndType.length == 2, "Expected a name and type separated by ':'");
-            final CtTypeReference<?> type = getFactory().Type().createReference(nameAndType[1]);
-            fields.put(nameAndType[0], type);
-        }
-    }
-
-    private enum MethodType {
-
-        GETTER("get") {
-            @Override
-            protected boolean matches(CtMethod<?> method) {
-                return method.getParameters().isEmpty() && !"void".equals(method.getType().getQualifiedName());
-            }
-
-            @Override
-            protected CtTypeReference<?> extractFieldType(CtMethod<?> method) {
-                CtTypeReference<?> type = method.getType();
-                // Unbox optionals
-                if (type.getSimpleName().equals("Optional")) {
-                    final List<CtTypeReference<?>> generics = type.getActualTypeArguments();
-                    if (generics.size() == 1) {
-                        type = generics.get(0);
-                    }
-                }
-                return type;
-            }
-
-        },
-        SETTER("set") {
-            @Override
-            protected boolean matches(CtMethod<?> method) {
-                final String name = method.getSimpleName();
-                return name.length() > prefix.length() && name.startsWith(prefix) && method.getParameters().size() == 1;
-            }
-
-            @Override
-            protected CtTypeReference<?> extractFieldType(CtMethod<?> method) {
-                return method.getParameters().get(0).getType();
-            }
-
-        };
-
-        protected final String prefix;
-
-        MethodType(String prefix) {
-            this.prefix = prefix;
-        }
-
-        protected abstract boolean matches(CtMethod<?> method);
-
-        protected abstract CtTypeReference<?> extractFieldType(CtMethod<?> method);
-
-        private String generateFieldName(CtMethod<?> method) {
-            String name = method.getSimpleName();
-            if (name.startsWith(prefix)) {
-                name = name.substring(prefix.length());
-            }
-            return Character.toLowerCase(name.charAt(0)) + name.substring(1);
-        }
-
-    }
-
 }

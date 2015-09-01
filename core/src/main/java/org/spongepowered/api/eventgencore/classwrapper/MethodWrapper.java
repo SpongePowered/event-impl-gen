@@ -22,21 +22,29 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.api.eventimplgen;
+package org.spongepowered.api.eventgencore.classwrapper;
 
-import org.gradle.api.Plugin;
-import org.gradle.api.Project;
-import org.gradle.api.tasks.TaskContainer;
+import java.lang.reflect.Method;
+import java.util.List;
 
-public class EventImplGenPlugin implements Plugin<Project> {
+/**
+ * An interface to abstract over a Spoon class or {@link Method}
+ *
+ * @param <M> The underlying method type
+ * @param <T> The underlying class type
+ */
+public interface MethodWrapper<T, M> {
 
-    @Override
-    public void apply(Project project) {
-        final TaskContainer tasks = project.getTasks();
-        final EventImplGenTask task = tasks.create("genEventImpl", EventImplGenTask.class);
-        task.dependsOn(project.getConfigurations().getByName("compile"));
+    String getName();
 
-        project.getExtensions().add("genEventImpl", EventImplGenExtension.class);
-    }
+    boolean isPublic();
+
+    ClassWrapper<T, M> getReturnType();
+
+    List<ClassWrapper<T, M>> getParameterTypes();
+
+    M getActualMethod();
+
+    ClassWrapper<T, M> getEnclosingClass();
 
 }
