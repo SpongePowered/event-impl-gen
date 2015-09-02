@@ -37,7 +37,7 @@ allprojects {
         header rootProject.file('HEADER.txt')
         include '**/*.java'
 
-        ignoreFailures true
+        ignoreFailures false
         strictCheck true
 
         mapping {
