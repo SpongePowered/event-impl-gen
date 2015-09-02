@@ -1,4 +1,9 @@
+configurations {
+    provided
+    compile.extendsFrom provided
+}
+
 dependencies {
-    compile 'com.google.guava:guava:17.0'
-    compile 'com.google.code.findbugs:jsr305:1.3.9'
+    provided 'com.google.guava:guava:17.0'
+    provided 'com.google.code.findbugs:jsr305:1.3.9'
 }
