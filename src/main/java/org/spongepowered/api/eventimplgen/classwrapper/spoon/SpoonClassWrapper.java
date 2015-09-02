@@ -103,7 +103,6 @@ public class SpoonClassWrapper implements ClassWrapper<CtTypeReference<?>, CtMet
 
     @Override
     public ClassWrapper<CtTypeReference<?>, CtMethod<?>> getBaseClass(Class<?> annotationClass) {
-        CtAnnotation<?> implementedBy = null;
         final Queue<CtTypeReference<?>> queue = new ArrayDeque<CtTypeReference<?>>();
 
         queue.add(this.clazz);
@@ -112,17 +111,12 @@ public class SpoonClassWrapper implements ClassWrapper<CtTypeReference<?>, CtMet
         while ((scannedType = queue.poll()) != null) {
             for (CtAnnotation<? extends Annotation> annotation : scannedType.getDeclaration().getAnnotations()) {
                 if (annotationClass.getName().equals(annotation.getType().getQualifiedName())) {
-                    implementedBy = annotation;
-                    break;
+                    return new SpoonClassWrapper(((CtFieldReference<?>) annotation.getElementValues().get("value")).getDeclaringType());
                 }
             }
             for (CtTypeReference<?> implInterfaces : scannedType.getDeclaration().getSuperInterfaces()) {
                 queue.offer(implInterfaces);
             }
-        }
-
-        if (implementedBy != null) {
-            return new SpoonClassWrapper(((CtFieldReference<?>) implementedBy.getElementValues().get("value")).getDeclaringType());
         }
         return null;
 
