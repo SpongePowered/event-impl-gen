@@ -32,7 +32,7 @@ import org.gradle.api.DefaultTask;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.tasks.SourceSet;
-import org.gradle.api.tasks.TaskAction;;
+import org.gradle.api.tasks.TaskAction;
 import org.spongepowered.api.eventgencore.Property;
 import org.spongepowered.api.eventgencore.annotation.ImplementedBy;
 import org.spongepowered.api.eventgencore.annotation.SetField;
@@ -61,7 +61,6 @@ import spoon.reflect.visitor.DefaultJavaPrettyPrinter;
 import spoon.support.JavaOutputProcessor;
 
 import java.io.File;
-import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -74,20 +73,19 @@ public class EventImplGenTask extends DefaultTask {
     private static final String EVENT_CLASS_PROCESSOR = EventInterfaceProcessor.class.getCanonicalName();
     private final SpoonAPI spoon = new Launcher();
 
-    private static EventImplGenExtension extension;
-
     public EventImplGenTask() {
         spoon.addProcessor(EVENT_CLASS_PROCESSOR);
         final Environment environment = spoon.getEnvironment();
         environment.setComplianceLevel(6);
         environment.setGenerateJavadoc(true);
+        environment.setAutoImports(true);
     }
 
     @SuppressWarnings("unchecked")
     @TaskAction
     public void task() {
         // Configure AST generator
-        extension = getProject().getExtensions().getByType(EventImplGenExtension.class);
+        final EventImplGenExtension extension = getProject().getExtensions().getByType(EventImplGenExtension.class);
         Preconditions.checkState(!extension.eventImplCreateMethod.isEmpty(), "Gradle property eventImplCreateMethod isn't defined");
         spoon.getEnvironment().setNoClasspath(!extension.validateCode);
         final SourceSet sourceSet =
@@ -100,7 +98,6 @@ public class EventImplGenTask extends DefaultTask {
         final Factory factory = compiler.getFactory();
         final ObjectProcessorProperties properties = new ObjectProcessorProperties(EVENT_CLASS_PROCESSOR);
         properties.put("extension", extension);
-        properties.put("logger", getLogger());
         spoon.getEnvironment().setProcessorProperties(EVENT_CLASS_PROCESSOR, properties);
         // Generate AST2
         compiler.build();
@@ -108,18 +105,15 @@ public class EventImplGenTask extends DefaultTask {
         compiler.process(Collections.singletonList(EVENT_CLASS_PROCESSOR));
         // Modify factory class AST
         final CtType<?> factoryClass = factory.Type().get(extension.outputFactory);
-        //final Map<CtInterface<?>, Map<String, CtTypeReference<?>>> eventFields = properties.get(Map.class, "eventFields");
-        final Map<CtType<?>, Collection<? extends Property<CtTypeReference<?>, CtMethod<?>>>> foundProperties = properties.get(Map.class, "properties");
-
-        for (CtType<?> event: foundProperties.keySet()) {
+        final Map<CtType<?>, Collection<? extends Property<CtTypeReference<?>, CtMethod<?>>>> foundProperties =
+            properties.get(Map.class, "properties");
+        for (Map.Entry<CtType<?>, Collection<? extends Property<CtTypeReference<?>, CtMethod<?>>>> entry : foundProperties.entrySet()) {
+            final CtType<?> event = entry.getKey();
             final CtMethod<?> method = factory.Core().createMethod();
-
-            CtTypeReference reference = event.getReference();
-
             method.setParent(factoryClass);
             method.addModifier(ModifierKind.PUBLIC);
             method.addModifier(ModifierKind.STATIC);
-            method.setType(reference);
+            method.setType((CtTypeReference) event.getReference());
             final String name = generateMethodName(event);
             method.setSimpleName(name);
             final List<CtParameter<?>> parameters = generateMethodParameters(factory.Method(), Lists.newArrayList(foundProperties.get(event)), event);
@@ -130,10 +124,8 @@ public class EventImplGenTask extends DefaultTask {
             factoryClass.addMethod(method);
         }
         // Output source code from AST
-        final JavaOutputProcessor outputProcessor =
-            new JavaOutputProcessor(new File(extension.outputDir), new DefaultJavaPrettyPrinter(factory.getEnvironment()));
-        setField(outputProcessor, "writePackageAnnotationFile", false);
-        outputProcessor.setFactory(factory);
+        final JavaOutputProcessor outputProcessor = new JavaOutputProcessor(factory, new File(extension.outputDir));
+        outputProcessor.setWritePackageAnnotationFile(false);
         outputProcessor.createJavaFile(factoryClass);
     }
 
@@ -148,20 +140,16 @@ public class EventImplGenTask extends DefaultTask {
     }
 
     private static boolean shouldAdd(Property<CtTypeReference<?>, CtMethod<?>> property) {
-
         if (!property.isMostSpecificType()) {
             return false;
         }
-
         if (property.getAccessor().getDeclaringType() != null) {
-            ClassWrapper<CtTypeReference<?>, CtMethod<?>> wrapper = property.getAccessorWrapper().getEnclosingClass().getBaseClass(ImplementedBy.class);
+            final ClassWrapper<CtTypeReference<?>, CtMethod<?>> wrapper =
+                property.getAccessorWrapper().getEnclosingClass().getBaseClass(ImplementedBy.class);
             if (wrapper != null) {
-
-                CtField<?> field = wrapper.getActualClass().getDeclaration().getField(property.getName());
-
+                final CtField<?> field = wrapper.getActualClass().getDeclaration().getField(property.getName());
                 if (field != null) {
-
-                    SetField setField = field.getAnnotation(SetField.class);
+                    final SetField setField = field.getAnnotation(SetField.class);
                     if (setField != null) {
                         return setField.isRequired();
                     }
@@ -171,45 +159,17 @@ public class EventImplGenTask extends DefaultTask {
         return true;
     }
 
-    private static List<CtParameter<?>> generateMethodParameters(MethodFactory factory, List<? extends Property<CtTypeReference<?>, CtMethod<?>>> properties, CtType<?> event) {
+    private static List<CtParameter<?>> generateMethodParameters(MethodFactory factory,
+        List<? extends Property<CtTypeReference<?>, CtMethod<?>>> properties, CtType<?> event) {
         final Set<CtParameter<?>> parameters = Sets.newLinkedHashSet();
-
         Collections.sort(properties);
-
-        for (Property<CtTypeReference<?>, CtMethod<?>> property: properties) {
+        for (Property<CtTypeReference<?>, CtMethod<?>> property : properties) {
             if (shouldAdd(property)) {
                 parameters.add(factory.createParameter(null, property.getMostSpecificType(), property.getName()));
             }
         }
-
-    //addMethodParameters(factory, parameters, properties, event);
-    return Lists.newArrayList(parameters);
-}
-
-    /*private static Property<CtTypeReference<?>, CtMethod<?>> transformProperty(Property<CtTypeReference<?>, CtMethod<?>> property) {
-        if (!extension.disambAnnot.isEmpty()) {
-            for (CtAnnotation<? extends Annotation> annotation: property.getAccessor().getAnnotations()) {
-                if (extension.disambAnnot.equals(annotation.getType().getQualifiedName())) {
-                    return new Property<CtTypeReference<?>, CtMethod<?>>()
-                }
-            }
-        }
-    }*/
-
-    /*private static void addMethodParameters(MethodFactory factory, Set<CtParameter<?>> parameters,
-            List<? extends Property<CtType<?>, CtMethod<?>>> properties, CtType<?> event) {
-        final Map<String, CtTypeReference<?>> fields = eventFields.get(event);
-        if (fields == null) {
-            return;
-        }
-        for (CtTypeReference<?> superEventReference : event.getSuperInterfaces()) {
-            final CtInterface<?> superEvent = (CtInterface<?>) superEventReference.getDeclaration();
-            addMethodParameters(factory, parameters, eventFields, superEvent);
-        }
-        for (Map.Entry<String, CtTypeReference<?>> parameter : fields.entrySet()) {
-            parameters.add(factory.createParameter(null, parameter.getValue(), parameter.getKey()));
-        }
-    }*/
+        return Lists.newArrayList(parameters);
+    }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static CtBlock<?> generateMethodBody(Factory factory, CtType<?> factoryClass, String eventImplCreationMethod, CtType<?> event,
@@ -298,16 +258,6 @@ public class EventImplGenTask extends DefaultTask {
             strings[i++] = file.getAbsolutePath();
         }
         return strings;
-    }
-
-    private static void setField(Object object, String name, Object value) {
-        try {
-            final Field field = object.getClass().getDeclaredField(name);
-            field.setAccessible(true);
-            field.set(object, value);
-        } catch (Exception exception) {
-            throw new RuntimeException(exception);
-        }
     }
 
 }

@@ -57,10 +57,10 @@ public class ReflectionMethodWrapper implements MethodWrapper<Class<?>, Method> 
 
     @Override
     public List<ClassWrapper<Class<?>, Method>> getParameterTypes() {
-        Class[] parameters = this.method.getParameterTypes();
+        Class<?>[] parameters = this.method.getParameterTypes();
         List<ClassWrapper<Class<?>, Method>> wrappers = Lists.newArrayListWithCapacity(parameters.length);
 
-        for (Class parameter: parameters) {
+        for (Class<?> parameter: parameters) {
             wrappers.add(new ReflectionClassWrapper(parameter));
         }
         return wrappers;

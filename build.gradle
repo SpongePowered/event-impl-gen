@@ -36,7 +36,7 @@ allprojects {
 
         header rootProject.file('HEADER.txt')
         include '**/*.java'
-
+        exclude '**/spoon/fixed/**'
         ignoreFailures false
         strictCheck true
 

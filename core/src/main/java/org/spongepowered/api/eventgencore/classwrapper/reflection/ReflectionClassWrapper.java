@@ -62,7 +62,7 @@ public class ReflectionClassWrapper implements ClassWrapper<Class<?>, Method> {
 
     @Override
     public List<ClassWrapper<Class<?>, Method>> getInterfaces() {
-        Class[] interfaces = this.clazz.getInterfaces();
+        Class<?>[] interfaces = this.clazz.getInterfaces();
         List<ClassWrapper<Class<?>, Method>> wrappers = Lists.newArrayListWithCapacity(interfaces.length);
 
         for (Class<?> klass: interfaces) {
@@ -81,7 +81,7 @@ public class ReflectionClassWrapper implements ClassWrapper<Class<?>, Method> {
     }
 
     @Override
-    public Class getActualClass() {
+    public Class<?> getActualClass() {
         return this.clazz;
     }
 

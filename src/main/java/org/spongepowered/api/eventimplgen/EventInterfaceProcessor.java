@@ -25,7 +25,6 @@
 package org.spongepowered.api.eventimplgen;
 
 import com.google.common.collect.Maps;
-import org.gradle.api.logging.Logger;
 import org.spongepowered.api.eventgencore.AccessorFirstStrategy;
 import org.spongepowered.api.eventgencore.Property;
 import org.spongepowered.api.eventgencore.PropertySearchStrategy;
@@ -37,24 +36,13 @@ import spoon.reflect.declaration.CtType;
 import spoon.reflect.reference.CtTypeReference;
 
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.Map;
 
 public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
 
-    private final Map<CtInterface<?>, Map<String, CtTypeReference<?>>> eventFields = Maps.newTreeMap(new Comparator<CtInterface<?>>() {
-
-        @Override
-        public int compare(CtInterface<?> o1, CtInterface<?> o2) {
-            return o1.getQualifiedName().compareTo(o2.getQualifiedName());
-        }
-
-    });
-
+    private final Map<CtInterface<?>, Map<String, CtTypeReference<?>>> eventFields = Maps.newHashMap();
     private final Map<CtType<?>, Collection<? extends Property<CtTypeReference<?>, CtMethod<?>>>> foundProperties = Maps.newHashMap();
-
     private EventImplGenExtension extension;
-    private Logger logger;
 
     @Override
     public void init() {
@@ -64,7 +52,6 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
             properties.put("eventFields", eventFields);
             properties.put("properties", foundProperties);
             extension = properties.get(EventImplGenExtension.class, "extension");
-            logger = properties.get(Logger.class, "logger");
         } catch (Exception exception) {
             exception.printStackTrace();
             throw new RuntimeException(exception);
@@ -78,12 +65,9 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
 
     @Override
     public void process(CtInterface<?> event) {
-
-        PropertySearchStrategy<CtTypeReference<?>, CtMethod<?>> searchStrategy = new AccessorFirstStrategy<CtTypeReference<?>, CtMethod<?>>();
-
-        Collection<? extends Property<CtTypeReference<?>, CtMethod<?>>> eventProps = searchStrategy.findProperties(new SpoonClassWrapper(event.getReference()));
-
+        final PropertySearchStrategy<CtTypeReference<?>, CtMethod<?>> searchStrategy = new AccessorFirstStrategy<CtTypeReference<?>, CtMethod<?>>();
+        final Collection<? extends Property<CtTypeReference<?>, CtMethod<?>>> eventProps = searchStrategy.findProperties(new SpoonClassWrapper
+            (event.getReference()));
         foundProperties.put(event, eventProps);
-        return;
     }
 }
