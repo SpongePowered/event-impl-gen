@@ -170,7 +170,7 @@ public final class Property<T, M> implements Comparable<Property<T, M>> {
         if (this.isSubtypeOf(this.accessor, otherProperty.accessor)) {
             if (this.isSubtypeOf(otherProperty.accessor, this.accessor)) {
                 // Same class, so compare lexographically
-                return this.accessor.getName().compareToIgnoreCase(otherProperty.accessor.getName());
+                return this.accessor.getName().compareTo(otherProperty.accessor.getName());
             }
             // This is a subclass/subinterface, so it's greater (comes after)
             return 1;
