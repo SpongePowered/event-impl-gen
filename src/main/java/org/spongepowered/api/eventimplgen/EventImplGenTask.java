@@ -41,6 +41,7 @@ import spoon.Launcher;
 import spoon.SpoonAPI;
 import spoon.compiler.Environment;
 import spoon.compiler.SpoonCompiler;
+import spoon.fixed.support.JavaOutputProcessor;
 import spoon.reflect.code.CtBlock;
 import spoon.reflect.code.CtFieldAccess;
 import spoon.reflect.code.CtInvocation;
@@ -57,8 +58,6 @@ import spoon.reflect.factory.Factory;
 import spoon.reflect.factory.MethodFactory;
 import spoon.reflect.reference.CtExecutableReference;
 import spoon.reflect.reference.CtTypeReference;
-import spoon.reflect.visitor.DefaultJavaPrettyPrinter;
-import spoon.support.JavaOutputProcessor;
 
 import java.io.File;
 import java.util.Collection;
