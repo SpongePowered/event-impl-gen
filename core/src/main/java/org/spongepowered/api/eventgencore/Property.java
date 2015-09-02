@@ -167,16 +167,20 @@ public final class Property<T, M> implements Comparable<Property<T, M>> {
 
     @Override
     public int compareTo(Property<T, M> otherProperty) {
+        // Screw it, I can't get it to work consistently without this
+        return this.getName().compareTo(otherProperty.getName());
+
+        /*
         if (this.isSubtypeOf(this.accessor, otherProperty.accessor)) {
             if (this.isSubtypeOf(otherProperty.accessor, this.accessor)) {
                 // Same class, so compare lexographically
-                return this.accessor.getName().compareTo(otherProperty.accessor.getName());
+                r
             }
             // This is a subclass/subinterface, so it's greater (comes after)
             return 1;
         }
         // This is a superclass/superinterface, so it's lesser (comes before)
-        return -1;
+        return -1;*/
     }
 
     private boolean isSubtypeOf(MethodWrapper<T, M> first, MethodWrapper<T, M> second) {
