@@ -98,7 +98,7 @@ public class EventImplGenTask extends DefaultTask {
         final ObjectProcessorProperties properties = new ObjectProcessorProperties(EVENT_CLASS_PROCESSOR);
         properties.put("extension", extension);
         spoon.getEnvironment().setProcessorProperties(EVENT_CLASS_PROCESSOR, properties);
-        // Generate AST2
+        // Generate AST
         compiler.build();
         // Analyse AST
         compiler.process(Collections.singletonList(EVENT_CLASS_PROCESSOR));
@@ -195,8 +195,10 @@ public class EventImplGenTask extends DefaultTask {
             body.addStatement(valuesPut);
         }
         // return createEventImpl(Event.class, values);
-        final CtExecutableReference<?> createEventImpl = factory.Method().createReference(factoryClass.getReference(), true, event.getReference(),
-            eventImplCreationMethod, factory.Type().createReference(Class.class), map);
+        final int classMethodSeparator = eventImplCreationMethod.lastIndexOf('.');
+        final CtTypeReference<?> eventImplCreationClass = factory.Type().createReference(eventImplCreationMethod.substring(0, classMethodSeparator));
+        final CtExecutableReference<?> createEventImpl = factory.Method().createReference(eventImplCreationClass, true, event.getReference(),
+            eventImplCreationMethod.substring(classMethodSeparator + 1), factory.Type().createReference(Class.class), map);
         final CtFieldAccess<? extends Class<?>> eventClass = factory.Code().createClassAccess(event.getReference());
         final CtInvocation<?> createEventImplValues = factory.Code().createInvocation(_null, createEventImpl, eventClass, values);
         final CtReturn<?> _return = factory.Core().createReturn();
