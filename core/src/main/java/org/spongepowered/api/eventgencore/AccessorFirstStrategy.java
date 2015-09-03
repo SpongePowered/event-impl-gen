@@ -54,6 +54,7 @@ public class AccessorFirstStrategy<T, M> implements PropertySearchStrategy<T, M>
 
     protected static final Pattern ACCESSOR = Pattern.compile("^get([A-Z].*)");
     protected static final Pattern ACCESSOR_BOOL = Pattern.compile("^is([A-Z].*)");
+    protected static final Pattern ACCESSOR_HAS = Pattern.compile("^has([A-Z].*)");
     protected static final Pattern ACCESSOR_KEEPS = Pattern.compile("^(keeps[A-Z].*)");
     protected static final Pattern MUTATOR = Pattern.compile("^set([A-Z].*)");
 
@@ -84,6 +85,11 @@ public class AccessorFirstStrategy<T, M> implements PropertySearchStrategy<T, M>
             m = ACCESSOR_KEEPS.matcher(methodName);
             if (m.matches() && returnType.isPrimitive(boolean.class)) {
                 return this.getPropertyName(m.group(1));
+            }
+
+            m = ACCESSOR_HAS.matcher(methodName);
+            if (m.matches() && returnType.isPrimitive(boolean.class)) {
+                return this.getPropertyName(methodName); // This is intentional, we want to keep the 'has'
             }
         }
 
