@@ -50,10 +50,7 @@ public class ReflectionUtils {
         if (implementedBy != null) {
             return new ReflectionClassWrapper(implementedBy.value());
         }
-        throw new RuntimeException("Congratulations. You've attempted to create an event which doesn't have "
-                + "an @ImplementedBy annotation, on itself of any of its superinterfaces. "
-                + "If your event extends Event, then, well, something's mess up pretty badly. "
-                + "If not: *WHY* aren't you extending Event????");
+        throw new RuntimeException("The class " + target.getName() + "has no @ImplementedBy annotation in its hierarchy!");
     }
 
 }
