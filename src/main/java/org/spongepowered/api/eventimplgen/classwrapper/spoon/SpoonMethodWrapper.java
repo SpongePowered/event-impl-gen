@@ -34,6 +34,7 @@ import spoon.reflect.declaration.CtParameter;
 import spoon.reflect.declaration.ModifierKind;
 import spoon.reflect.reference.CtTypeReference;
 
+import java.lang.annotation.Annotation;
 import java.util.List;
 import java.util.Set;
 
@@ -76,6 +77,11 @@ public class SpoonMethodWrapper implements MethodWrapper<CtTypeReference<?>, CtM
     @Override
     public CtMethod<?> getActualMethod() {
         return this.method;
+    }
+
+    @Override
+    public <A extends Annotation> A getAnnotation(Class<A> annotation) {
+        return this.method.getAnnotation(annotation);
     }
 
     @Override

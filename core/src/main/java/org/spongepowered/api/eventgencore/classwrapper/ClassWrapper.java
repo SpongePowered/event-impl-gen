@@ -48,6 +48,6 @@ public interface ClassWrapper<T, M> {
 
     boolean isPrimitive(Class<?> clazz);
 
-    ClassWrapper<T, M> getBaseClass(Class<?> annotation);
+    ClassWrapper<T, M> getBaseClass();
 
 }

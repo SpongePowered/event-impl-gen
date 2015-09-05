@@ -28,6 +28,7 @@ import com.google.common.collect.Lists;
 import org.spongepowered.api.eventgencore.classwrapper.ClassWrapper;
 import org.spongepowered.api.eventgencore.classwrapper.MethodWrapper;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
@@ -69,6 +70,11 @@ public class ReflectionMethodWrapper implements MethodWrapper<Class<?>, Method> 
     @Override
     public Method getActualMethod() {
         return this.method;
+    }
+
+    @Override
+    public <A extends Annotation> A getAnnotation(Class<A> annotation) {
+        return this.method.getAnnotation(annotation);
     }
 
     @Override

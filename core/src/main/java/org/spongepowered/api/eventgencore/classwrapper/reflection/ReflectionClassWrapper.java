@@ -91,7 +91,7 @@ public class ReflectionClassWrapper implements ClassWrapper<Class<?>, Method> {
     }
 
     @Override
-    public ClassWrapper<Class<?>, Method> getBaseClass(Class<?> annotation) {
-        return ReflectionUtils.getBaseClass(this.clazz, annotation);
+    public ClassWrapper<Class<?>, Method> getBaseClass() {
+        return ReflectionUtils.getBaseClass(this.clazz);
     }
 }

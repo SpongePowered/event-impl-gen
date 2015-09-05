@@ -123,7 +123,7 @@ public class AccessorFirstStrategy<T, M> implements PropertySearchStrategy<T, M>
      * @param name The name
      * @return The cleaned up name
      */
-    protected String getPropertyName(String name) {
+    public static String getPropertyName(String name) {
         return Character.toLowerCase(name.charAt(0)) + name.substring(1);
     }
 

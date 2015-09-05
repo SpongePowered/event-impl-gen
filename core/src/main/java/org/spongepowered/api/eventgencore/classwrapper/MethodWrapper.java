@@ -24,6 +24,7 @@
  */
 package org.spongepowered.api.eventgencore.classwrapper;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.List;
 
@@ -44,6 +45,8 @@ public interface MethodWrapper<T, M> {
     List<ClassWrapper<T, M>> getParameterTypes();
 
     M getActualMethod();
+
+    <A extends Annotation> A getAnnotation(Class<A> annotation);
 
     ClassWrapper<T, M> getEnclosingClass();
 

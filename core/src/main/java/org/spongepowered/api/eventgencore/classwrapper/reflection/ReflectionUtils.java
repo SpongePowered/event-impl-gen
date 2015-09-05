@@ -31,7 +31,7 @@ import java.util.Queue;
 
 public class ReflectionUtils {
 
-    public static ReflectionClassWrapper getBaseClass(Class<?> target, Class<?> annotation) {
+    public static ReflectionClassWrapper getBaseClass(Class<?> target) {
         ImplementedBy implementedBy = null;
         final Queue<Class<?>> queue = new ArrayDeque<Class<?>>();
 

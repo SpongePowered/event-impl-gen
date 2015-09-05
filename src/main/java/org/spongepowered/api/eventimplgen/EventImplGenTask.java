@@ -34,7 +34,6 @@ import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskAction;
 import org.spongepowered.api.eventgencore.Property;
-import org.spongepowered.api.eventgencore.annotation.ImplementedBy;
 import org.spongepowered.api.eventgencore.annotation.SetField;
 import org.spongepowered.api.eventgencore.classwrapper.ClassWrapper;
 import spoon.Launcher;
@@ -114,7 +113,7 @@ public class EventImplGenTask extends DefaultTask {
             method.addModifier(ModifierKind.STATIC);
             method.setType((CtTypeReference) event.getReference());
             method.setSimpleName(generateMethodName(event));
-            final List<CtParameter<?>> parameters = generateMethodParameters(factory.Method(), Lists.newArrayList(foundProperties.get(event)));
+            final List<CtParameter<?>> parameters = generateMethodParameters(factory.Method(), Lists.newArrayList(foundProperties.get(event)), extension);
             method.setParameters(parameters);
             method.setBody((CtBlock) generateMethodBody(factory, extension.eventImplCreateMethod, event, parameters));
             method.setDocComment(generateDocComment(event, parameters));
@@ -142,7 +141,7 @@ public class EventImplGenTask extends DefaultTask {
         }
         if (property.getAccessor().getDeclaringType() != null) {
             final ClassWrapper<CtTypeReference<?>, CtMethod<?>> wrapper =
-                property.getAccessorWrapper().getEnclosingClass().getBaseClass(ImplementedBy.class);
+                property.getAccessorWrapper().getEnclosingClass().getBaseClass();
             if (wrapper != null) {
                 final CtField<?> field = wrapper.getActualClass().getDeclaration().getField(property.getName());
                 if (field != null) {
@@ -157,9 +156,11 @@ public class EventImplGenTask extends DefaultTask {
     }
 
     private static List<CtParameter<?>> generateMethodParameters(MethodFactory factory,
-        List<? extends Property<CtTypeReference<?>, CtMethod<?>>> properties) {
+            List<? extends Property<CtTypeReference<?>, CtMethod<?>>> properties, final EventImplGenExtension extension) {
         final Set<CtParameter<?>> parameters = Sets.newLinkedHashSet();
-        Collections.sort(properties);
+
+        properties = new PropertySorter(extension.sortPriorityPrefix).sortProperties(properties);
+
         for (Property<CtTypeReference<?>, CtMethod<?>> property : properties) {
             if (shouldAdd(property)) {
                 parameters.add(factory.createParameter(null, property.getMostSpecificType(), property.getName()));
@@ -167,6 +168,7 @@ public class EventImplGenTask extends DefaultTask {
         }
         return Lists.newArrayList(parameters);
     }
+
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static CtBlock<?> generateMethodBody(Factory factory, String eventImplCreationMethod, CtType<?> event,

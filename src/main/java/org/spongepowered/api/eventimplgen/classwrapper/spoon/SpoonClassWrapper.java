@@ -25,6 +25,7 @@
 package org.spongepowered.api.eventimplgen.classwrapper.spoon;
 
 import com.google.common.collect.Lists;
+import org.spongepowered.api.eventgencore.annotation.ImplementedBy;
 import org.spongepowered.api.eventgencore.classwrapper.ClassWrapper;
 import org.spongepowered.api.eventgencore.classwrapper.MethodWrapper;
 import spoon.reflect.declaration.CtAnnotation;
@@ -102,7 +103,7 @@ public class SpoonClassWrapper implements ClassWrapper<CtTypeReference<?>, CtMet
     }
 
     @Override
-    public ClassWrapper<CtTypeReference<?>, CtMethod<?>> getBaseClass(Class<?> annotationClass) {
+    public ClassWrapper<CtTypeReference<?>, CtMethod<?>> getBaseClass() {
         final Queue<CtTypeReference<?>> queue = new ArrayDeque<CtTypeReference<?>>();
 
         queue.add(this.clazz);
@@ -110,7 +111,7 @@ public class SpoonClassWrapper implements ClassWrapper<CtTypeReference<?>, CtMet
 
         while ((scannedType = queue.poll()) != null) {
             for (CtAnnotation<? extends Annotation> annotation : scannedType.getDeclaration().getAnnotations()) {
-                if (annotationClass.getName().equals(annotation.getType().getQualifiedName())) {
+                if (ImplementedBy.class.getName().equals(annotation.getType().getQualifiedName())) {
                     return new SpoonClassWrapper(((CtFieldReference<?>) annotation.getElementValues().get("value")).getDeclaringType());
                 }
             }

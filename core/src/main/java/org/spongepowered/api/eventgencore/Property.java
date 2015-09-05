@@ -27,8 +27,12 @@ package org.spongepowered.api.eventgencore;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ComparisonChain;
 import org.spongepowered.api.eventgencore.classwrapper.ClassWrapper;
 import org.spongepowered.api.eventgencore.classwrapper.MethodWrapper;
+import org.spongepowered.api.eventgencore.comparator.AbsoluteOrderComparator;
+
+import java.util.Comparator;
 
 import javax.annotation.Nullable;
 
@@ -46,6 +50,8 @@ public final class Property<T, M> implements Comparable<Property<T, M>> {
     private final MethodWrapper<T, M> mostSpecificMethod;
     private final MethodWrapper<T, M> accessor;
     private final Optional<MethodWrapper<T, M>> mutator;
+
+    public static AbsoluteOrderComparator ABSOLUTE_ORDER_COMPARATOR = new AbsoluteOrderComparator();
 
     /**
      * Create a new property.
@@ -167,23 +173,6 @@ public final class Property<T, M> implements Comparable<Property<T, M>> {
 
     @Override
     public int compareTo(Property<T, M> otherProperty) {
-        // Screw it, I can't get it to work consistently without this
         return this.getName().compareTo(otherProperty.getName());
-
-        /*
-        if (this.isSubtypeOf(this.accessor, otherProperty.accessor)) {
-            if (this.isSubtypeOf(otherProperty.accessor, this.accessor)) {
-                // Same class, so compare lexographically
-                r
-            }
-            // This is a subclass/subinterface, so it's greater (comes after)
-            return 1;
-        }
-        // This is a superclass/superinterface, so it's lesser (comes before)
-        return -1;*/
-    }
-
-    private boolean isSubtypeOf(MethodWrapper<T, M> first, MethodWrapper<T, M> second) {
-        return first.getEnclosingClass().isSubtypeOf(second.getEnclosingClass());
     }
 }
