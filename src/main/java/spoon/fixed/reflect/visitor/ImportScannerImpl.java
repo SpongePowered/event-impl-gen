@@ -84,8 +84,8 @@ public class ImportScannerImpl extends CtScanner implements ImportScanner {
 
     @Override
     public <T> void visitCtInvocation(CtInvocation<T> invocation) {
-        // For a ctinvocation, we don't have to import declaring type
         scan(invocation.getTarget());
+        scan(invocation.getExecutable());
     }
 
     @Override
