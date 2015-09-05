@@ -27,6 +27,7 @@ package org.spongepowered.api.eventimplgen;
 import org.spongepowered.api.eventgencore.Property;
 
 import java.io.File;
+import java.util.Map;
 
 public class EventImplGenExtension {
 
@@ -37,6 +38,7 @@ public class EventImplGenExtension {
     public boolean validateCode = true;
     public String eventImplCreateMethod = "";
     public String sortPriorityPrefix;
+    public Map<String, String> groupingPrefixes;
 
     public boolean isIncluded(File file) {
         file = file.getAbsoluteFile();

@@ -159,7 +159,7 @@ public class EventImplGenTask extends DefaultTask {
             List<? extends Property<CtTypeReference<?>, CtMethod<?>>> properties, final EventImplGenExtension extension) {
         final Set<CtParameter<?>> parameters = Sets.newLinkedHashSet();
 
-        properties = new PropertySorter(extension.sortPriorityPrefix).sortProperties(properties);
+        properties = new PropertySorter(extension.sortPriorityPrefix, extension.groupingPrefixes).sortProperties(properties);
 
         for (Property<CtTypeReference<?>, CtMethod<?>> property : properties) {
             if (shouldAdd(property)) {

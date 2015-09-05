@@ -44,15 +44,18 @@ import java.util.Map;
 public class PropertySorter {
 
     private String prefix;
+    private Map<String, String> groupingPrefixes;
 
-    public PropertySorter(String prefix) {
+    public PropertySorter(String prefix, Map<String, String> groupingPrefixes) {
         this.prefix = prefix;
+        this.groupingPrefixes = groupingPrefixes;
     }
 
     public List<? extends Property<CtTypeReference<?>,CtMethod<?>>> sortProperties(List<? extends Property<CtTypeReference<?>, CtMethod<?>>> properties) {
         List<Property<CtTypeReference<?>,CtMethod<?>>> finalProperties = Lists.newArrayList();
         Map<String, Property<CtTypeReference<?>,CtMethod<?>>> propertyMap = Maps.newHashMap();
         List<PrefixPair> pairs = Lists.newArrayList();
+        List<Property<CtTypeReference<?>,CtMethod<?>>> primitiveProperties = Lists.newArrayList();
 
         for (Property<CtTypeReference<?>,CtMethod<?>> property: properties) {
             if (property.isMostSpecificType()) {
@@ -79,6 +82,28 @@ public class PropertySorter {
             }
         }
 
+        for (Map.Entry<String, Property<CtTypeReference<?>,CtMethod<?>>> entry: new HashSet<Map.Entry<String, Property<CtTypeReference<?>,CtMethod<?>>>>(propertyMap.entrySet())) {
+            String name = entry.getKey();
+            Property<CtTypeReference<?>,CtMethod<?>> property = entry.getValue();
+
+            if (property.getType().isPrimitive()) {
+                primitiveProperties.add(property);
+                propertyMap.remove(name);
+            } else {
+                for (Map.Entry<String, String> prefixEntry: groupingPrefixes.entrySet()) {
+                    if (name.startsWith(prefixEntry.getKey())) {
+                        String modifiedName = name.replaceFirst(prefixEntry.getKey(), prefixEntry.getValue());
+                        if (propertyMap.containsKey(modifiedName)) {
+                            pairs.add(new PrefixPair(entry.getValue(), propertyMap.get(modifiedName)));
+                            propertyMap.remove(name);
+                            propertyMap.remove(modifiedName);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
         Collections.sort(pairs);
 
         for (PrefixPair pair: pairs) {
@@ -86,10 +111,13 @@ public class PropertySorter {
             finalProperties.add(pair.unprefixed);
         }
 
-        List<Property<CtTypeReference<?>, CtMethod<?>>> normalProperties = Lists.newArrayList(propertyMap.values());
+        List<Property<CtTypeReference<?>,CtMethod<?>>> normalProperties = Lists.newArrayList(propertyMap.values());
+
         Collections.sort(normalProperties);
+        Collections.sort(primitiveProperties);
 
         finalProperties.addAll(normalProperties);
+        finalProperties.addAll(primitiveProperties);
 
         return finalProperties;
     }
