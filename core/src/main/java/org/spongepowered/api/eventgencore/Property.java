@@ -27,12 +27,8 @@ package org.spongepowered.api.eventgencore;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.ComparisonChain;
 import org.spongepowered.api.eventgencore.classwrapper.ClassWrapper;
 import org.spongepowered.api.eventgencore.classwrapper.MethodWrapper;
-import org.spongepowered.api.eventgencore.comparator.AbsoluteOrderComparator;
-
-import java.util.Comparator;
 
 import javax.annotation.Nullable;
 
@@ -50,8 +46,6 @@ public final class Property<T, M> implements Comparable<Property<T, M>> {
     private final MethodWrapper<T, M> mostSpecificMethod;
     private final MethodWrapper<T, M> accessor;
     private final Optional<MethodWrapper<T, M>> mutator;
-
-    public static AbsoluteOrderComparator ABSOLUTE_ORDER_COMPARATOR = new AbsoluteOrderComparator();
 
     /**
      * Create a new property.
