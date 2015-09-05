@@ -62,7 +62,6 @@ import spoon.reflect.reference.CtTypeReference;
 import java.io.File;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -90,7 +89,7 @@ public class EventImplGenTask extends DefaultTask {
         final SourceSet sourceSet =
             getProject().getConvention().getPlugin(JavaPluginConvention.class).getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
         final SpoonCompiler compiler = spoon.createCompiler();
-        compiler.setSourceClasspath(toStringArray(sourceSet.getCompileClasspath()));
+        compiler.setSourceClasspath(toPathArray(sourceSet.getCompileClasspath()));
         for (File sourceFile : sourceSet.getAllJava().getSrcDirs()) {
             compiler.addInputSource(sourceFile);
         }
@@ -104,6 +103,7 @@ public class EventImplGenTask extends DefaultTask {
         compiler.process(Collections.singletonList(EVENT_CLASS_PROCESSOR));
         // Modify factory class AST
         final CtType<?> factoryClass = factory.Type().get(extension.outputFactory);
+        factoryClass.getMethods().clear();
         final Map<CtType<?>, Collection<? extends Property<CtTypeReference<?>, CtMethod<?>>>> foundProperties =
             properties.get(Map.class, "properties");
         for (Map.Entry<CtType<?>, Collection<? extends Property<CtTypeReference<?>, CtMethod<?>>>> entry : foundProperties.entrySet()) {
@@ -113,13 +113,11 @@ public class EventImplGenTask extends DefaultTask {
             method.addModifier(ModifierKind.PUBLIC);
             method.addModifier(ModifierKind.STATIC);
             method.setType((CtTypeReference) event.getReference());
-            final String name = generateMethodName(event);
-            method.setSimpleName(name);
-            final List<CtParameter<?>> parameters = generateMethodParameters(factory.Method(), Lists.newArrayList(foundProperties.get(event)), event);
+            method.setSimpleName(generateMethodName(event));
+            final List<CtParameter<?>> parameters = generateMethodParameters(factory.Method(), Lists.newArrayList(foundProperties.get(event)));
             method.setParameters(parameters);
-            method.setBody((CtBlock) generateMethodBody(factory, factoryClass, extension.eventImplCreateMethod, event, parameters));
+            method.setBody((CtBlock) generateMethodBody(factory, extension.eventImplCreateMethod, event, parameters));
             method.setDocComment(generateDocComment(event, parameters));
-            removeMethodsByName(factoryClass, name);
             factoryClass.addMethod(method);
         }
         // Output source code from AST
@@ -159,7 +157,7 @@ public class EventImplGenTask extends DefaultTask {
     }
 
     private static List<CtParameter<?>> generateMethodParameters(MethodFactory factory,
-        List<? extends Property<CtTypeReference<?>, CtMethod<?>>> properties, CtType<?> event) {
+        List<? extends Property<CtTypeReference<?>, CtMethod<?>>> properties) {
         final Set<CtParameter<?>> parameters = Sets.newLinkedHashSet();
         Collections.sort(properties);
         for (Property<CtTypeReference<?>, CtMethod<?>> property : properties) {
@@ -171,7 +169,7 @@ public class EventImplGenTask extends DefaultTask {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private static CtBlock<?> generateMethodBody(Factory factory, CtType<?> factoryClass, String eventImplCreationMethod, CtType<?> event,
+    private static CtBlock<?> generateMethodBody(Factory factory, String eventImplCreationMethod, CtType<?> event,
         List<CtParameter<?>> parameters) {
         final CtBlock<?> body = factory.Core().createBlock();
         // Map<String, Object> values = Maps.newHashMap();
@@ -243,15 +241,7 @@ public class EventImplGenTask extends DefaultTask {
         return words.toString();
     }
 
-    private static void removeMethodsByName(CtType<?> type, String name) {
-        for (Iterator<CtMethod<?>> iterator = type.getMethods().iterator(); iterator.hasNext(); ) {
-            if (iterator.next().getSimpleName().equals(name)) {
-                iterator.remove();
-            }
-        }
-    }
-
-    private static String[] toStringArray(FileCollection fileCollection) {
+    private static String[] toPathArray(FileCollection fileCollection) {
         final Set<File> files = fileCollection.getFiles();
         final String[] strings = new String[files.size()];
         int i = 0;
