@@ -113,9 +113,11 @@ public class EventImplGenTask extends DefaultTask {
             method.addModifier(ModifierKind.STATIC);
             method.setType((CtTypeReference) event.getReference());
             method.setSimpleName(generateMethodName(event));
-            final List<CtParameter<?>> parameters = generateMethodParameters(factory.Method(), Lists.newArrayList(foundProperties.get(event)), extension);
+            final List<Property<CtTypeReference<?>, CtMethod<?>>> propertyList =
+                    filterProperties(Lists.newArrayList(foundProperties.get(event)), extension);
+            final List<CtParameter<?>> parameters = generateMethodParameters(factory.Method(), propertyList);
             method.setParameters(parameters);
-            method.setBody((CtBlock) generateMethodBody(factory, extension.eventImplCreateMethod, event, parameters));
+            method.setBody((CtBlock) generateMethodBody(factory, extension.eventImplCreateMethod, event, parameters, propertyList));
             method.setDocComment(generateDocComment(event, parameters));
             factoryClass.addMethod(method);
         }
@@ -155,24 +157,36 @@ public class EventImplGenTask extends DefaultTask {
         return true;
     }
 
-    private static List<CtParameter<?>> generateMethodParameters(MethodFactory factory,
-            List<? extends Property<CtTypeReference<?>, CtMethod<?>>> properties, final EventImplGenExtension extension) {
-        final Set<CtParameter<?>> parameters = Sets.newLinkedHashSet();
-
-        properties = new PropertySorter(extension.sortPriorityPrefix, extension.groupingPrefixes).sortProperties(properties);
-
+    private List<Property<CtTypeReference<?>, CtMethod<?>>> filterProperties(List<? extends Property<CtTypeReference<?>, CtMethod<?>>> properties,
+            final EventImplGenExtension extension) {
+        List<Property<CtTypeReference<?>, CtMethod<?>>> filtered = Lists.newArrayList();
+        properties = new PropertySorter(extension.sortPriorityPrefix, extension.groupingPrefixes)
+                .sortProperties(properties);
         for (Property<CtTypeReference<?>, CtMethod<?>> property : properties) {
             if (shouldAdd(property)) {
-                parameters.add(factory.createParameter(null, property.getMostSpecificType(), property.getName()));
+                filtered.add(property);
             }
+        }
+        return filtered;
+    }
+
+    private static List<CtParameter<?>> generateMethodParameters(MethodFactory factory,
+            List<? extends Property<CtTypeReference<?>, CtMethod<?>>> properties) {
+        final Set<CtParameter<?>> parameters = Sets.newLinkedHashSet();
+
+        for (Property<CtTypeReference<?>, CtMethod<?>> property : properties) {
+            parameters.add(factory.createParameter(null, property.getMostSpecificType(), stripOriginalFromString(property.getName())));
         }
         return Lists.newArrayList(parameters);
     }
 
-
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static CtBlock<?> generateMethodBody(Factory factory, String eventImplCreationMethod, CtType<?> event,
-        List<CtParameter<?>> parameters) {
+        List<CtParameter<?>> parameters, List<Property<CtTypeReference<?>, CtMethod<?>>> properties) {
+        final Map<String, CtParameter<?>> paramsByName = Maps.newHashMap();
+        for (CtParameter<?> param : parameters) {
+            paramsByName.put(param.getSimpleName(), param);
+        }
         final CtBlock<?> body = factory.Core().createBlock();
         // Map<String, Object> values = Maps.newHashMap();
         final CtTypeReference<Maps> maps = factory.Type().createReference(Maps.class);
@@ -187,8 +201,9 @@ public class EventImplGenTask extends DefaultTask {
         body.addStatement(mapValues);
         // values.put("param1", param1); values.put("param2", param2); ...
         final CtVariableAccess<Map> values = factory.Code().createVariableRead(mapValues.getReference(), false);
-        for (CtParameter<?> parameter : parameters) {
-            final CtLiteral<String> key = factory.Code().createLiteral(parameter.getSimpleName());
+        for (Property<CtTypeReference<?>, CtMethod<?>> property : properties) {
+            final CtLiteral<String> key = factory.Code().createLiteral(property.getName());
+            final CtParameter<?> parameter = paramsByName.get(stripOriginalFromString(property.getName()));
             final CtVariableAccess<?> value = factory.Code().createVariableRead(parameter.getReference(), false);
             final CtExecutableReference<Object> put = factory.Method().createReference(map, false, object, "put");
             final CtInvocation<Object> valuesPut = factory.Code().createInvocation(values, put, key, value);
@@ -251,6 +266,14 @@ public class EventImplGenTask extends DefaultTask {
             strings[i++] = file.getAbsolutePath();
         }
         return strings;
+    }
+
+    private static String stripOriginalFromString(String name) {
+        if (name.contains("original")) {
+            name = name.replace("original", "");
+            name = name.substring(0, 1).toLowerCase() + name.substring(1);
+        }
+        return name;
     }
 
 }
