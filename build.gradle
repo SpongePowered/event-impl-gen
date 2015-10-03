@@ -15,7 +15,7 @@ allprojects {
 
     // Basic project information
     group = 'org.spongepowered'
-    version = '0.4-SNAPSHOT'
+    version = '0.6-SNAPSHOT'
 
     // Minimum version of Java required
     sourceCompatibility = '1.6'
@@ -24,6 +24,10 @@ allprojects {
     // Project repositories and dependencies
     repositories {
         mavenCentral()
+        maven {
+            name = 'sponge'
+            url = 'http://repo.spongepowered.org/maven'
+        }
     }
 
     // License header formatting
@@ -73,7 +77,7 @@ apply plugin: 'java-gradle-plugin'
 
 dependencies {
     compile project(':event-gen-core')
-    compile 'fr.inria.gforge.spoon:spoon-core:4.2.0'
+    compile 'org.spongepowered:spoon-core:4.3.0-SNAPSHOT'
 }
 
 task wrapper(type: Wrapper) {
