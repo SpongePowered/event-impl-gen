@@ -26,9 +26,10 @@ package org.spongepowered.api.eventgencore;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.base.Optional;
 import org.spongepowered.api.eventgencore.classwrapper.ClassWrapper;
 import org.spongepowered.api.eventgencore.classwrapper.MethodWrapper;
+
+import java.util.Optional;
 
 import javax.annotation.Nullable;
 
@@ -67,7 +68,7 @@ public final class Property<T, M> implements Comparable<Property<T, M>> {
         this.leastSpecificMethod = leastSpecificMethod;
         this.mostSpecificMethod = mostSpecificMethod;
         this.accessor = accessor;
-        this.mutator = Optional.fromNullable(mutator);
+        this.mutator = Optional.ofNullable(mutator);
     }
 
     /**
@@ -148,7 +149,7 @@ public final class Property<T, M> implements Comparable<Property<T, M>> {
         if (this.mutator.isPresent()) {
             return Optional.of(this.mutator.get().getActualMethod());
         }
-        return Optional.absent();
+        return Optional.empty();
     }
 
     /**

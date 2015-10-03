@@ -1231,7 +1231,7 @@ public class DefaultJavaPrettyPrinter implements CtVisitor, PrettyPrinter {
         write(")");
         if (ifElement.getThenStatement() instanceof CtBlock) {
             write(" ");
-            scan(ifElement.getThenStatement());
+            scan(ifElement.<CtStatement>getThenStatement());
             write(" ");
         } else {
             incTab().writeln().writeTabs();
@@ -1246,10 +1246,10 @@ public class DefaultJavaPrettyPrinter implements CtVisitor, PrettyPrinter {
             write("else");
             if (ifElement.getElseStatement() instanceof CtIf) {
                 write(" ");
-                scan(ifElement.getElseStatement());
+                scan(ifElement.<CtStatement>getElseStatement());
             } else if (ifElement.getElseStatement() instanceof CtBlock) {
                 write(" ");
-                scan(ifElement.getElseStatement());
+                scan(ifElement.<CtStatement>getElseStatement());
             } else {
                 incTab().writeln().writeTabs();
                 writeStatement(ifElement.getElseStatement());
@@ -1320,7 +1320,7 @@ public class DefaultJavaPrettyPrinter implements CtVisitor, PrettyPrinter {
                     write("super");
                 }
             } catch (Exception e) {
-                Launcher.logger.error(e.getMessage(), e);
+                Launcher.LOGGER.error(e.getMessage(), e);
             }
         } else {
             // It's a method invocation
@@ -1333,7 +1333,7 @@ public class DefaultJavaPrettyPrinter implements CtVisitor, PrettyPrinter {
                     context.ignoreGenerics = false;
                     write(".");
                 } catch (Exception e) {
-                    Launcher.logger.error(e.getMessage(), e);
+                    Launcher.LOGGER.error(e.getMessage(), e);
                 }
             } else if (invocation.getTarget() != null) {
                 context.enterTarget();
