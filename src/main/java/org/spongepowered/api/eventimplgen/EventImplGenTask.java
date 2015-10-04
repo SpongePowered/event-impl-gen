@@ -73,7 +73,7 @@ public class EventImplGenTask extends DefaultTask {
     public EventImplGenTask() {
         spoon.addProcessor(EVENT_CLASS_PROCESSOR);
         final Environment environment = spoon.getEnvironment();
-        environment.setComplianceLevel(6);
+        environment.setComplianceLevel(8);
         environment.setGenerateJavadoc(true);
         environment.setAutoImports(true);
     }
