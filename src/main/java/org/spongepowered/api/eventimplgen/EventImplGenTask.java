@@ -48,6 +48,7 @@ import spoon.reflect.code.CtLiteral;
 import spoon.reflect.code.CtLocalVariable;
 import spoon.reflect.code.CtReturn;
 import spoon.reflect.code.CtVariableAccess;
+import spoon.reflect.declaration.CtExecutable;
 import spoon.reflect.declaration.CtField;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtParameter;
@@ -114,10 +115,10 @@ public class EventImplGenTask extends DefaultTask {
             method.setType((CtTypeReference) event.getReference());
             method.setSimpleName(generateMethodName(event));
             final List<CtParameter<?>> parameters = generateMethodParameters(factory.Method(), Lists.newArrayList(foundProperties.get(event)), extension);
-            method.setParameters(parameters);
+            method.<CtExecutable>setParameters(parameters);
             method.setBody((CtBlock) generateMethodBody(factory, extension.eventImplCreateMethod, event, parameters));
             method.setDocComment(generateDocComment(event, parameters));
-            factoryClass.addMethod(method);
+            factoryClass.addMethod((CtMethod) method);
         }
         // Output source code from AST
         final JavaOutputProcessor outputProcessor = new JavaOutputProcessor(factory, new File(extension.outputDir));
@@ -202,7 +203,7 @@ public class EventImplGenTask extends DefaultTask {
         final CtFieldAccess<? extends Class<?>> eventClass = factory.Code().createClassAccess(event.getReference());
         final CtInvocation<?> createEventImplValues = factory.Code().createInvocation(_null, createEventImpl, eventClass, values);
         final CtReturn<?> _return = factory.Core().createReturn();
-        _return.setReturnedExpression((CtInvocation) createEventImplValues);
+        _return.<CtReturn>setReturnedExpression((CtInvocation) createEventImplValues);
         body.addStatement(_return);
         return body;
     }
