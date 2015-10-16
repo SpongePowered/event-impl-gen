@@ -30,21 +30,16 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Used to mark fields which should be set by the class generator, despite
- * the abstract class having an implementation of the property.
+ * Used to mark fields which should be used by the class generator.
+ *
+ * <p>The class generator will reference the annotated field when
+ * generating methods, and set it from the constructor arguments</p>
+ *
+ * <p>Any field in an abstract class without this field will not be
+ * set automatically, even if it matches a property from the implemented
+ * event.</p>
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
-public @interface SetField {
-
-    /**
-     * Indicates whether the field is required to be passed in to an event
-     * constructor.
-     *
-     * <p>Setting this to <code>true</code> will enable the null check in the
-     * event constructor.</p>
-     *
-     * @return Whether having the field is required to be passed in.
-     */
-    boolean isRequired() default false;
+public @interface UseField {
 }

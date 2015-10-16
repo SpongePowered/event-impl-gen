@@ -34,8 +34,7 @@ import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskAction;
 import org.spongepowered.api.eventgencore.Property;
-import org.spongepowered.api.eventgencore.annotation.SetField;
-import org.spongepowered.api.eventgencore.classwrapper.ClassWrapper;
+import org.spongepowered.api.eventgencore.annotation.PropertySettings;
 import spoon.Launcher;
 import spoon.SpoonAPI;
 import spoon.compiler.Environment;
@@ -49,7 +48,6 @@ import spoon.reflect.code.CtLocalVariable;
 import spoon.reflect.code.CtReturn;
 import spoon.reflect.code.CtVariableAccess;
 import spoon.reflect.declaration.CtExecutable;
-import spoon.reflect.declaration.CtField;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtParameter;
 import spoon.reflect.declaration.CtType;
@@ -140,7 +138,14 @@ public class EventImplGenTask extends DefaultTask {
         if (!property.isMostSpecificType()) {
             return false;
         }
-        if (property.getAccessor().getDeclaringType() != null) {
+
+        final PropertySettings settings = property.getAccessor().getAnnotation(PropertySettings.class);
+        if (settings != null) {
+            return settings.requiredParameter();
+        }
+        return true;
+
+        /*if (property.getAccessor().getDeclaringType() != null) {
             final ClassWrapper<CtTypeReference<?>, CtMethod<?>> wrapper =
                 property.getAccessorWrapper().getEnclosingClass().getBaseClass();
             if (wrapper != null) {
@@ -153,7 +158,7 @@ public class EventImplGenTask extends DefaultTask {
                 }
             }
         }
-        return true;
+        return true;*/
     }
 
     private static List<CtParameter<?>> generateMethodParameters(MethodFactory factory,

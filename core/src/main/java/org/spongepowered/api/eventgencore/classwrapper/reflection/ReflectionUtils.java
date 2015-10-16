@@ -50,7 +50,7 @@ public class ReflectionUtils {
         if (implementedBy != null) {
             return new ReflectionClassWrapper(implementedBy.value());
         }
-        throw new RuntimeException("The class " + target.getName() + "has no @ImplementedBy annotation in its hierarchy!");
+        return new ReflectionClassWrapper(Object.class);
     }
 
 }
