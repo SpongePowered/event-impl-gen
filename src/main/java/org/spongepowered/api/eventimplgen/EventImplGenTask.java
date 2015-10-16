@@ -144,21 +144,6 @@ public class EventImplGenTask extends DefaultTask {
             return settings.requiredParameter();
         }
         return true;
-
-        /*if (property.getAccessor().getDeclaringType() != null) {
-            final ClassWrapper<CtTypeReference<?>, CtMethod<?>> wrapper =
-                property.getAccessorWrapper().getEnclosingClass().getBaseClass();
-            if (wrapper != null) {
-                final CtField<?> field = wrapper.getActualClass().getDeclaration().getField(property.getName());
-                if (field != null) {
-                    final SetField setField = field.getAnnotation(SetField.class);
-                    if (setField != null) {
-                        return setField.isRequired();
-                    }
-                }
-            }
-        }
-        return true;*/
     }
 
     private static List<CtParameter<?>> generateMethodParameters(MethodFactory factory,
