@@ -25,270 +25,34 @@
 package org.spongepowered.api.eventimplgen;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskAction;
-import org.spongepowered.api.eventgencore.Property;
-import org.spongepowered.api.eventgencore.annotation.PropertySettings;
-import org.spongepowered.api.eventgencore.annotation.codecheck.CompareTo;
-import org.spongepowered.api.eventgencore.annotation.codecheck.FactoryCodeCheck;
-import spoon.Launcher;
-import spoon.SpoonAPI;
-import spoon.compiler.Environment;
-import spoon.compiler.SpoonCompiler;
-import spoon.fixed.support.JavaOutputProcessor;
-import spoon.reflect.code.BinaryOperatorKind;
-import spoon.reflect.code.CtBinaryOperator;
-import spoon.reflect.code.CtBlock;
-import spoon.reflect.code.CtExpression;
-import spoon.reflect.code.CtFieldAccess;
-import spoon.reflect.code.CtInvocation;
-import spoon.reflect.code.CtLiteral;
-import spoon.reflect.code.CtLocalVariable;
-import spoon.reflect.code.CtReturn;
-import spoon.reflect.code.CtVariableAccess;
-import spoon.reflect.declaration.CtExecutable;
-import spoon.reflect.declaration.CtMethod;
-import spoon.reflect.declaration.CtParameter;
-import spoon.reflect.declaration.CtType;
-import spoon.reflect.declaration.ModifierKind;
-import spoon.reflect.factory.Factory;
-import spoon.reflect.factory.MethodFactory;
-import spoon.reflect.reference.CtExecutableReference;
-import spoon.reflect.reference.CtTypeReference;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 public class EventImplGenTask extends DefaultTask {
 
-    private static final String EVENT_CLASS_PROCESSOR = EventInterfaceProcessor.class.getCanonicalName();
-    private final SpoonAPI spoon = new Launcher();
-
-    public EventImplGenTask() {
-        spoon.addProcessor(EVENT_CLASS_PROCESSOR);
-        final Environment environment = spoon.getEnvironment();
-        environment.setComplianceLevel(8);
-        environment.setGenerateJavadoc(true);
-        environment.setAutoImports(true);
-    }
-
-    @SuppressWarnings("unchecked")
     @TaskAction
     public void task() {
         // Configure AST generator
         final EventImplGenExtension extension = getProject().getExtensions().getByType(EventImplGenExtension.class);
         Preconditions.checkState(!extension.eventImplCreateMethod.isEmpty(), "Gradle property eventImplCreateMethod isn't defined");
-        spoon.getEnvironment().setNoClasspath(!extension.validateCode);
         final SourceSet sourceSet =
             getProject().getConvention().getPlugin(JavaPluginConvention.class).getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
-        final SpoonCompiler compiler = spoon.createCompiler();
-        compiler.setSourceClasspath(toPathArray(sourceSet.getCompileClasspath()));
-        for (File sourceFile : sourceSet.getAllJava().getSrcDirs()) {
-            compiler.addInputSource(sourceFile);
+        final WorkingSource workingSource = new WorkingSource();
+        for (File sourceFile : sourceSet.getAllJava().getFiles()) {
+            workingSource.add(sourceFile);
         }
-        final Factory factory = compiler.getFactory();
-        final ObjectProcessorProperties properties = new ObjectProcessorProperties(EVENT_CLASS_PROCESSOR);
-        properties.put("extension", extension);
-        spoon.getEnvironment().setProcessorProperties(EVENT_CLASS_PROCESSOR, properties);
-        // Generate AST
-        compiler.build();
-        // Analyse AST
-        compiler.process(Collections.singletonList(EVENT_CLASS_PROCESSOR));
-        // Modify factory class AST
-        final CtType<?> factoryClass = factory.Type().get(extension.outputFactory);
-        factoryClass.getMethods().clear();
-        final Map<CtType<?>, Collection<? extends Property<CtTypeReference<?>, CtMethod<?>>>> foundProperties =
-            properties.get(Map.class, "properties");
-        for (Map.Entry<CtType<?>, Collection<? extends Property<CtTypeReference<?>, CtMethod<?>>>> entry : foundProperties.entrySet()) {
-            final CtType<?> event = entry.getKey();
-            final CtMethod<?> method = factory.Core().createMethod();
-            method.setParent(factoryClass);
-            method.addModifier(ModifierKind.PUBLIC);
-            method.addModifier(ModifierKind.STATIC);
-            method.setType((CtTypeReference) event.getReference());
-            method.setSimpleName(generateMethodName(event));
-            final Map<CtMethod<?>, CtParameter<?>> parameterMap = generateMethodParameters(factory.Method(), Lists.newArrayList(foundProperties.get(event)), extension);
-            List<CtParameter<?>> parameters = Lists.newArrayList(parameterMap.values());
-            method.<CtExecutable>setParameters(parameters);
-            method.setBody((CtBlock) generateMethodBody(generateMethodName(event), factory, extension.eventImplCreateMethod, event, parameterMap));
-            method.setDocComment(generateDocComment(event, parameters));
-            factoryClass.addMethod((CtMethod) method);
-        }
-        // Output source code from AST
-        final JavaOutputProcessor outputProcessor = new JavaOutputProcessor(factory, new File(extension.outputDir));
-        outputProcessor.setWritePackageAnnotationFile(false);
-        outputProcessor.createJavaFile(factoryClass);
-    }
-
-    private String generateMethodName(CtType<?> event) {
-        final StringBuilder name = new StringBuilder();
-        do {
-            name.insert(0, event.getSimpleName());
-            event = event.getDeclaringType();
-        } while (event != null);
-        name.insert(0, "create");
-        return name.toString();
-    }
-
-    private static boolean shouldAdd(Property<CtTypeReference<?>, CtMethod<?>> property) {
-        if (!property.isMostSpecificType()) {
-            return false;
-        }
-
-        final PropertySettings settings = property.getAccessor().getAnnotation(PropertySettings.class);
-        if (settings != null) {
-            return settings.requiredParameter();
-        }
-        return true;
-    }
-
-    private static Map<CtMethod<?>, CtParameter<?>> generateMethodParameters(MethodFactory factory,
-            List<? extends Property<CtTypeReference<?>, CtMethod<?>>> properties, final EventImplGenExtension extension) {
-
-        final Map<CtMethod<?>, CtParameter<?>> parameters = new LinkedHashMap<>();
-        properties = new PropertySorter(extension.sortPriorityPrefix, extension.groupingPrefixes).sortProperties(properties);
-
-        for (Property<CtTypeReference<?>, CtMethod<?>> property : properties) {
-            if (shouldAdd(property)) {
-                parameters.put(property.getMostSpecificMethod(), factory.createParameter(null, property.getMostSpecificType(), property.getName()));
+        for (String entry : new TreeSet<>(workingSource.getClasses().keySet())) {
+            if (extension.isIncluded(entry)) {
+                System.out.println(entry);
             }
         }
-        return parameters;
-    }
-
-
-    @SuppressWarnings("unchecked")
-    private static List<CtMethod<Object>> findCompareAnnotations(String name, CtType<?> event) {
-        List<CtMethod<?>> annotations = new ArrayList<>();
-        for (CtMethod<?> method: event.getAllMethods()) {
-            if (method.getAnnotation(CompareTo.class) != null && method.getAnnotation(CompareTo.class).value().equals(name)) {
-                annotations.add(method);
-            }
-        }
-        return (List) annotations;
-    }
-
-    private static CtExpression<?> getExpression(Factory factory, CtMethod<?> method, CtParameter<?> parameter) {
-        CompareTo compareTo = method.getAnnotation(CompareTo.class);
-        if (compareTo.method().isEmpty()) {
-            return factory.Code().createVariableRead(parameter.getReference(), false);
-        }
-        CtMethod<?> referencedMethod = method.getType().getDeclaration().getMethod(compareTo.method());
-        if (referencedMethod == null) {
-            throw new IllegalStateException(String.format("Unable to find method %s on type %s", compareTo.method(), method.getType().getDeclaration().getQualifiedName()));
-        }
-
-        CtExecutableReference<?> executableReference = factory.Method().createReference(parameter.getType(), false, referencedMethod.getType(), compareTo.method());
-        return factory.Code().createInvocation(factory.Code().createVariableRead(parameter.getReference(), false), executableReference);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static void generatePreconditionsCheck(String methodName, CtType<?> event, Factory factory, CtBlock<?> body, Map<CtMethod<?>, CtParameter<?>> parameters) {
-        FactoryCodeCheck check = event.getAnnotation(FactoryCodeCheck.class);
-        if (check == null) {
-            return;
-        }
-
-        List<CtMethod<Object>> annotations = findCompareAnnotations(check.value(), event);
-        if (annotations.size() != 2) {
-            throw new IllegalStateException(String.format("@FactoryCodeCheck annotation is present on interface %s, but a @CompareTo annotation"
-                    + " pair was not found! Instead, the following annotated methods were found: %s", event.getQualifiedName(), annotations));
-        }
-
-        annotations.sort((c1, c2) -> c1.getAnnotation(CompareTo.class).position() - c2.getAnnotation(CompareTo.class).position());
-
-        final CtTypeReference<Preconditions> preconditions = factory.Type().createReference(Preconditions.class);
-        CtExecutableReference<Void> checkArgument = factory.Method().createReference(preconditions, true, factory.Type().VOID_PRIMITIVE, "checkArgument");
-
-        CtMethod<Object> method1 = annotations.get(0);
-        CtMethod<Object> method2 = annotations.get(1);
-
-        CtParameter<Object> param1 = (CtParameter) parameters.get(method1);
-        CtParameter<Object> param2 = (CtParameter) parameters.get(method2);
-
-
-        CtExecutableReference<String> format = factory.Method().createReference(factory.Type().STRING, true, factory.Type().STRING, "format");
-        CtInvocation<String> stringFormat = factory.Code().createInvocation(factory.Code().createLiteral(null), format, factory.Code().createLiteral(check.errorMessage()), factory.Code().createVariableRead(param1.getReference(), false), factory.Code().createVariableRead(param2.getReference(), false));
-
-        CtBinaryOperator<Object> equalityCheck = factory.Core().createBinaryOperator();
-        equalityCheck.<CtBinaryOperator>setKind(BinaryOperatorKind.EQ);
-        equalityCheck.setLeftHandOperand(getExpression(factory, method1, param1));
-        equalityCheck.setRightHandOperand(getExpression(factory, method2, param2));
-
-        CtInvocation<Void> preconditionsCheckArgument = factory.Code().createInvocation(factory.Code().createLiteral(null), checkArgument, equalityCheck, stringFormat);
-        body.addStatement(preconditionsCheckArgument);
-    }
-
-
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    private static CtBlock<?> generateMethodBody(String methodName, Factory factory, String eventImplCreationMethod, CtType<?> event,
-        Map<CtMethod<?>, CtParameter<?>> parameters) {
-        final CtBlock<?> body = factory.Core().createBlock();
-
-        // Preconditions.checkArgument(param1 == param2, String.format("Error message", targetEntity, goal.getOwner()));
-        generatePreconditionsCheck(methodName, event, factory, body, parameters);
-
-
-        // Map<String, Object> values = Maps.newHashMap();
-        final CtTypeReference<Maps> maps = factory.Type().createReference(Maps.class);
-        final CtTypeReference<Map> map = factory.Type().createReference(Map.class);
-        final CtExecutableReference<Map> newHashMap = factory.Method().createReference(maps, true, map, "newHashMap");
-        final CtLiteral<Object> _null = factory.Code().createLiteral(null);
-        final CtInvocation<Map> mapsNewHashMap = factory.Code().createInvocation(_null, newHashMap);
-        final CtTypeReference<Map> mapStringObject = factory.Type().createReference(Map.class);
-        final CtTypeReference<Object> object = factory.Type().createReference(Object.class);
-        mapStringObject.setActualTypeArguments(Lists.newArrayList(factory.Type().createReference(String.class), object));
-        final CtLocalVariable<Map> mapValues = factory.Code().createLocalVariable(mapStringObject, "values", mapsNewHashMap);
-        body.addStatement(mapValues);
-        // values.put("param1", param1); values.put("param2", param2); ...
-        final CtVariableAccess<Map> values = factory.Code().createVariableRead(mapValues.getReference(), false);
-        for (CtParameter<?> parameter : parameters.values()) {
-            final CtLiteral<String> key = factory.Code().createLiteral(parameter.getSimpleName());
-            final CtVariableAccess<?> value = factory.Code().createVariableRead(parameter.getReference(), false);
-            final CtExecutableReference<Object> put = factory.Method().createReference(map, false, object, "put");
-            final CtInvocation<Object> valuesPut = factory.Code().createInvocation(values, put, key, value);
-            body.addStatement(valuesPut);
-        }
-        // return createEventImpl(Event.class, values);
-        final int classMethodSeparator = eventImplCreationMethod.lastIndexOf('.');
-        final CtTypeReference<?> eventImplCreationClass = factory.Type().createReference(eventImplCreationMethod.substring(0, classMethodSeparator));
-        final CtExecutableReference<?> createEventImpl = factory.Method().createReference(eventImplCreationClass, true, event.getReference(),
-            eventImplCreationMethod.substring(classMethodSeparator + 1), factory.Type().createReference(Class.class), map);
-        final CtFieldAccess<? extends Class<?>> eventClass = factory.Code().createClassAccess(event.getReference());
-        final CtInvocation<?> createEventImplValues = factory.Code().createInvocation(_null, createEventImpl, eventClass, values);
-        final CtReturn<?> _return = factory.Core().createReturn();
-        _return.<CtReturn>setReturnedExpression((CtInvocation) createEventImplValues);
-        body.addStatement(_return);
-        return body;
-    }
-
-    private static String generateDocComment(CtType<?> event, List<CtParameter<?>> parameters) {
-        final StringBuilder comment = new StringBuilder();
-        comment.append("AUTOMATICALLY GENERATED, DO NOT EDIT.\n");
-        comment.append("Creates a new instance of\n");
-        comment.append("{@link ").append(event.getQualifiedName().replace('$', '.')).append("}.\n");
-        comment.append('\n');
-        for (CtParameter<?> parameter : parameters) {
-            final String name = parameter.getSimpleName();
-            comment.append("@param ").append(name).append(" The ").append(camelCaseToWords(name)).append('\n');
-        }
-        comment.append("@return A new ");
-        do {
-            comment.append(camelCaseToWords(event.getSimpleName())).append(' ');
-            event = event.getDeclaringType();
-        } while (event != null);
-        return comment.toString();
     }
 
     private static String camelCaseToWords(String camelCase) {

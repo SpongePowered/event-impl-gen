@@ -40,7 +40,6 @@ allprojects {
 
         header rootProject.file('HEADER.txt')
         include '**/*.java'
-        exclude '**/spoon/fixed/**'
         ignoreFailures false
         strictCheck true
 
@@ -77,7 +76,7 @@ apply plugin: 'java-gradle-plugin'
 
 dependencies {
     compile project(':event-gen-core')
-    compile 'org.spongepowered:spoon-core:4.3.0-SNAPSHOT'
+    compile 'com.github.javaparser:javaparser-core:2.3.0'
 }
 
 task wrapper(type: Wrapper) {

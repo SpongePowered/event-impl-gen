@@ -24,27 +24,24 @@
  */
 package org.spongepowered.api.eventimplgen;
 
-import org.spongepowered.api.eventgencore.Property;
-
-import java.io.File;
+import java.util.Collections;
 import java.util.Map;
 
 public class EventImplGenExtension {
 
-    public String[] includeSrc = new String[0];
-    public String[] excludeSrc = new String[0];
+    public String[] includePkg = new String[0];
+    public String[] excludePkg = new String[0];
     public String outputDir = "";
     public String outputFactory = "";
     public boolean validateCode = true;
     public String eventImplCreateMethod = "";
-    public String sortPriorityPrefix;
-    public Map<String, String> groupingPrefixes;
+    public String sortPriorityPrefix = "";
+    public Map<String, String> groupingPrefixes = Collections.emptyMap();
 
-    public boolean isIncluded(File file) {
-        file = file.getAbsoluteFile();
+    public boolean isIncluded(String qualifiedName) {
         boolean included = false;
-        for (String include : includeSrc) {
-            if (contains(new File(include).getAbsoluteFile(), file)) {
+        for (String include : includePkg) {
+            if (contains(include, qualifiedName)) {
                 included = true;
                 break;
             }
@@ -52,22 +49,23 @@ public class EventImplGenExtension {
         if (!included) {
             return false;
         }
-        for (String exclude : excludeSrc) {
-            if (contains(new File(exclude).getAbsoluteFile(), file)) {
+        for (String exclude : excludePkg) {
+            if (contains(exclude, qualifiedName)) {
                 return false;
             }
         }
         return true;
     }
 
-    private boolean contains(File parent, File file) {
-        File nextParent = file;
+    private boolean contains(String _package, String qualifiedName) {
+        String nextPackage = qualifiedName;
         do {
-            if (parent.equals(nextParent)) {
+            if (_package.equals(nextPackage)) {
                 return true;
             }
-            nextParent = nextParent.getParentFile();
-        } while (nextParent != null);
+            final int index = Math.max(nextPackage.lastIndexOf('.'), 0);
+            nextPackage = nextPackage.substring(0, index);
+        } while (!nextPackage.isEmpty());
         return false;
     }
 }

@@ -25,10 +25,10 @@
 package org.spongepowered.api.eventgencore.classwrapper.reflection;
 
 import com.google.common.collect.Lists;
+import org.spongepowered.api.eventgencore.annotation.AbsoluteSortPosition;
 import org.spongepowered.api.eventgencore.classwrapper.ClassWrapper;
 import org.spongepowered.api.eventgencore.classwrapper.MethodWrapper;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
@@ -61,7 +61,7 @@ public class ReflectionMethodWrapper implements MethodWrapper<Class<?>, Method> 
         Class<?>[] parameters = this.method.getParameterTypes();
         List<ClassWrapper<Class<?>, Method>> wrappers = Lists.newArrayListWithCapacity(parameters.length);
 
-        for (Class<?> parameter: parameters) {
+        for (Class<?> parameter : parameters) {
             wrappers.add(new ReflectionClassWrapper(parameter));
         }
         return wrappers;
@@ -72,9 +72,12 @@ public class ReflectionMethodWrapper implements MethodWrapper<Class<?>, Method> 
         return this.method;
     }
 
-    @Override
-    public <A extends Annotation> A getAnnotation(Class<A> annotation) {
-        return this.method.getAnnotation(annotation);
+    @Override public int getAbsoluteSortPosition() {
+        final AbsoluteSortPosition annotation = this.method.getAnnotation(AbsoluteSortPosition.class);
+        if (annotation != null) {
+            return annotation.value();
+        }
+        return -1;
     }
 
     @Override

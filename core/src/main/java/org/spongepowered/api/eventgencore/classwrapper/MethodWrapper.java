@@ -24,7 +24,6 @@
  */
 package org.spongepowered.api.eventgencore.classwrapper;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.List;
 
@@ -46,7 +45,7 @@ public interface MethodWrapper<T, M> {
 
     M getActualMethod();
 
-    <A extends Annotation> A getAnnotation(Class<A> annotation);
+    int getAbsoluteSortPosition();
 
     ClassWrapper<T, M> getEnclosingClass();
 

@@ -24,50 +24,37 @@
  */
 package org.spongepowered.api.eventimplgen;
 
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.type.Type;
 import com.google.common.collect.Maps;
 import org.spongepowered.api.eventgencore.AccessorFirstStrategy;
 import org.spongepowered.api.eventgencore.Property;
 import org.spongepowered.api.eventgencore.PropertySearchStrategy;
-import org.spongepowered.api.eventimplgen.classwrapper.spoon.SpoonClassWrapper;
-import spoon.processing.AbstractProcessor;
-import spoon.reflect.declaration.CtInterface;
-import spoon.reflect.declaration.CtMethod;
-import spoon.reflect.declaration.CtType;
-import spoon.reflect.reference.CtTypeReference;
+import org.spongepowered.api.eventimplgen.classwrapper.javaparser.JavaParserClassWrapper;
 
 import java.util.Collection;
 import java.util.Map;
 
-public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
+public class EventInterfaceProcessor {
 
-    private final Map<CtInterface<?>, Map<String, CtTypeReference<?>>> eventFields = Maps.newHashMap();
-    private final Map<CtType<?>, Collection<? extends Property<CtTypeReference<?>, CtMethod<?>>>> foundProperties = Maps.newHashMap();
-    private EventImplGenExtension extension;
+    private final Map<ClassOrInterfaceDeclaration, Collection<? extends Property<Type, MethodDeclaration>>> foundProperties = Maps.newHashMap();
+    private final EventImplGenExtension extension;
+    private final WorkingSource source;
 
-    @Override
-    public void init() {
-        try {
-            final ObjectProcessorProperties properties =
-                (ObjectProcessorProperties) getEnvironment().getProcessorProperties(getClass().getCanonicalName());
-            properties.put("eventFields", eventFields);
-            properties.put("properties", foundProperties);
-            extension = properties.get(EventImplGenExtension.class, "extension");
-        } catch (Exception exception) {
-            exception.printStackTrace();
-            throw new RuntimeException(exception);
-        }
+    public EventInterfaceProcessor(EventImplGenExtension extension, WorkingSource source) {
+        this.extension = extension;
+        this.source = source;
     }
 
-    @Override
-    public boolean isToBeProcessed(CtInterface<?> candidate) {
-        return extension.isIncluded(candidate.getPosition().getCompilationUnit().getFile());
+    public boolean shouldProcess(ClassOrInterfaceDeclaration candidate) {
+        return extension.isIncluded(WorkingSource.getFullyQualifiedName(candidate));
     }
 
-    @Override
-    public void process(CtInterface<?> event) {
-        final PropertySearchStrategy<CtTypeReference<?>, CtMethod<?>> searchStrategy = new AccessorFirstStrategy<CtTypeReference<?>, CtMethod<?>>();
-        final Collection<? extends Property<CtTypeReference<?>, CtMethod<?>>> eventProps = searchStrategy.findProperties(new SpoonClassWrapper
-            (event.getReference()));
+    public void process(ClassOrInterfaceDeclaration event) {
+        final PropertySearchStrategy<Type, MethodDeclaration> searchStrategy = new AccessorFirstStrategy<>();
+        final Collection<? extends Property<Type, MethodDeclaration>> eventProps =
+            searchStrategy.findProperties(new JavaParserClassWrapper(source, event));
         foundProperties.put(event, eventProps);
     }
 }
