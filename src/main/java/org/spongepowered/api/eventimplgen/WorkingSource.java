@@ -28,6 +28,8 @@ import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.PackageDeclaration;
+import com.github.javaparser.ast.body.BodyDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
@@ -35,7 +37,7 @@ import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.ReferenceType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.type.VoidType;
-import org.apache.commons.lang.StringUtils;
+import com.google.common.base.Strings;
 
 import java.io.File;
 import java.util.ArrayDeque;
@@ -57,10 +59,9 @@ public class WorkingSource {
 
     public void add(File file) {
         try {
-            for (TypeDeclaration typeDeclaration : JavaParser.parse(file, null, false).getTypes()) {
+            for (TypeDeclaration typeDeclaration : JavaParser.parse(file, null, true).getTypes()) {
                 if (typeDeclaration instanceof ClassOrInterfaceDeclaration) {
-                    final ClassOrInterfaceDeclaration classDeclaration = (ClassOrInterfaceDeclaration) typeDeclaration;
-                    classes.put(getFullyQualifiedName(classDeclaration), classDeclaration);
+                    addDeclaration((ClassOrInterfaceDeclaration) typeDeclaration);
                 }
             }
         } catch (Exception exception) {
@@ -68,22 +69,31 @@ public class WorkingSource {
         }
     }
 
+    private void addDeclaration(ClassOrInterfaceDeclaration declaration) {
+        classes.put(getFullyQualifiedName(declaration), declaration);
+        for (BodyDeclaration member : declaration.getMembers()) {
+            if (member instanceof ClassOrInterfaceDeclaration) {
+                addDeclaration((ClassOrInterfaceDeclaration) member);
+            }
+        }
+    }
+
     public Map<String, ClassOrInterfaceDeclaration> getClasses() {
         return classes;
     }
 
-    public ClassOrInterfaceDeclaration getDeclaration(ClassOrInterfaceType classType, List<ImportDeclaration> imports) {
-        return classes.get(getFullyQualifiedName(classType, imports));
+    public ClassOrInterfaceDeclaration getDeclaration(ClassOrInterfaceType classType, PackageDeclaration _package, List<ImportDeclaration> imports) {
+        return classes.get(getFullyQualifiedName(classType, _package, imports));
     }
 
-    public String getFullyQualifiedName(Type type, List<ImportDeclaration> imports) {
+    public String getFullyQualifiedName(Type type, PackageDeclaration _package, List<ImportDeclaration> imports) {
         if (type instanceof VoidType) {
             return "void";
         } else if (type instanceof PrimitiveType) {
             return ((PrimitiveType) type).getType().name().toLowerCase();
         } else if (type instanceof ReferenceType) {
             final ReferenceType referenceType = (ReferenceType) type;
-            return getFullyQualifiedName(referenceType, imports) + StringUtils.repeat("[]", referenceType.getArrayCount());
+            return getFullyQualifiedName(referenceType.getType(), _package, imports) + Strings.repeat("[]", referenceType.getArrayCount());
         } else if (type instanceof ClassOrInterfaceType) {
             ClassOrInterfaceType classType = (ClassOrInterfaceType) type;
             String name = classType.getName();
@@ -91,12 +101,12 @@ public class WorkingSource {
                 classType = classType.getScope();
                 name = classType.getName() + '.' + name;
             }
-            return getFullyQualifiedName(name, imports);
+            return getFullyQualifiedName(name, _package, imports);
         }
-        throw new UnsupportedOperationException("Unrecognized type: " + type.toStringWithoutComments());
+        throw new UnsupportedOperationException("Unrecognized type: " + type);
     }
 
-    private String getFullyQualifiedName(String name, List<ImportDeclaration> imports) {
+    private String getFullyQualifiedName(String name, PackageDeclaration _package, List<ImportDeclaration> imports) {
         for (ImportDeclaration _import : imports) {
             final String importedName = _import.getName().toStringWithoutComments();
             final int index = importedName.lastIndexOf(name);
@@ -108,10 +118,14 @@ public class WorkingSource {
                 return importedName;
             }
         }
-        return null;
+        return _package.getName().toStringWithoutComments() + '.' + name;
     }
 
     public Set<String> getParentNames(ClassOrInterfaceDeclaration declaration) {
+        if (declaration == null) {
+            return Collections.emptySet();
+        }
+
         final Set<String> parentNames = new HashSet<>();
 
         final Queue<ClassOrInterfaceDeclaration> nextParents = new ArrayDeque<>();
@@ -125,13 +139,14 @@ public class WorkingSource {
                 continue;
             }
 
+            final PackageDeclaration _package = getPackage(declaration);
             final List<ImportDeclaration> imports = getImports(declaration);
 
             final ArrayList<ClassOrInterfaceType> directParents = new ArrayList<>(declaration.getImplements());
             directParents.addAll(declaration.getExtends());
 
             for (ClassOrInterfaceType directParent : directParents) {
-                final String qualifiedName = getFullyQualifiedName(directParent, imports);
+                final String qualifiedName = getFullyQualifiedName(directParent, _package, imports);
                 final ClassOrInterfaceDeclaration parentDeclaration = classes.get(qualifiedName);
                 if (parentDeclaration != null) {
                     nextParents.add(parentDeclaration);
@@ -185,6 +200,16 @@ public class WorkingSource {
             name = child.getName() + '.' + name;
         }
         return ((CompilationUnit) parent).getPackage().getName().toStringWithoutComments() + '.' + name;
+    }
+
+    public static PackageDeclaration getPackage(ClassOrInterfaceDeclaration declaration) {
+        ClassOrInterfaceDeclaration child = declaration;
+        Node parent = child.getParentNode();
+        while (parent instanceof ClassOrInterfaceDeclaration) {
+            child = (ClassOrInterfaceDeclaration) parent;
+            parent = child.getParentNode();
+        }
+        return ((CompilationUnit) parent).getPackage();
     }
 
     public static List<ImportDeclaration> getImports(ClassOrInterfaceDeclaration declaration) {

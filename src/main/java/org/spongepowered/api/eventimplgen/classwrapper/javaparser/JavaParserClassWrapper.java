@@ -25,6 +25,7 @@
 package org.spongepowered.api.eventimplgen.classwrapper.javaparser;
 
 import com.github.javaparser.ast.ImportDeclaration;
+import com.github.javaparser.ast.PackageDeclaration;
 import com.github.javaparser.ast.body.BodyDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
@@ -45,18 +46,21 @@ import org.spongepowered.api.eventimplgen.WorkingSource;
 import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Queue;
+import java.util.Set;
 
 public class JavaParserClassWrapper implements ClassWrapper<Type, MethodDeclaration> {
 
     private final WorkingSource source;
     private final Type clazz;
     private final ClassOrInterfaceDeclaration declaration;
+    private final PackageDeclaration _package;
     private final List<ImportDeclaration> imports;
 
-    public JavaParserClassWrapper(WorkingSource source, List<ImportDeclaration> imports, Type clazz) {
+    public JavaParserClassWrapper(WorkingSource source, PackageDeclaration _package, List<ImportDeclaration> imports, Type clazz) {
         this.source = source;
         this.clazz = clazz;
-        this.declaration = clazz instanceof ClassOrInterfaceType ? source.getDeclaration((ClassOrInterfaceType) clazz, imports) : null;
+        this.declaration = clazz instanceof ClassOrInterfaceType ? source.getDeclaration((ClassOrInterfaceType) clazz, _package, imports) : null;
+        this._package = _package;
         this.imports = imports;
     }
 
@@ -64,21 +68,30 @@ public class JavaParserClassWrapper implements ClassWrapper<Type, MethodDeclarat
         this.source = source;
         this.clazz = new ClassOrInterfaceType(declaration.getName());
         this.declaration = declaration;
+        this._package = WorkingSource.getPackage(declaration);
         this.imports = WorkingSource.getImports(declaration);
     }
 
     @Override
     public String getName() {
-        return this.source.getFullyQualifiedName(this.clazz, this.imports);
+        return this.source.getFullyQualifiedName(this.clazz, this._package, this.imports);
     }
 
     @Override
     public List<MethodWrapper<Type, MethodDeclaration>> getMethods() {
         final List<MethodWrapper<Type, MethodDeclaration>> methods = Lists.newArrayList();
         if (this.declaration != null) {
-            for (BodyDeclaration member : this.declaration.getMembers()) {
-                if (member instanceof MethodDeclaration) {
-                    methods.add(new JavaParserMethodWrapper(this.source, this.imports, (MethodDeclaration) member));
+            final Set<String> parentNames = this.source.getParentNames(this.declaration);
+            parentNames.add(getName());
+            for (String parentName : parentNames) {
+                final ClassOrInterfaceDeclaration parent = this.source.getClasses().get(parentName);
+                if (parent != null) {
+                    for (BodyDeclaration member : parent.getMembers()) {
+                        if (member instanceof MethodDeclaration) {
+                            methods.add(new JavaParserMethodWrapper(this.source, WorkingSource.getPackage(parent), WorkingSource.getImports(parent),
+                                (MethodDeclaration) member));
+                        }
+                    }
                 }
             }
         }
@@ -95,7 +108,7 @@ public class JavaParserClassWrapper implements ClassWrapper<Type, MethodDeclarat
         final List<ClassWrapper<Type, MethodDeclaration>> interfaces = Lists.newArrayList();
         if (this.declaration != null) {
             for (ClassOrInterfaceType klass : (this.declaration.isInterface() ? this.declaration.getExtends() : this.declaration.getImplements())) {
-                interfaces.add(new JavaParserClassWrapper(this.source, this.imports, klass));
+                interfaces.add(new JavaParserClassWrapper(this.source, this._package, this.imports, klass));
             }
         }
         return interfaces;
@@ -105,7 +118,7 @@ public class JavaParserClassWrapper implements ClassWrapper<Type, MethodDeclarat
     public ClassWrapper<Type, MethodDeclaration> getSuperclass() {
         if (this.declaration != null && !this.declaration.isInterface()) {
             if (!this.declaration.getExtends().isEmpty()) {
-                return new JavaParserClassWrapper(this.source, this.imports, this.declaration.getExtends().get(0));
+                return new JavaParserClassWrapper(this.source, this._package, this.imports, this.declaration.getExtends().get(0));
             }
         }
         return null;
@@ -133,6 +146,7 @@ public class JavaParserClassWrapper implements ClassWrapper<Type, MethodDeclarat
 
         while ((scanned = queue.poll()) != null) {
             final List<ImportDeclaration> imports = WorkingSource.getImports(scanned);
+            final PackageDeclaration _package = WorkingSource.getPackage(scanned);
             for (AnnotationExpr annotation : scanned.getAnnotations()) {
                 if (ImplementedBy.class.getSimpleName().equals(annotation.getName().toStringWithoutComments())) {
                     final Expression value;
@@ -141,11 +155,11 @@ public class JavaParserClassWrapper implements ClassWrapper<Type, MethodDeclarat
                     } else {
                         value = ((NormalAnnotationExpr) annotation).getPairs().get(0).getValue();
                     }
-                    return new JavaParserClassWrapper(this.source, imports, ((ClassExpr) value).getType());
+                    return new JavaParserClassWrapper(this.source, _package, imports, ((ClassExpr) value).getType());
                 }
             }
             for (ClassOrInterfaceType implInterface : scanned.getImplements()) {
-                queue.offer(this.source.getDeclaration(implInterface, imports));
+                queue.offer(this.source.getDeclaration(implInterface, _package, imports));
             }
         }
         return null;

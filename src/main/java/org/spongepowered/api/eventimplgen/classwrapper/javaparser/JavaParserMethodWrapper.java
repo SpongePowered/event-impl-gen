@@ -25,6 +25,7 @@
 package org.spongepowered.api.eventimplgen.classwrapper.javaparser;
 
 import com.github.javaparser.ast.ImportDeclaration;
+import com.github.javaparser.ast.PackageDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.ModifierSet;
@@ -46,11 +47,13 @@ import java.util.List;
 public class JavaParserMethodWrapper implements MethodWrapper<Type, MethodDeclaration> {
 
     private final WorkingSource source;
+    private final PackageDeclaration _package;
     private final List<ImportDeclaration> imports;
     private final MethodDeclaration method;
 
-    public JavaParserMethodWrapper(WorkingSource source,  List<ImportDeclaration> imports, MethodDeclaration method) {
+    public JavaParserMethodWrapper(WorkingSource source, PackageDeclaration _package, List<ImportDeclaration> imports, MethodDeclaration method) {
         this.source = source;
+        this._package = _package;
         this.imports = imports;
         this.method = method;
     }
@@ -68,14 +71,14 @@ public class JavaParserMethodWrapper implements MethodWrapper<Type, MethodDeclar
 
     @Override
     public ClassWrapper<Type, MethodDeclaration> getReturnType() {
-        return new JavaParserClassWrapper(this.source, this.imports, this.method.getType());
+        return new JavaParserClassWrapper(this.source, this._package, this.imports, this.method.getType());
     }
 
     @Override
     public List<ClassWrapper<Type, MethodDeclaration>> getParameterTypes() {
         final List<ClassWrapper<Type, MethodDeclaration>> parameters = Lists.newArrayList();
         for (Parameter klass : this.method.getParameters()) {
-            parameters.add(new JavaParserClassWrapper(source, this.imports, klass.getType()));
+            parameters.add(new JavaParserClassWrapper(source, this._package, this.imports, klass.getType()));
         }
         return parameters;
     }
@@ -104,5 +107,10 @@ public class JavaParserMethodWrapper implements MethodWrapper<Type, MethodDeclar
     @Override
     public ClassWrapper<Type, MethodDeclaration> getEnclosingClass() {
         return new JavaParserClassWrapper(this.source, (ClassOrInterfaceDeclaration) this.method.getParentNode());
+    }
+
+    @Override
+    public String toString() {
+        return this.method.toStringWithoutComments();
     }
 }

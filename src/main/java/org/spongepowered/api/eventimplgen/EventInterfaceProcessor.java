@@ -47,8 +47,8 @@ public class EventInterfaceProcessor {
         this.source = source;
     }
 
-    public boolean shouldProcess(ClassOrInterfaceDeclaration candidate) {
-        return extension.isIncluded(WorkingSource.getFullyQualifiedName(candidate));
+    public boolean shouldProcess(String qualifiedName) {
+        return extension.isIncluded(qualifiedName);
     }
 
     public void process(ClassOrInterfaceDeclaration event) {

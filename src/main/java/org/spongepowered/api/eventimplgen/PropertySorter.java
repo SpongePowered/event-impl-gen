@@ -32,6 +32,7 @@ import com.google.common.collect.Maps;
 import org.spongepowered.api.eventgencore.AccessorFirstStrategy;
 import org.spongepowered.api.eventgencore.Property;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -47,7 +48,7 @@ public class PropertySorter {
         this.groupingPrefixes = groupingPrefixes;
     }
 
-    public List<? extends Property<Type, MethodDeclaration>> sortProperties(List<? extends Property<Type, MethodDeclaration>> properties) {
+    public List<? extends Property<Type, MethodDeclaration>> sortProperties(Collection<? extends Property<Type, MethodDeclaration>> properties) {
         List<Property<Type, MethodDeclaration>> finalProperties = Lists.newArrayList();
         Map<String, Property<Type, MethodDeclaration>> propertyMap = Maps.newHashMap();
         List<PrefixPair> pairs = Lists.newArrayList();
