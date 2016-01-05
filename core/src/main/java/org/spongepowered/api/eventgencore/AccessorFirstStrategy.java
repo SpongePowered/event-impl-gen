@@ -28,14 +28,13 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
-import com.google.common.collect.Sets;
 import org.spongepowered.api.eventgencore.classwrapper.ClassWrapper;
 import org.spongepowered.api.eventgencore.classwrapper.MethodWrapper;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
@@ -52,11 +51,11 @@ import javax.annotation.Nullable;
  */
 public class AccessorFirstStrategy<T, M> implements PropertySearchStrategy<T, M> {
 
-    protected static final Pattern ACCESSOR = Pattern.compile("^get([A-Z].*)");
-    protected static final Pattern ACCESSOR_BOOL = Pattern.compile("^is([A-Z].*)");
-    protected static final Pattern ACCESSOR_HAS = Pattern.compile("^has([A-Z].*)");
-    protected static final Pattern ACCESSOR_KEEPS = Pattern.compile("^(keeps[A-Z].*)");
-    protected static final Pattern MUTATOR = Pattern.compile("^set([A-Z].*)");
+    private static final Pattern ACCESSOR = Pattern.compile("^get([A-Z].*)");
+    private static final Pattern ACCESSOR_BOOL = Pattern.compile("^is([A-Z].*)");
+    private static final Pattern ACCESSOR_HAS = Pattern.compile("^has([A-Z].*)");
+    private static final Pattern ACCESSOR_KEEPS = Pattern.compile("^(keeps[A-Z].*)");
+    private static final Pattern MUTATOR = Pattern.compile("^set([A-Z].*)");
 
     /**
      * Detect whether the given method is an accessor and if so, return the
@@ -65,31 +64,31 @@ public class AccessorFirstStrategy<T, M> implements PropertySearchStrategy<T, M>
      * @param method The method
      * @return The property name, if the method is an accessor
      */
-    protected String getAccessorName(MethodWrapper<T, M> method) {
+    private String getAccessorName(MethodWrapper<T, M> method) {
         Matcher m;
 
         if (method.isPublic() && method.getParameterTypes().size() == 0) {
-            String methodName = method.getName();
-            ClassWrapper<T, M> returnType = method.getReturnType();
+            final String methodName = method.getName();
+            final ClassWrapper<T, M> returnType = method.getReturnType();
 
             m = ACCESSOR.matcher(methodName);
             if (m.matches() && !returnType.isPrimitive(void.class)) {
-                return this.getPropertyName(m.group(1));
+                return getPropertyName(m.group(1));
             }
 
             m = ACCESSOR_BOOL.matcher(methodName);
             if (m.matches() && returnType.isPrimitive(boolean.class)) {
-                return this.getPropertyName(m.group(1));
+                return getPropertyName(m.group(1));
             }
 
             m = ACCESSOR_KEEPS.matcher(methodName);
             if (m.matches() && returnType.isPrimitive(boolean.class)) {
-                return this.getPropertyName(m.group(1));
+                return getPropertyName(m.group(1));
             }
 
             m = ACCESSOR_HAS.matcher(methodName);
             if (m.matches() && returnType.isPrimitive(boolean.class)) {
-                return this.getPropertyName(methodName); // This is intentional, we want to keep the 'has'
+                return getPropertyName(methodName); // This is intentional, we want to keep the 'has'
             }
         }
 
@@ -137,7 +136,7 @@ public class AccessorFirstStrategy<T, M> implements PropertySearchStrategy<T, M>
      */
     @Nullable
     protected MethodWrapper<T, M> findMutator(MethodWrapper<T, M> accessor, Collection<MethodWrapper<T, M>> candidates) {
-        T expectedType = accessor.getReturnType().getActualClass();
+        final T expectedType = accessor.getReturnType().getActualClass();
 
         for (MethodWrapper<T, M> method : candidates) {
             // TODO: Handle supertypes
@@ -155,10 +154,10 @@ public class AccessorFirstStrategy<T, M> implements PropertySearchStrategy<T, M>
 
         final Multimap<String, MethodWrapper<T, M>> accessors = HashMultimap.create();
         final Multimap<String, MethodWrapper<T, M>> mutators = HashMultimap.create();
-        final Queue<ClassWrapper<T, M>> queue = new NonNullUniqueQueue<ClassWrapper<T, M>>();
-        final Map<String, MethodWrapper<T, M>> accessorHierarchyBottoms = new HashMap<String, MethodWrapper<T, M>>();
-        final Map<String, MethodWrapper<T, M>> mostSpecific = Maps.newHashMap();
-        final Set<String> signatures = Sets.newHashSet();
+        final Queue<ClassWrapper<T, M>> queue = new NonNullUniqueQueue<>();
+        final Map<String, MethodWrapper<T, M>> accessorHierarchyBottoms = new HashMap<>();
+        final Map<String, MethodWrapper<T, M>> mostSpecific = new HashMap<>();
+        final Set<String> signatures = new HashSet<>();
 
         queue.add(type); // Start off with our target type
 
@@ -168,15 +167,15 @@ public class AccessorFirstStrategy<T, M> implements PropertySearchStrategy<T, M>
                 String name;
 
                 String signature = method.getName() + ";";
-                for (ClassWrapper<T, M> parameterType: method.getParameterTypes()) {
+                for (ClassWrapper<T, M> parameterType : method.getParameterTypes()) {
                     signature += parameterType.getName() + ";";
                 }
                 signature += method.getReturnType().getName();
 
                 MethodWrapper<T, M> leastSpecificMethod;
                 if ((name = getAccessorName(method)) != null && !signatures.contains(signature)
-                        && ((leastSpecificMethod = accessorHierarchyBottoms.get(name)) == null
-                                    || !leastSpecificMethod.getReturnType().equals(method.getReturnType()))) {
+                    && ((leastSpecificMethod = accessorHierarchyBottoms.get(name)) == null
+                    || !leastSpecificMethod.getReturnType().equals(method.getReturnType()))) {
                     accessors.put(name, method);
                     signatures.add(signature);
 
@@ -185,7 +184,7 @@ public class AccessorFirstStrategy<T, M> implements PropertySearchStrategy<T, M>
                     }
 
                     if (accessorHierarchyBottoms.get(name) == null
-                            || accessorHierarchyBottoms.get(name).getReturnType().isSubtypeOf(method.getReturnType())) {
+                        || accessorHierarchyBottoms.get(name).getReturnType().isSubtypeOf(method.getReturnType())) {
                         accessorHierarchyBottoms.put(name, method);
                     }
                 } else if ((name = getMutatorName(method)) != null) {
@@ -193,19 +192,18 @@ public class AccessorFirstStrategy<T, M> implements PropertySearchStrategy<T, M>
                 }
             }
 
-            for (ClassWrapper<T, M> implInterfaces : scannedType.getInterfaces()) {
-                queue.offer(implInterfaces);
-            }
+            scannedType.getInterfaces().forEach(queue::offer);
             queue.offer(scannedType.getSuperclass());
         }
 
         final ImmutableSet.Builder<Property<T, M>> result = ImmutableSet.builder();
 
         for (Map.Entry<String, MethodWrapper<T, M>> entry : accessors.entries()) {
-            MethodWrapper<T, M> accessor = entry.getValue();
+            final MethodWrapper<T, M> accessor = entry.getValue();
 
-            @Nullable MethodWrapper<T, M> mutator = findMutator(entry.getValue(), mutators.get(entry.getKey()));
-            result.add(new Property<T, M>(entry.getKey(), accessor.getReturnType(), accessorHierarchyBottoms.get(entry.getKey()), mostSpecific.get(entry.getKey()), accessor, mutator));
+            @Nullable final MethodWrapper<T, M> mutator = findMutator(entry.getValue(), mutators.get(entry.getKey()));
+            result.add(new Property<>(entry.getKey(), accessor.getReturnType(), accessorHierarchyBottoms.get(entry.getKey()),
+                mostSpecific.get(entry.getKey()), accessor, mutator));
         }
 
         return result.build();

@@ -24,7 +24,6 @@
  */
 package org.spongepowered.api.eventimplgen;
 
-import com.google.common.collect.Maps;
 import org.spongepowered.api.eventgencore.AccessorFirstStrategy;
 import org.spongepowered.api.eventgencore.Property;
 import org.spongepowered.api.eventgencore.PropertySearchStrategy;
@@ -36,26 +35,21 @@ import spoon.reflect.declaration.CtType;
 import spoon.reflect.reference.CtTypeReference;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 
 public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
 
-    private final Map<CtInterface<?>, Map<String, CtTypeReference<?>>> eventFields = Maps.newHashMap();
-    private final Map<CtType<?>, Collection<? extends Property<CtTypeReference<?>, CtMethod<?>>>> foundProperties = Maps.newHashMap();
-    private EventImplGenExtension extension;
+    private static final PropertySearchStrategy<CtTypeReference<?>, CtMethod<?>> SEARCH_STRATEGY = new AccessorFirstStrategy<>();
+    private final Map<CtType<?>, Collection<? extends Property<CtTypeReference<?>, CtMethod<?>>>> foundProperties = new HashMap<>();
+    private final EventImplGenExtension extension;
 
-    @Override
-    public void init() {
-        try {
-            final ObjectProcessorProperties properties =
-                (ObjectProcessorProperties) getEnvironment().getProcessorProperties(getClass().getCanonicalName());
-            properties.put("eventFields", eventFields);
-            properties.put("properties", foundProperties);
-            extension = properties.get(EventImplGenExtension.class, "extension");
-        } catch (Exception exception) {
-            exception.printStackTrace();
-            throw new RuntimeException(exception);
-        }
+    public EventInterfaceProcessor(EventImplGenExtension extension) {
+        this.extension = extension;
+    }
+
+    public Map<CtType<?>, Collection<? extends Property<CtTypeReference<?>, CtMethod<?>>>> getFoundProperties() {
+        return foundProperties;
     }
 
     @Override
@@ -65,9 +59,6 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
 
     @Override
     public void process(CtInterface<?> event) {
-        final PropertySearchStrategy<CtTypeReference<?>, CtMethod<?>> searchStrategy = new AccessorFirstStrategy<CtTypeReference<?>, CtMethod<?>>();
-        final Collection<? extends Property<CtTypeReference<?>, CtMethod<?>>> eventProps = searchStrategy.findProperties(new SpoonClassWrapper
-            (event.getReference()));
-        foundProperties.put(event, eventProps);
+        foundProperties.put(event, SEARCH_STRATEGY.findProperties(new SpoonClassWrapper(event.getReference())));
     }
 }

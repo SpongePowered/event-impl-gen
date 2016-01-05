@@ -33,7 +33,7 @@ public class ReflectionUtils {
 
     public static ReflectionClassWrapper getBaseClass(Class<?> target) {
         ImplementedBy implementedBy = null;
-        final Queue<Class<?>> queue = new ArrayDeque<Class<?>>();
+        final Queue<Class<?>> queue = new ArrayDeque<>();
 
         queue.add(target);
         Class<?> scannedType;

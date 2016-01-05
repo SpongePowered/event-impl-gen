@@ -44,7 +44,7 @@ public class JavaOutputProcessor extends AbstractProcessor<CtType<?>> implements
 
     private final PrettyPrinter printer;
     private File directory;
-    private final List<File> printedFiles = new ArrayList<File>();
+    private final List<File> printedFiles = new ArrayList<>();
     private boolean writePackageAnnotationFile = true;
 
     /**
@@ -100,7 +100,7 @@ public class JavaOutputProcessor extends AbstractProcessor<CtType<?>> implements
         }
     }
 
-    Map<String, Map<Integer, Integer>> lineNumberMappings = new HashMap<String, Map<Integer, Integer>>();
+    Map<String, Map<Integer, Integer>> lineNumberMappings = new HashMap<>();
 
     /**
      * Creates the Java file associated to the given element. Splits top-level
@@ -126,7 +126,7 @@ public class JavaOutputProcessor extends AbstractProcessor<CtType<?>> implements
                 throw new IllegalStateException();
             }
         }
-        List<CtType<?>> toBePrinted = new ArrayList<CtType<?>>();
+        List<CtType<?>> toBePrinted = new ArrayList<>();
         toBePrinted.add(element);
 
 

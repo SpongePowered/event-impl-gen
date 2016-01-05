@@ -26,21 +26,20 @@ package org.spongepowered.api.eventimplgen.classwrapper.spoon;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.collect.Lists;
 import org.spongepowered.api.eventgencore.classwrapper.ClassWrapper;
 import org.spongepowered.api.eventgencore.classwrapper.MethodWrapper;
 import spoon.reflect.declaration.CtMethod;
-import spoon.reflect.declaration.CtParameter;
 import spoon.reflect.declaration.ModifierKind;
 import spoon.reflect.reference.CtTypeReference;
 
 import java.lang.annotation.Annotation;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class SpoonMethodWrapper implements MethodWrapper<CtTypeReference<?>, CtMethod<?>> {
 
-    private CtMethod<?> method;
+    private final CtMethod<?> method;
 
     public SpoonMethodWrapper(CtMethod<?> method) {
         this.method = checkNotNull(method);
@@ -53,8 +52,7 @@ public class SpoonMethodWrapper implements MethodWrapper<CtTypeReference<?>, CtM
 
     @Override
     public boolean isPublic() {
-        Set<ModifierKind> modifiers = this.method.getModifiers();
-
+        final Set<ModifierKind> modifiers = this.method.getModifiers();
         return modifiers.contains(ModifierKind.PUBLIC) || !(modifiers.contains(ModifierKind.PROTECTED) || modifiers.contains(ModifierKind.PRIVATE));
     }
 
@@ -65,13 +63,7 @@ public class SpoonMethodWrapper implements MethodWrapper<CtTypeReference<?>, CtM
 
     @Override
     public List<ClassWrapper<CtTypeReference<?>, CtMethod<?>>> getParameterTypes() {
-        List<ClassWrapper<CtTypeReference<?>, CtMethod<?>>> parameters = Lists.newArrayList();
-
-        for (CtParameter<?> klass: this.method.getParameters()) {
-            parameters.add(new SpoonClassWrapper(klass.getType()));
-        }
-
-        return parameters;
+        return this.method.getParameters().stream().map(param -> new SpoonClassWrapper(param.getType())).collect(Collectors.toList());
     }
 
     @Override

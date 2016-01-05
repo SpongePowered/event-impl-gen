@@ -24,16 +24,17 @@
  */
 package org.spongepowered.api.eventgencore.classwrapper.reflection;
 
-import com.google.common.collect.Lists;
 import org.spongepowered.api.eventgencore.classwrapper.ClassWrapper;
 import org.spongepowered.api.eventgencore.classwrapper.MethodWrapper;
 
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class ReflectionClassWrapper implements ClassWrapper<Class<?>, Method> {
 
-    private Class<?> clazz;
+    private final Class<?> clazz;
 
     public ReflectionClassWrapper(Class<?> clazz) {
         this.clazz = clazz;
@@ -46,13 +47,7 @@ public class ReflectionClassWrapper implements ClassWrapper<Class<?>, Method> {
 
     @Override
     public List<MethodWrapper<Class<?>, Method>> getMethods() {
-        Method[] methods = this.clazz.getMethods();
-        List<MethodWrapper<Class<?>, Method>> wrappers = Lists.newArrayListWithCapacity(methods.length);
-
-        for (Method method: methods) {
-            wrappers.add(new ReflectionMethodWrapper(method));
-        }
-        return wrappers;
+        return Stream.of(this.clazz.getMethods()).map(ReflectionMethodWrapper::new).collect(Collectors.toList());
     }
 
     @Override
@@ -62,14 +57,7 @@ public class ReflectionClassWrapper implements ClassWrapper<Class<?>, Method> {
 
     @Override
     public List<ClassWrapper<Class<?>, Method>> getInterfaces() {
-        Class<?>[] interfaces = this.clazz.getInterfaces();
-        List<ClassWrapper<Class<?>, Method>> wrappers = Lists.newArrayListWithCapacity(interfaces.length);
-
-        for (Class<?> klass: interfaces) {
-            wrappers.add(new ReflectionClassWrapper(klass));
-        }
-
-        return wrappers;
+        return Stream.of(this.clazz.getInterfaces()).map(ReflectionClassWrapper::new).collect(Collectors.toList());
     }
 
     @Override

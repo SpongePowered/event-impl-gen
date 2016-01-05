@@ -24,7 +24,6 @@
  */
 package org.spongepowered.api.eventgencore.classwrapper.reflection;
 
-import com.google.common.collect.Lists;
 import org.spongepowered.api.eventgencore.classwrapper.ClassWrapper;
 import org.spongepowered.api.eventgencore.classwrapper.MethodWrapper;
 
@@ -32,6 +31,8 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class ReflectionMethodWrapper implements MethodWrapper<Class<?>, Method> {
 
@@ -58,13 +59,7 @@ public class ReflectionMethodWrapper implements MethodWrapper<Class<?>, Method> 
 
     @Override
     public List<ClassWrapper<Class<?>, Method>> getParameterTypes() {
-        Class<?>[] parameters = this.method.getParameterTypes();
-        List<ClassWrapper<Class<?>, Method>> wrappers = Lists.newArrayListWithCapacity(parameters.length);
-
-        for (Class<?> parameter: parameters) {
-            wrappers.add(new ReflectionClassWrapper(parameter));
-        }
-        return wrappers;
+        return Stream.of(this.method.getParameterTypes()).map(ReflectionClassWrapper::new).collect(Collectors.toList());
     }
 
     @Override

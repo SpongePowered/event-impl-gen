@@ -57,7 +57,8 @@ public final class Property<T, M> implements Comparable<Property<T, M>> {
      * @param accessor The accessor
      * @param mutator The mutator
      */
-    public Property(String name, ClassWrapper<T, M> type, MethodWrapper<T, M> leastSpecificMethod, MethodWrapper<T, M> mostSpecificMethod, MethodWrapper<T, M> accessor, @Nullable MethodWrapper<T, M> mutator) {
+    public Property(String name, ClassWrapper<T, M> type, MethodWrapper<T, M> leastSpecificMethod, MethodWrapper<T, M> mostSpecificMethod,
+        MethodWrapper<T, M> accessor, @Nullable MethodWrapper<T, M> mutator) {
         checkNotNull(name, "name");
         checkNotNull(type, "type");
         checkNotNull(leastSpecificMethod, "leastSpecificMethod");
@@ -146,10 +147,7 @@ public final class Property<T, M> implements Comparable<Property<T, M>> {
      * @return The mutator
      */
     public Optional<M> getMutator() {
-        if (this.mutator.isPresent()) {
-            return Optional.of(this.mutator.get().getActualMethod());
-        }
-        return Optional.empty();
+        return this.mutator.map(MethodWrapper::getActualMethod);
     }
 
     /**

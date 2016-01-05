@@ -1,6 +1,6 @@
-sudo: false
+sudo: required
 
-language: groovy
+language: java
 jdk:
   - oraclejdk8
 

@@ -39,8 +39,8 @@ import java.util.Set;
  */
 public class NonNullUniqueQueue<E> extends AbstractQueue<E> implements Queue<E> {
 
-    private final Queue<E> queue = new ArrayDeque<E>();
-    private final Set<E> set = new HashSet<E>();
+    private final Queue<E> queue = new ArrayDeque<>();
+    private final Set<E> set = new HashSet<>();
 
     @Override
     public Iterator<E> iterator() {

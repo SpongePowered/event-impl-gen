@@ -17,9 +17,9 @@
 
 package spoon.fixed.reflect.visitor;
 
+import org.apache.log4j.Level;
 import spoon.Launcher;
 import spoon.compiler.Environment;
-import spoon.processing.Severity;
 import spoon.reflect.code.BinaryOperatorKind;
 import spoon.reflect.code.CtAnnotationFieldAccess;
 import spoon.reflect.code.CtArrayAccess;
@@ -94,6 +94,9 @@ import spoon.reflect.declaration.CtTypeParameter;
 import spoon.reflect.declaration.ModifierKind;
 import spoon.reflect.declaration.ParentNotInitializedException;
 import spoon.reflect.factory.Factory;
+import spoon.reflect.internal.CtCircularTypeReference;
+import spoon.reflect.internal.CtImplicitArrayTypeReference;
+import spoon.reflect.internal.CtImplicitTypeReference;
 import spoon.reflect.reference.CtArrayTypeReference;
 import spoon.reflect.reference.CtCatchVariableReference;
 import spoon.reflect.reference.CtExecutableReference;
@@ -142,15 +145,15 @@ public class DefaultJavaPrettyPrinter implements CtVisitor, PrettyPrinter {
      */
     public static final String LINE_SEPARATOR = System.getProperty("line.separator");
 
-    Map<Integer, Integer> lineNumberMapping = new HashMap<Integer, Integer>();
+    Map<Integer, Integer> lineNumberMapping = new HashMap<>();
 
     public class PrintingContext {
 
         boolean noTypeDecl = false;
 
-        Stack<CtTypeReference<?>> currentThis = new Stack<CtTypeReference<?>>();
+        Stack<CtTypeReference<?>> currentThis = new Stack<>();
 
-        Stack<CtElement> elementStack = new Stack<CtElement>();
+        Stack<CtElement> elementStack = new Stack<>();
 
         CtType<?> currentTopLevel;
 
@@ -176,7 +179,7 @@ public class DefaultJavaPrettyPrinter implements CtVisitor, PrettyPrinter {
 
         int nbTabs = 0;
 
-        Stack<CtExpression<?>> parenthesedExpression = new Stack<CtExpression<?>>();
+        Stack<CtExpression<?>> parenthesedExpression = new Stack<>();
 
         boolean isInvocation = false;
 
@@ -551,7 +554,7 @@ public class DefaultJavaPrettyPrinter implements CtVisitor, PrettyPrinter {
             while (line > e.getPosition().getLine()) {
                 if (!removeLine()) {
                     if (line > e.getPosition().getEndLine()) {
-                        env.report(null, Severity.WARNING, e,
+                        env.report(null, Level.WARN, e,
                             "cannot adjust position of "
                                 + e.getClass().getSimpleName() + " '"
                                 + e.getSignature() + "' "
@@ -636,7 +639,7 @@ public class DefaultJavaPrettyPrinter implements CtVisitor, PrettyPrinter {
         visitCtType(annotationType);
         write("@interface " + annotationType.getSimpleName() + " {").incTab();
 
-        SortedList<CtElement> lst = new SortedList<CtElement>(
+        SortedList<CtElement> lst = new SortedList<>(
             new CtLineElementComparator());
 
         lst.addAll(annotationType.getNestedTypes());
@@ -683,6 +686,11 @@ public class DefaultJavaPrettyPrinter implements CtVisitor, PrettyPrinter {
         if (!context.skipArray) {
             write("[]");
         }
+    }
+
+    @Override
+    public <T> void visitCtImplicitArrayTypeReference(CtImplicitArrayTypeReference<T> reference) {
+        // The array type is implicit, we don't print it!
     }
 
     @Override
@@ -829,7 +837,7 @@ public class DefaultJavaPrettyPrinter implements CtVisitor, PrettyPrinter {
 
     @Override
     public <T> void visitCtClass(CtClass<T> ctClass) {
-        SortedList<CtElement> lst = new SortedList<CtElement>(
+        SortedList<CtElement> lst = new SortedList<>(
             new CtLineElementComparator());
         if (ctClass.getSimpleName() != null && !ctClass.isAnonymous()) {
             visitCtType(ctClass);
@@ -972,8 +980,8 @@ public class DefaultJavaPrettyPrinter implements CtVisitor, PrettyPrinter {
         }
         context.currentThis.push(ctEnum.getReference());
         write(" {").incTab().writeln();
-        List<CtField<?>> l1 = new ArrayList<CtField<?>>();
-        List<CtField<?>> l2 = new ArrayList<CtField<?>>();
+        List<CtField<?>> l1 = new ArrayList<>();
+        List<CtField<?>> l2 = new ArrayList<>();
         for (CtField<?> ec : ctEnum.getFields()) {
             if (ec.getType() == null) {
                 l1.add(ec);
@@ -998,7 +1006,7 @@ public class DefaultJavaPrettyPrinter implements CtVisitor, PrettyPrinter {
             }
         }
 
-        SortedList<CtElement> lst = new SortedList<CtElement>(
+        SortedList<CtElement> lst = new SortedList<>(
             new CtLineElementComparator());
 
         lst.addAll(ctEnum.getAnonymousExecutables());
@@ -1279,7 +1287,7 @@ public class DefaultJavaPrettyPrinter implements CtVisitor, PrettyPrinter {
             removeLastChar();
         }
         write(" {").incTab();
-        SortedList<CtElement> lst = new SortedList<CtElement>(
+        SortedList<CtElement> lst = new SortedList<>(
             new CtLineElementComparator());
         lst.addAll(intrface.getNestedTypes());
         lst.addAll(intrface.getFields());
@@ -1663,9 +1671,18 @@ public class DefaultJavaPrettyPrinter implements CtVisitor, PrettyPrinter {
         if (ctConstructorCall.getTarget() != null) {
             context.ignoreEnclosingClass = true;
         }
-
         write("new ").scan(ctConstructorCall.getType());
         context.ignoreEnclosingClass = false;
+
+        final List<CtTypeReference<?>> arguments = ctConstructorCall.getActualTypeArguments();
+        if (arguments != null) {
+            if (arguments.isEmpty()) {
+                // Diamond operator
+                write("<>");
+            } else {
+                writeGenericsParameter(arguments);
+            }
+        }
 
         write("(");
         boolean remove = false;
@@ -1895,7 +1912,7 @@ public class DefaultJavaPrettyPrinter implements CtVisitor, PrettyPrinter {
 
     @Override
     public void visitCtTypeParameter(CtTypeParameter typeParameter) {
-        write(typeParameter.getName());
+        write(typeParameter.getSimpleName());
         if (!typeParameter.getBounds().isEmpty()) {
             write(" extends ");
             for (CtTypeReference<?> ref : typeParameter.getBounds()) {
@@ -1964,6 +1981,16 @@ public class DefaultJavaPrettyPrinter implements CtVisitor, PrettyPrinter {
         if (!context.ignoreGenerics) {
             writeGenericsParameter(ref.getActualTypeArguments());
         }
+    }
+
+    @Override
+    public void visitCtCircularTypeReference(CtCircularTypeReference reference) {
+        visitCtTypeReference(reference);
+    }
+
+    @Override
+    public <T> void visitCtImplicitTypeReference(CtImplicitTypeReference<T> reference) {
+        // The type is implicit, we don't print it!
     }
 
     private <T> boolean hasDeclaringTypeWithGenerics(CtTypeReference<T> reference) {

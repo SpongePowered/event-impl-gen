@@ -24,7 +24,6 @@
  */
 package org.spongepowered.api.eventimplgen.classwrapper.spoon;
 
-import com.google.common.collect.Lists;
 import org.spongepowered.api.eventgencore.annotation.ImplementedBy;
 import org.spongepowered.api.eventgencore.classwrapper.ClassWrapper;
 import org.spongepowered.api.eventgencore.classwrapper.MethodWrapper;
@@ -35,91 +34,73 @@ import spoon.reflect.reference.CtTypeReference;
 
 import java.lang.annotation.Annotation;
 import java.util.ArrayDeque;
+import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
+import java.util.stream.Collectors;
 
 public class SpoonClassWrapper implements ClassWrapper<CtTypeReference<?>, CtMethod<?>> {
 
-    protected CtTypeReference<?> clazz;
+    private final CtTypeReference<?> type;
 
-    public SpoonClassWrapper(CtTypeReference<?> clazz) {
-        this.clazz = clazz;
+    public SpoonClassWrapper(CtTypeReference<?> type) {
+        this.type = type;
     }
 
     @Override
     public String getName() {
-        return this.clazz.getQualifiedName();
+        return this.type.getQualifiedName();
     }
 
     @Override
     public List<MethodWrapper<CtTypeReference<?>, CtMethod<?>>> getMethods() {
-        if (this.clazz.getDeclaration() != null) {
-            List<MethodWrapper<CtTypeReference<?>, CtMethod<?>>> methods = Lists.newArrayList();
-
-            for (CtMethod<?> method: this.clazz.getDeclaration().getMethods()) {
-                methods.add(new SpoonMethodWrapper(method));
-            }
-
-            return methods;
+        if (this.type.getDeclaration() != null) {
+            return this.type.getDeclaration().getMethods().stream().map(SpoonMethodWrapper::new).collect(Collectors.toList());
         }
-        return Lists.newArrayList();
+        return Collections.emptyList();
     }
 
     @Override
     public boolean isSubtypeOf(ClassWrapper<CtTypeReference<?>, CtMethod<?>> other) {
-        return this.clazz.isSubtypeOf(other.getActualClass());
+        return this.type.isSubtypeOf(other.getActualClass());
     }
 
     @Override
     public List<ClassWrapper<CtTypeReference<?>, CtMethod<?>>> getInterfaces() {
-        List<ClassWrapper<CtTypeReference<?>, CtMethod<?>>> interfaces = Lists.newArrayList();
-
-        for (CtTypeReference<?> klass: this.clazz.getSuperInterfaces()) {
-            interfaces.add(new SpoonClassWrapper(klass));
-        }
-
-        return interfaces;
+        return this.type.getSuperInterfaces().stream().map(SpoonClassWrapper::new).collect(Collectors.toList());
     }
 
     @Override
     public ClassWrapper<CtTypeReference<?>, CtMethod<?>> getSuperclass() {
-        if (this.clazz.getSuperclass() != null) {
-            return new SpoonClassWrapper(this.clazz.getSuperclass());
+        if (this.type.getSuperclass() != null) {
+            return new SpoonClassWrapper(this.type.getSuperclass());
         }
         return null;
     }
 
     @Override
     public CtTypeReference<?> getActualClass() {
-        return this.clazz;
+        return this.type;
     }
 
     @Override
     public boolean isPrimitive(Class<?> other) {
-        if (this.clazz.isPrimitive()) {
-            return this.clazz.getActualClass().equals(other);
-        }
-        return false;
+        return this.type.isPrimitive() && this.type.getActualClass().equals(other);
     }
 
     @Override
     public ClassWrapper<CtTypeReference<?>, CtMethod<?>> getBaseClass() {
-        final Queue<CtTypeReference<?>> queue = new ArrayDeque<CtTypeReference<?>>();
-
-        queue.add(this.clazz);
+        final Queue<CtTypeReference<?>> queue = new ArrayDeque<>();
+        queue.add(this.type);
         CtTypeReference<?> scannedType;
-
         while ((scannedType = queue.poll()) != null) {
             for (CtAnnotation<? extends Annotation> annotation : scannedType.getDeclaration().getAnnotations()) {
                 if (ImplementedBy.class.getName().equals(annotation.getType().getQualifiedName())) {
                     return new SpoonClassWrapper(((CtFieldReference<?>) annotation.getElementValues().get("value")).getDeclaringType());
                 }
             }
-            for (CtTypeReference<?> implInterfaces : scannedType.getDeclaration().getSuperInterfaces()) {
-                queue.offer(implInterfaces);
-            }
+            scannedType.getDeclaration().getSuperInterfaces().forEach(queue::offer);
         }
         return null;
-
     }
 }

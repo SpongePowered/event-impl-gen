@@ -48,7 +48,7 @@ import java.util.TreeMap;
  */
 public class ImportScannerImpl extends CtScanner implements ImportScanner {
 
-    private Map<String, CtTypeReference<?>> imports = new TreeMap<String, CtTypeReference<?>>();
+    private Map<String, CtTypeReference<?>> imports = new TreeMap<>();
 
     @Override
     public <T> void visitCtFieldAccess(CtFieldAccess<T> f) {
@@ -176,7 +176,7 @@ public class ImportScannerImpl extends CtScanner implements ImportScanner {
             return Collections.emptyList();
         }
         CtPackageReference pack = (imports.get(simpleType.getSimpleName())).getPackage();
-        List<CtTypeReference<?>> refs = new ArrayList<CtTypeReference<?>>();
+        List<CtTypeReference<?>> refs = new ArrayList<>();
         for (CtTypeReference<?> ref : imports.values()) {
             // ignore root package type
             if (ref.getPackage() != null) {
