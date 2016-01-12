@@ -79,11 +79,63 @@ allprojects {
 
 apply plugin: 'java-gradle-plugin'
 
+configurations {
+    deployerJars
+}
+
 dependencies {
     compile project(':event-gen-core')
     compile 'fr.inria.gforge.spoon:spoon-core:4.4.1'
+    deployerJars 'org.apache.maven.wagon:wagon-ftp:2.7'
 }
 
 task wrapper(type: Wrapper) {
     gradleVersion = '2.4'
+}
+
+uploadArchives {
+    repositories {
+
+        mavenDeployer {
+            configuration = configurations.deployerJars
+
+            if (project.hasProperty("chRepo"))
+            {
+                repository(url: project.chRepo) {
+                    authentication(userName: project.chUsername, password: project.chPassword)
+                }
+            }
+
+            pom {
+                groupId = project.group
+                version = project.version
+                artifactId = project.archivesBaseName
+                project {
+                    name project.archivesBaseName
+                    packaging 'jar'
+                    description 'event-impl-gen'
+                    url 'http://www.spongepowered.org/'
+
+                    scm {
+                        url 'https://github.com/SpongePowered/event-impl-gen'
+                        connection 'scm:git:git://github.com/SpongePowered/event-impl-gen.git'
+                        developerConnection 'scm:git:git@github.com:SpongePowered/event-impl-gen.git'
+                    }
+
+                    issueManagement {
+                        system 'GitHub Issues'
+                        url 'https://github.com/SpongePowered/event-impl-gen/issues'
+                    }
+
+                    licenses {
+                        license {
+                            name 'MIT license'
+                            url 'http://opensource.org/licenses/MIT'
+                            distribution 'repo'
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
