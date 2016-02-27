@@ -46,4 +46,14 @@ public @interface ImplementedBy {
      */
     Class<?> value();
 
+    /**
+     * Gets the priority for this annotaion, relative to other annotations in the same
+     * hierarchy of the event interface
+     *
+     * <p>The annotation with the highest priority will be used.</p>
+     *
+     * @return The priority to use
+     */
+    int priority() default 1;
+
 }

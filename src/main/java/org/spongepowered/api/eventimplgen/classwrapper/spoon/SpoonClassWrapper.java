@@ -87,20 +87,4 @@ public class SpoonClassWrapper implements ClassWrapper<CtTypeReference<?>, CtMet
     public boolean isPrimitive(Class<?> other) {
         return this.type.isPrimitive() && this.type.getActualClass().equals(other);
     }
-
-    @Override
-    public ClassWrapper<CtTypeReference<?>, CtMethod<?>> getBaseClass() {
-        final Queue<CtTypeReference<?>> queue = new ArrayDeque<>();
-        queue.add(this.type);
-        CtTypeReference<?> scannedType;
-        while ((scannedType = queue.poll()) != null) {
-            for (CtAnnotation<? extends Annotation> annotation : scannedType.getDeclaration().getAnnotations()) {
-                if (ImplementedBy.class.getName().equals(annotation.getType().getQualifiedName())) {
-                    return new SpoonClassWrapper(((CtFieldReference<?>) annotation.getElementValues().get("value")).getDeclaringType());
-                }
-            }
-            scannedType.getDeclaration().getSuperInterfaces().forEach(queue::offer);
-        }
-        return null;
-    }
 }

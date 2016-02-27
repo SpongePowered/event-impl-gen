@@ -33,15 +33,21 @@ public class ReflectionUtils {
 
     public static ReflectionClassWrapper getBaseClass(Class<?> target) {
         ImplementedBy implementedBy = null;
+        int max = -1;
+
         final Queue<Class<?>> queue = new ArrayDeque<>();
 
         queue.add(target);
         Class<?> scannedType;
 
+
         while ((scannedType = queue.poll()) != null) {
-            if ((implementedBy = scannedType.getAnnotation(ImplementedBy.class)) != null) {
-                break;
+            ImplementedBy anno = scannedType.getAnnotation(ImplementedBy.class);
+            if (anno != null && (anno.priority() == -1 || anno.priority() > max)) {
+                implementedBy = anno;
+                max = anno.priority();
             }
+
             for (Class<?> implInterfaces : scannedType.getInterfaces()) {
                 queue.offer(implInterfaces);
             }
