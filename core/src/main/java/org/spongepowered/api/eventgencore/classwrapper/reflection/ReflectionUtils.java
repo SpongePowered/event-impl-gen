@@ -33,17 +33,16 @@ public class ReflectionUtils {
 
     public static ReflectionClassWrapper getBaseClass(Class<?> target) {
         ImplementedBy implementedBy = null;
-        int max = -1;
+        int max = Integer.MIN_VALUE;
 
         final Queue<Class<?>> queue = new ArrayDeque<>();
 
         queue.add(target);
         Class<?> scannedType;
 
-
         while ((scannedType = queue.poll()) != null) {
             ImplementedBy anno = scannedType.getAnnotation(ImplementedBy.class);
-            if (anno != null && (anno.priority() == -1 || anno.priority() > max)) {
+            if (anno != null && anno.priority() >= max) {
                 implementedBy = anno;
                 max = anno.priority();
             }
