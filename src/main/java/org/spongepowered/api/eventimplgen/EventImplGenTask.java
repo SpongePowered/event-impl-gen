@@ -31,6 +31,7 @@ import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskAction;
 import org.spongepowered.api.eventgencore.Property;
+import org.spongepowered.api.eventgencore.annotation.GenerateFactoryMethod;
 import org.spongepowered.api.eventgencore.annotation.PropertySettings;
 import org.spongepowered.api.eventgencore.annotation.codecheck.CompareTo;
 import org.spongepowered.api.eventgencore.annotation.codecheck.FactoryCodeCheck;
@@ -106,14 +107,24 @@ public class EventImplGenTask extends DefaultTask {
         // Modify factory class AST
         final CtType<T> factoryClass = factory.Type().get(extension.outputFactory);
         factoryClass.getMethods().clear();
+
         for (Map.Entry<CtType<?>, Collection<? extends Property<CtTypeReference<?>, CtMethod<?>>>> entry : foundProperties.entrySet()) {
-            final CtMethod<?> method = generateMethod(factoryClass, entry.getKey(), entry.getValue());
+            CtType<?> event = entry.getKey();
+
+            if (!this.shouldGenerateMethod(event)) {
+                continue;
+            }
+            final CtMethod<?> method = generateMethod(factoryClass, event, entry.getValue());
             factoryClass.addMethod(method);
         }
         // Output source code from AST
         final JavaOutputProcessor outputProcessor = new JavaOutputProcessor(factory, new File(extension.outputDir));
         outputProcessor.setWritePackageAnnotationFile(false);
         outputProcessor.createJavaFile(factoryClass);
+    }
+
+    private boolean shouldGenerateMethod(CtType<?> event) {
+        return event.getNestedTypes().isEmpty() || event.getAnnotation(GenerateFactoryMethod.class) != null;
     }
 
     private <T> CtMethod<T> generateMethod(CtType<?> factoryClass, CtType<T> event,
