@@ -43,4 +43,14 @@ import java.lang.annotation.Target;
 @Target(ElementType.FIELD)
 public @interface UseField {
 
+    /**
+     * Indicates whether to use the annotated field directly in the generated 'toString()' method,
+     * rather than calling the normal accessor method.
+     *
+     * <p>This should only be used when there are special restrictions on calling the accessor
+     * (for example, AffectEntityEvent#getEntitySnapshots)</p>
+     * @return
+     */
+    boolean overrideToString() default false;
+
 }
