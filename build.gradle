@@ -15,7 +15,7 @@ allprojects {
 
     // Basic project information
     group = 'org.spongepowered'
-    version = '2.0.0-SNAPSHOT'
+    version = '2.1.0-SNAPSHOT'
 
     // Minimum version of Java required
     sourceCompatibility = '1.8'
