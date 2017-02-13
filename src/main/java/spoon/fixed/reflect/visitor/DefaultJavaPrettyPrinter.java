@@ -621,13 +621,17 @@ public class DefaultJavaPrettyPrinter implements CtVisitor, PrettyPrinter {
         scan(annotation.getAnnotationType());
         if (annotation.getElementValues().size() > 0) {
             write("(");
-            for (Entry<String, Object> e : annotation.getElementValues()
-                .entrySet()) {
-                write(e.getKey() + " = ");
-                writeAnnotationElement(annotation.getFactory(), e.getValue());
-                write(", ");
+            if (annotation.getElementValues().size() == 1 && annotation.getElementValues().containsKey("value")) {
+                writeAnnotationElement(annotation.getFactory(), annotation.getElementValues().get("value"));
+            } else {
+                for (Entry<String, Object> e : annotation.getElementValues()
+                        .entrySet()) {
+                    write(e.getKey() + " = ");
+                    writeAnnotationElement(annotation.getFactory(), e.getValue());
+                    write(", ");
+                }
+                removeLastChar();
             }
-            removeLastChar();
             write(")");
         }
         writeln().writeTabs();

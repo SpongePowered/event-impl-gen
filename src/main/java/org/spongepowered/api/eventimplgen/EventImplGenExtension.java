@@ -33,7 +33,10 @@ public class EventImplGenExtension {
     public String[] includeSrc = new String[0];
     public String[] excludeSrc = new String[0];
     public String outputDir = "";
+
     public String outputFactory = "";
+    public String outputInterface = "";
+
     public boolean validateCode = true;
     public String eventImplCreateMethod = "";
     public String sortPriorityPrefix = "";

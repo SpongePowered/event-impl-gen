@@ -87,4 +87,9 @@ public class SpoonClassWrapper implements ClassWrapper<CtTypeReference<?>, CtMet
     public boolean isPrimitive(Class<?> other) {
         return this.type.isPrimitive() && this.type.getActualClass().equals(other);
     }
+
+    @Override
+    public boolean isPrimitive() {
+        return this.type.isPrimitive();
+    }
 }

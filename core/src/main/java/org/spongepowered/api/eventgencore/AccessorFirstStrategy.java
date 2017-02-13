@@ -27,14 +27,19 @@ package org.spongepowered.api.eventgencore;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 import org.spongepowered.api.eventgencore.classwrapper.ClassWrapper;
 import org.spongepowered.api.eventgencore.classwrapper.MethodWrapper;
 
+import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
@@ -149,7 +154,7 @@ public class AccessorFirstStrategy<T, M> implements PropertySearchStrategy<T, M>
     }
 
     @Override
-    public ImmutableSet<? extends Property<T, M>> findProperties(final ClassWrapper<T, M> type) {
+    public List<? extends Property<T, M>> findProperties(final ClassWrapper<T, M> type) {
         checkNotNull(type, "type");
 
         final Multimap<String, MethodWrapper<T, M>> accessors = HashMultimap.create();
@@ -196,7 +201,7 @@ public class AccessorFirstStrategy<T, M> implements PropertySearchStrategy<T, M>
             queue.offer(scannedType.getSuperclass());
         }
 
-        final ImmutableSet.Builder<Property<T, M>> result = ImmutableSet.builder();
+        final List<Property<T, M>> result = new ArrayList<>();
 
         for (Map.Entry<String, MethodWrapper<T, M>> entry : accessors.entries()) {
             final MethodWrapper<T, M> accessor = entry.getValue();
@@ -206,7 +211,8 @@ public class AccessorFirstStrategy<T, M> implements PropertySearchStrategy<T, M>
                 mostSpecific.get(entry.getKey()), accessor, mutator));
         }
 
-        return result.build();
+        result.sort(Comparator.comparing(Property::getName));
+        return ImmutableList.copyOf(result);
     }
 
 }
