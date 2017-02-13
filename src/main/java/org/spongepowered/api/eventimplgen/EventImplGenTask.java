@@ -33,7 +33,6 @@ import org.gradle.api.tasks.TaskAction;
 import org.spongepowered.api.eventgencore.Property;
 import org.spongepowered.api.eventgencore.PropertySorter;
 import org.spongepowered.api.eventgencore.annotation.GenerateFactoryMethod;
-import org.spongepowered.api.eventgencore.annotation.Name;
 import org.spongepowered.api.eventgencore.annotation.PropertySettings;
 import org.spongepowered.api.eventgencore.annotation.codecheck.CompareTo;
 import org.spongepowered.api.eventgencore.annotation.codecheck.FactoryCodeCheck;
@@ -45,15 +44,11 @@ import spoon.fixed.support.JavaOutputProcessor;
 import spoon.reflect.code.BinaryOperatorKind;
 import spoon.reflect.code.CtBinaryOperator;
 import spoon.reflect.code.CtBlock;
-import spoon.reflect.code.CtConstructorCall;
 import spoon.reflect.code.CtExpression;
-import spoon.reflect.code.CtFieldAccess;
 import spoon.reflect.code.CtInvocation;
 import spoon.reflect.code.CtLiteral;
-import spoon.reflect.code.CtLocalVariable;
 import spoon.reflect.code.CtReturn;
 import spoon.reflect.code.CtVariableAccess;
-import spoon.reflect.declaration.CtElement;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtParameter;
 import spoon.reflect.declaration.CtType;
@@ -61,15 +56,11 @@ import spoon.reflect.declaration.ModifierKind;
 import spoon.reflect.factory.Factory;
 import spoon.reflect.reference.CtExecutableReference;
 import spoon.reflect.reference.CtTypeReference;
-import spoon.reflect.reference.CtVariableReference;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -152,7 +143,7 @@ public class EventImplGenTask extends DefaultTask {
         method.setParent(factoryClass);
         method.setType(event.getReference());
         method.setSimpleName(generateMethodName(event));
-        final Map<CtMethod<?>, CtParameter<?>> parameterMap = generateMethodParameters(method, foundProperties, interfaceMethod);
+        final Map<CtMethod<?>, CtParameter<?>> parameterMap = generateMethodParameters(method, foundProperties);
         List<CtParameter<?>> parameters = new ArrayList<>(parameterMap.values());
         method.setParameters(parameters);
 
@@ -168,7 +159,7 @@ public class EventImplGenTask extends DefaultTask {
 
     @SuppressWarnings("rawtypes")
     private Map<CtMethod<?>, CtParameter<?>> generateMethodParameters(CtMethod<?> method,
-        List<? extends Property<CtTypeReference<?>, CtMethod<?>>> properties, boolean interfaceMethod) {
+            List<? extends Property<CtTypeReference<?>, CtMethod<?>>> properties) {
 
         properties = new PropertySorter(extension.sortPriorityPrefix, extension.groupingPrefixes).sortProperties(properties);
         Map<CtMethod<?>, CtParameter<?>> map = new LinkedHashMap<>();
@@ -177,9 +168,6 @@ public class EventImplGenTask extends DefaultTask {
                 continue;
             }
             CtParameter<?> param = factory.Method().createParameter(method, property.getMostSpecificType(), property.getName());
-            if (interfaceMethod) {
-                factory.Annotation().annotate(param, (Class) Name.class, "value", property.getName());
-            }
             map.put(property.getMostSpecificMethod(), param);
         }
         return map;
