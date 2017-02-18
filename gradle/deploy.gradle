@@ -5,7 +5,7 @@ configurations {
 }
 
 dependencies {
-    deployerJars 'org.apache.maven.wagon:wagon-ftp:2.8'
+    deployerJars 'org.apache.maven.wagon:wagon-ftp:2.10'
 }
 
 uploadArchives {
@@ -13,9 +13,9 @@ uploadArchives {
         mavenDeployer {
             configuration = configurations.deployerJars
 
-            if (project.hasProperty('chRepo')) {
-                repository(url: project.chRepo) {
-                    authentication(userName: project.chUsername, password: project.chPassword)
+            if (project.hasProperty('spongeRepo')) {
+                repository(url: project.spongeRepo) {
+                    authentication(userName: project.spongeUsername, password: project.spongePassword)
                 }
             }
 
