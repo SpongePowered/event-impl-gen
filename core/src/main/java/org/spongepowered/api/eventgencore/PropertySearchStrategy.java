@@ -27,6 +27,8 @@ package org.spongepowered.api.eventgencore;
 import com.google.common.collect.ImmutableSet;
 import org.spongepowered.api.eventgencore.classwrapper.ClassWrapper;
 
+import java.util.List;
+
 /**
  * Finds all the properties in a class.
  *
@@ -39,9 +41,11 @@ public interface PropertySearchStrategy<T, M> {
      * Enumerate a list of properties on a class, considering super types
      * and implemented interfaces.
      *
+     * <p>The returned list is sorted lexographically by property name</p>
+     *
      * @param type The class
      * @return A set of properties
      */
-    ImmutableSet<? extends Property<T, M>> findProperties(final ClassWrapper<T, M> type);
+    List<? extends Property<T, M>> findProperties(final ClassWrapper<T, M> type);
 
 }

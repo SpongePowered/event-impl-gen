@@ -77,4 +77,9 @@ public class ReflectionClassWrapper implements ClassWrapper<Class<?>, Method> {
     public boolean isPrimitive(Class<?> other) {
         return this.clazz.equals(other);
     }
+
+    @Override
+    public boolean isPrimitive() {
+        return this.clazz.isPrimitive();
+    }
 }

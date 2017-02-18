@@ -90,6 +90,10 @@ public final class Property<T, M> implements Comparable<Property<T, M>> {
         return this.type.getActualClass();
     }
 
+    public ClassWrapper<T, M> getWrapperType() {
+        return this.type;
+    }
+
     /**
      * Gets the least specific version of the accessor used.
      *

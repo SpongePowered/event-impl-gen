@@ -22,13 +22,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.api.eventimplgen;
+package org.spongepowered.api.eventgencore;
 
-import org.spongepowered.api.eventgencore.AccessorFirstStrategy;
-import org.spongepowered.api.eventgencore.Property;
 import org.spongepowered.api.eventgencore.annotation.AbsoluteSortPosition;
-import spoon.reflect.declaration.CtMethod;
-import spoon.reflect.reference.CtTypeReference;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -49,13 +45,13 @@ public class PropertySorter {
     }
 
     @SuppressWarnings("rawtypes")
-    public List<? extends Property<CtTypeReference<?>, CtMethod<?>>> sortProperties(
-        Collection<? extends Property<CtTypeReference<?>, CtMethod<?>>> properties) {
+    public <T, M> List<? extends Property<T, M>> sortProperties(
+        Collection<? extends Property<T, M>> properties) {
 
-        final List<Property<CtTypeReference<?>, CtMethod<?>>> finalProperties = new ArrayList<>();
-        final Map<String, Property<CtTypeReference<?>, CtMethod<?>>> propertyMap = new HashMap<>();
-        final List<PrefixPair> pairs = new ArrayList<>();
-        final List<Property<CtTypeReference<?>, CtMethod<?>>> primitiveProperties = new ArrayList<>();
+        final List<Property<T, M>> finalProperties = new ArrayList<>();
+        final Map<String, Property<T, M>> propertyMap = new HashMap<>();
+        final List<PrefixPair<T, M>> pairs = new ArrayList<>();
+        final List<Property<T, M>> primitiveProperties = new ArrayList<>();
 
         properties.stream().filter(Property::isMostSpecificType).forEach(property -> {
             propertyMap.put(property.getName(), property);
@@ -66,22 +62,22 @@ public class PropertySorter {
             }
         });
 
-        for (Map.Entry<String, Property<CtTypeReference<?>, CtMethod<?>>> entry : new HashSet<>(propertyMap.entrySet())) {
+        for (Map.Entry<String, Property<T, M>> entry : new HashSet<>(propertyMap.entrySet())) {
             final String name = entry.getValue().getName();
             final String unprefixedName = getUnprefixedName(name);
             if (name.startsWith(prefix)) {
                 if (propertyMap.containsKey(unprefixedName)) {
-                    pairs.add(new PrefixPair(entry.getValue(), propertyMap.get(unprefixedName)));
+                    pairs.add(new PrefixPair<>(entry.getValue(), propertyMap.get(unprefixedName)));
                     propertyMap.remove(name);
                     propertyMap.remove(unprefixedName);
                 }
             }
         }
 
-        for (Map.Entry<String, Property<CtTypeReference<?>, CtMethod<?>>> entry : new HashSet<>(propertyMap.entrySet())) {
+        for (Map.Entry<String, Property<T, M>> entry : new HashSet<>(propertyMap.entrySet())) {
             final String name = entry.getKey();
-            final Property<CtTypeReference<?>, CtMethod<?>> property = entry.getValue();
-            if (property.getType().isPrimitive()) {
+            final Property<T, M> property = entry.getValue();
+            if (property.getWrapperType().isPrimitive()) {
                 primitiveProperties.add(property);
                 propertyMap.remove(name);
             } else {
@@ -89,7 +85,7 @@ public class PropertySorter {
                     if (name.startsWith(prefixEntry.getKey())) {
                         final String modifiedName = name.replaceFirst(prefixEntry.getKey(), prefixEntry.getValue());
                         if (propertyMap.containsKey(modifiedName)) {
-                            pairs.add(new PrefixPair(entry.getValue(), propertyMap.get(modifiedName)));
+                            pairs.add(new PrefixPair<>(entry.getValue(), propertyMap.get(modifiedName)));
                             propertyMap.remove(name);
                             propertyMap.remove(modifiedName);
                             break;
@@ -101,12 +97,12 @@ public class PropertySorter {
 
         Collections.sort(pairs);
 
-        for (PrefixPair pair : pairs) {
+        for (PrefixPair<T, M> pair : pairs) {
             finalProperties.add(pair.prefixed);
             finalProperties.add(pair.unprefixed);
         }
 
-        final List<Property<CtTypeReference<?>, CtMethod<?>>> normalProperties = new ArrayList<>(propertyMap.values());
+        final List<Property<T, M>> normalProperties = new ArrayList<>(propertyMap.values());
 
         Collections.sort(normalProperties);
         Collections.sort(primitiveProperties);
@@ -117,12 +113,12 @@ public class PropertySorter {
         return finalProperties;
     }
 
-    private static class PrefixPair implements Comparable<PrefixPair> {
+    private static class PrefixPair<T, M> implements Comparable<PrefixPair> {
 
-        private final Property<CtTypeReference<?>, CtMethod<?>> prefixed;
-        private final Property<CtTypeReference<?>, CtMethod<?>> unprefixed;
+        private final Property<T, M> prefixed;
+        private final Property<T, M> unprefixed;
 
-        private PrefixPair(Property<CtTypeReference<?>, CtMethod<?>> prefixed, Property<CtTypeReference<?>, CtMethod<?>> unprefixed) {
+        private PrefixPair(Property<T, M> prefixed, Property<T, M> unprefixed) {
             this.prefixed = prefixed;
             this.unprefixed = unprefixed;
         }

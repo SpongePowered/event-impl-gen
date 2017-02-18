@@ -36,19 +36,20 @@ import spoon.reflect.reference.CtTypeReference;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
 
     private static final PropertySearchStrategy<CtTypeReference<?>, CtMethod<?>> SEARCH_STRATEGY = new AccessorFirstStrategy<>();
-    private final Map<CtType<?>, Collection<? extends Property<CtTypeReference<?>, CtMethod<?>>>> foundProperties = new HashMap<>();
+    private final Map<CtType<?>, List<? extends Property<CtTypeReference<?>, CtMethod<?>>>> foundProperties = new HashMap<>();
     private final EventImplGenExtension extension;
 
     public EventInterfaceProcessor(EventImplGenExtension extension) {
         this.extension = extension;
     }
 
-    public Map<CtType<?>, Collection<? extends Property<CtTypeReference<?>, CtMethod<?>>>> getFoundProperties() {
+    public Map<CtType<?>, List<? extends Property<CtTypeReference<?>, CtMethod<?>>>> getFoundProperties() {
         return foundProperties;
     }
 

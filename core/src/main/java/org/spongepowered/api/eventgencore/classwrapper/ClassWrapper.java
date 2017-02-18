@@ -48,4 +48,6 @@ public interface ClassWrapper<T, M> {
 
     boolean isPrimitive(Class<?> clazz);
 
+    boolean isPrimitive();
+
 }
