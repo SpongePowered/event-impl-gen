@@ -309,14 +309,6 @@ public class ClassGenerator {
 
             final boolean hasUseField = getUseField(parentType, property.getName()) != null;
 
-            Label afterPut = new Label();
-
-            if (!isPrimitive) {
-                // if (value != null) {
-                mv.visitVarInsn(loadOpcode, paramIndex);
-                mv.visitJumpInsn(IFNULL, afterPut);
-            }
-
             // stack: -> this
             mv.visitVarInsn(ALOAD, 0);
 
@@ -334,8 +326,6 @@ public class ClassGenerator {
                 mv.visitFieldInsn(PUTFIELD, internalName, property.getName(), desc);
             }
             // }
-
-            mv.visitLabel(afterPut);
 
             if (type.equals(Type.LONG_TYPE) || type.equals(Type.DOUBLE_TYPE)) {
                 paramIndex++; // Skip empty slot
@@ -399,7 +389,7 @@ public class ClassGenerator {
                     "(Ljava/lang/Object;)Ljava/util/Optional;", false);
         }
 
-        if (!property.getType().isPrimitive()) {
+        if (!property.getType().isPrimitive() && !property.getMostSpecificType().getQualifiedName().equals(property.getLeastSpecificType().getQualifiedName())) {
             CtTypeReference<?> mostSpecificReturn = property.getMostSpecificType();
             //CtMethod<?> specific =  type.getMethod(property.getAccessor().getSimpleName(), getParameterTypes(property.getAccessor()));
 
