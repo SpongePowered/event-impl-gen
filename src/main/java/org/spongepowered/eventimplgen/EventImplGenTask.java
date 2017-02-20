@@ -73,7 +73,7 @@ public class EventImplGenTask extends SourceTask {
 
     private String sortPriorityPrefix = "";
     private Map<String, String> groupingPrefixes = Collections.emptyMap();
-    private boolean validateCode = true;
+    private boolean validateCode = false;
 
     @OutputFile
     public File getOutput() {
