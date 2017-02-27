@@ -68,7 +68,6 @@ public class EventImplGenTask extends SourceTask {
     private PropertySorter sorter;
 
     private File output;
-    private String outputPackage;
     private String outputFactory;
 
     private String sortPriorityPrefix = "";
@@ -86,15 +85,6 @@ public class EventImplGenTask extends SourceTask {
 
     public void setOutput(File output) {
         this.output = output;
-    }
-
-    @Input
-    public String getOutputPackage() {
-        return outputPackage;
-    }
-
-    public void setOutputPackage(String outputPackage) {
-        this.outputPackage = outputPackage;
     }
 
     @Input
@@ -165,7 +155,8 @@ public class EventImplGenTask extends SourceTask {
 
     private void dumpClasses(Map<CtType<?>, List<Property>> foundProperties) throws IOException {
         try (JarOutputStream jar = new JarOutputStream(Files.newOutputStream(this.output.toPath()))) {
-            ClassGeneratorProvider provider = new ClassGeneratorProvider(this.outputPackage);
+            String packageName = this.outputFactory.substring(0, this.outputFactory.lastIndexOf('.'));
+            ClassGeneratorProvider provider = new ClassGeneratorProvider(packageName);
             byte[] clazz = FactoryInterfaceGenerator.createClass(this.outputFactory, foundProperties, provider, this.sorter);
             addClass(jar, this.outputFactory, clazz);
 

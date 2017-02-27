@@ -61,7 +61,6 @@ import org.spongepowered.eventimplgen.EventImplGenTask;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.eventgencore.PropertySorter;
 import org.spongepowered.eventimplgen.factory.plugin.EventFactoryPlugin;
-import spoon.reflect.code.CtLiteral;
 import spoon.reflect.declaration.CtAnnotation;
 import spoon.reflect.declaration.CtField;
 import spoon.reflect.declaration.CtMethod;
@@ -271,7 +270,7 @@ public class ClassGenerator {
         String methodDesc = builder.toString();
 
         MethodVisitor mv =
-                classWriter.visitMethod(ACC_PUBLIC, "<init>", methodDesc, null, null);
+                classWriter.visitMethod(0, "<init>", methodDesc, null, null);
         mv.visitCode();
 
         // super()
@@ -544,7 +543,7 @@ public class ClassGenerator {
         final String internalName = getInternalName(name);
 
         final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
-        cw.visit(V1_6, ACC_PUBLIC + ACC_SUPER, internalName, null, getInternalName(parentType.getQualifiedName()), new String[] {getInternalName(type.getQualifiedName())});
+        cw.visit(V1_6, ACC_SUPER, internalName, null, getInternalName(parentType.getQualifiedName()), new String[] {getInternalName(type.getQualifiedName())});
 
         MethodVisitor toStringMv = this.initializeToString(cw, type);
 
