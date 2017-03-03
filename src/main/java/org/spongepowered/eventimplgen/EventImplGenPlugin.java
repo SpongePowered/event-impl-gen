@@ -40,6 +40,7 @@ public class EventImplGenPlugin implements Plugin<Project> {
 
         final TaskContainer tasks = project.getTasks();
         final EventImplGenTask task = tasks.create("genEventImpl", EventImplGenTask.class);
+        task.setDestinationDir(project.file(".gradle/event-factory"));
         task.source(sourceSet.getAllJava());
     }
 

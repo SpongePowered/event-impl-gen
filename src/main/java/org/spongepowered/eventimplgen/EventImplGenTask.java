@@ -24,10 +24,11 @@
  */
 package org.spongepowered.eventimplgen;
 
-import org.gradle.api.file.FileCollection;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.OutputFile;
+import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceTask;
 import org.gradle.api.tasks.TaskAction;
@@ -52,14 +53,13 @@ import spoon.support.reflect.declaration.CtAnnotationImpl;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
-import java.util.Set;
-import java.util.jar.JarEntry;
-import java.util.jar.JarOutputStream;
 
 public class EventImplGenTask extends SourceTask {
 
@@ -67,24 +67,24 @@ public class EventImplGenTask extends SourceTask {
     private Factory factory;
     private PropertySorter sorter;
 
-    private File output;
+    private File destinationDir;
     private String outputFactory;
 
     private String sortPriorityPrefix = "";
     private Map<String, String> groupingPrefixes = Collections.emptyMap();
     private boolean validateCode = false;
 
-    @OutputFile
-    public File getOutput() {
-        return this.output;
+    @OutputDirectory
+    public File getDestinationDir() {
+        return destinationDir;
     }
 
-    public void setOutput(Object output) {
-        setOutput(getProject().file(output));
+    public void setDestinationDir(Object destinationDir) {
+        setDestinationDir(getProject().file(destinationDir));
     }
 
-    public void setOutput(File output) {
-        this.output = output;
+    public void setDestinationDir(File destinationDir) {
+        this.destinationDir = checkNotNull(destinationDir, "destinationDir");
     }
 
     @Input
@@ -93,7 +93,7 @@ public class EventImplGenTask extends SourceTask {
     }
 
     public void setOutputFactory(String outputFactory) {
-        this.outputFactory = outputFactory;
+        this.outputFactory = checkNotNull(outputFactory, "outputFactory");
     }
 
     @Input
@@ -102,7 +102,7 @@ public class EventImplGenTask extends SourceTask {
     }
 
     public void setSortPriorityPrefix(String sortPriorityPrefix) {
-        this.sortPriorityPrefix = sortPriorityPrefix;
+        this.sortPriorityPrefix = checkNotNull(sortPriorityPrefix, "sortPriorityPrefix");
     }
 
     @Input
@@ -111,7 +111,7 @@ public class EventImplGenTask extends SourceTask {
     }
 
     public void setGroupingPrefixes(Map<String, String> groupingPrefixes) {
-        this.groupingPrefixes = groupingPrefixes;
+        this.groupingPrefixes = checkNotNull(groupingPrefixes, "groupingPrefixes");
     }
 
     @Input
@@ -125,6 +125,9 @@ public class EventImplGenTask extends SourceTask {
 
     @TaskAction
     public void generateClasses() throws IOException {
+        // Clean the destination directory
+        getProject().delete(this.destinationDir);
+
         // Initialize spoon
         SpoonAPI spoon = new Launcher();
         spoon.addProcessor(EVENT_CLASS_PROCESSOR);
@@ -138,11 +141,16 @@ public class EventImplGenTask extends SourceTask {
         final SourceSet sourceSet =
             getProject().getConvention().getPlugin(JavaPluginConvention.class).getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
         final SpoonModelBuilder compiler = spoon.createCompiler();
-        compiler.setSourceClasspath(toPathArray(this.output.getAbsolutePath(), sourceSet.getCompileClasspath()));
+        compiler.setSourceClasspath(sourceSet.getCompileClasspath().getFiles().stream()
+                .filter(file -> !file.equals(this.destinationDir))
+                .map(File::getAbsolutePath)
+                .toArray(String[]::new));
         sourceSet.getAllJava().getSrcDirs().forEach(compiler::addInputSource);
         this.factory = compiler.getFactory();
+
         // Generate AST
         compiler.build();
+
         // Analyse AST
         final EventInterfaceProcessor processor = new EventInterfaceProcessor(getSource());
         compiler.process(Collections.singletonList(processor));
@@ -154,29 +162,30 @@ public class EventImplGenTask extends SourceTask {
     }
 
     private void dumpClasses(Map<CtType<?>, List<Property>> foundProperties) throws IOException {
-        try (JarOutputStream jar = new JarOutputStream(Files.newOutputStream(this.output.toPath()))) {
-            String packageName = this.outputFactory.substring(0, this.outputFactory.lastIndexOf('.'));
-            ClassGeneratorProvider provider = new ClassGeneratorProvider(packageName);
-            byte[] clazz = FactoryInterfaceGenerator.createClass(this.outputFactory, foundProperties, provider, this.sorter);
-            addClass(jar, this.outputFactory, clazz);
+        String packageName = this.outputFactory.substring(0, this.outputFactory.lastIndexOf('.'));
+        ClassGeneratorProvider provider = new ClassGeneratorProvider(packageName);
 
-            ClassGenerator generator = new ClassGenerator();
-            generator.setNullPolicy(NullPolicy.NON_NULL_BY_DEFAULT);
+        Path destinationDir = this.destinationDir.toPath();
+        // Create package directory
+        Files.createDirectories(destinationDir.resolve(packageName.replace('.', File.separatorChar)));
 
-            for (CtType<?> event : foundProperties.keySet()) {
-                byte[] implClass = generator.createClass(event, ClassGenerator.getEventName(event, provider), getBaseClass(event),
-                        foundProperties.get(event), this.sorter, FactoryInterfaceGenerator.plugins);
+        byte[] clazz = FactoryInterfaceGenerator.createClass(this.outputFactory, foundProperties, provider, this.sorter);
+        addClass(destinationDir, this.outputFactory, clazz);
 
-                this.addClass(jar, ClassGenerator.getEventName(event, provider), implClass);
-            }
+        ClassGenerator generator = new ClassGenerator();
+        generator.setNullPolicy(NullPolicy.NON_NULL_BY_DEFAULT);
+
+        for (CtType<?> event : foundProperties.keySet()) {
+            String name = ClassGenerator.getEventName(event, provider);
+            clazz = generator.createClass(event, name, getBaseClass(event),
+                    foundProperties.get(event), this.sorter, FactoryInterfaceGenerator.plugins);
+            this.addClass(destinationDir, name, clazz);
         }
     }
 
-    private void addClass(JarOutputStream jar, String name, byte[] clazz) throws IOException {
-        JarEntry entry = new JarEntry(name.replace('.', '/') + ".class");
-        jar.putNextEntry(entry);
-        jar.write(clazz);
-        jar.closeEntry();
+    private void addClass(Path destinationDir, String name, byte[] clazz) throws IOException {
+        Path classFile = destinationDir.resolve(name.replace('.', File.separatorChar) + ".class");
+        Files.write(classFile, clazz, StandardOpenOption.CREATE_NEW);
     }
 
     private CtTypeReference<?> getBaseClass(CtType<?> event) {
@@ -227,19 +236,6 @@ public class EventImplGenTask extends SourceTask {
         } while (event != null);
         name.insert(0, "create");
         return name.toString();
-    }
-
-    private String[] toPathArray(String outputJar, FileCollection fileCollection) {
-        final Set<File> files = fileCollection.getFiles();
-        final String[] strings = new String[files.size() - 1];
-        int i = 0;
-        for (File file : files) {
-            if (file.getAbsolutePath().equals(outputJar)) {
-                continue;
-            }
-            strings[i++] = file.getAbsolutePath();
-        }
-        return strings;
     }
 
 }
