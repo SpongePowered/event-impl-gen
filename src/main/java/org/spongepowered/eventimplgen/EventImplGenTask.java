@@ -28,8 +28,12 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import org.gradle.api.JavaVersion;
 import org.gradle.api.UncheckedIOException;
+import org.gradle.api.file.FileCollection;
 import org.gradle.api.file.SourceDirectorySet;
+import org.gradle.api.tasks.Classpath;
+import org.gradle.api.tasks.CompileClasspath;
 import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.compile.AbstractCompile;
 import org.spongepowered.eventimplgen.eventgencore.Property;
@@ -77,6 +81,14 @@ public class EventImplGenTask extends AbstractCompile {
 
     public EventImplGenTask() {
         this.groupingPrefixes.put("from", "to");
+    }
+
+    @Override
+    @CompileClasspath // Gradle 3.4+
+    @Classpath // Gradle 3.2+
+    @InputFiles
+    public FileCollection getClasspath() {
+        return super.getClasspath();
     }
 
     @Input
