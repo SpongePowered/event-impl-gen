@@ -42,7 +42,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Queue;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -164,46 +163,37 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
 
         final Multimap<String, CtMethod<?>> accessors = HashMultimap.create();
         final Multimap<String, CtMethod<?>> mutators = HashMultimap.create();
-        final Queue<CtTypeReference<?>> queue = new NonNullUniqueQueue<>();
         final Map<String, CtMethod<?>> accessorHierarchyBottoms = new HashMap<>();
         final Map<String, CtMethod<?>> mostSpecific = new HashMap<>();
         final Set<String> signatures = new HashSet<>();
 
-        queue.add(type); // Start off with our target type
+        for (CtMethod<?> method : type.getDeclaration().getAllMethods()) {
+            String name;
 
-        CtTypeReference<?> scannedType;
-        while ((scannedType = queue.poll()) != null) {
-            for (CtMethod<?> method : scannedType.getDeclaration().getMethods()) {
-                String name;
+            String signature = method.getSimpleName() + ";";
+            for (CtParameter<?> parameterType : method.getParameters()) {
+                signature += parameterType.getType().getQualifiedName() + ";";
+            }
+            signature += method.getType().getSimpleName();
 
-                String signature = method.getSimpleName() + ";";
-                for (CtParameter<?> parameterType : method.getParameters()) {
-                    signature += parameterType.getType().getQualifiedName() + ";";
-                }
-                signature += method.getType().getSimpleName();
-
-                CtMethod<?> leastSpecificMethod;
-                if ((name = getAccessorName(method)) != null && !signatures.contains(signature)
+            CtMethod<?> leastSpecificMethod;
+            if ((name = getAccessorName(method)) != null && !signatures.contains(signature)
                     && ((leastSpecificMethod = accessorHierarchyBottoms.get(name)) == null
                     || !leastSpecificMethod.getType().getQualifiedName().equals(method.getType().getQualifiedName()))) {
-                    accessors.put(name, method);
-                    signatures.add(signature);
+                accessors.put(name, method);
+                signatures.add(signature);
 
-                    if (!mostSpecific.containsKey(name) || method.getType().isSubtypeOf(mostSpecific.get(name).getType())) {
-                        mostSpecific.put(name, method);
-                    }
-
-                    if (accessorHierarchyBottoms.get(name) == null
-                        || accessorHierarchyBottoms.get(name).getType().isSubtypeOf(method.getType())) {
-                        accessorHierarchyBottoms.put(name, method);
-                    }
-                } else if ((name = getMutatorName(method)) != null) {
-                    mutators.put(name, method);
+                if (!mostSpecific.containsKey(name) || method.getType().isSubtypeOf(mostSpecific.get(name).getType())) {
+                    mostSpecific.put(name, method);
                 }
-            }
 
-            scannedType.getSuperInterfaces().forEach(queue::offer);
-            queue.offer(scannedType.getSuperclass());
+                if (accessorHierarchyBottoms.get(name) == null
+                        || accessorHierarchyBottoms.get(name).getType().isSubtypeOf(method.getType())) {
+                    accessorHierarchyBottoms.put(name, method);
+                }
+            } else if ((name = getMutatorName(method)) != null) {
+                mutators.put(name, method);
+            }
         }
 
         final List<Property> result = new ArrayList<>();

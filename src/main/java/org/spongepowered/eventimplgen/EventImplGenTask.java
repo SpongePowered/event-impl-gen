@@ -57,6 +57,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayDeque;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -70,9 +71,13 @@ public class EventImplGenTask extends AbstractCompile {
 
     private String outputFactory;
 
-    private String sortPriorityPrefix = "";
-    private Map<String, String> groupingPrefixes = Collections.emptyMap();
+    private String sortPriorityPrefix = "original";
+    private Map<String, String> groupingPrefixes = new HashMap<>();
     private boolean validateCode = false;
+
+    public EventImplGenTask() {
+        this.groupingPrefixes.put("from", "to");
+    }
 
     @Input
     public String getOutputFactory() {
@@ -203,17 +208,24 @@ public class EventImplGenTask extends AbstractCompile {
             }
 
             for (CtTypeReference<?> implInterface : scannedType.getSuperInterfaces()) {
-                queue.offer(implInterface.getDeclaration());
+                queue.offer(implInterface.getTypeDeclaration());
             }
         }
 
         if (implementedBy != null) {
-            return implementedBy.<CtFieldRead<?>>getValue("value").getVariable().getDeclaringType();
+            if (implementedBy.isShadow()) {
+                return ShadowSpoon.getAnnotationTypeReference(implementedBy, "value");
+            } else {
+                return implementedBy.<CtFieldRead<?>>getValue("value").getVariable().getDeclaringType();
+            }
         }
         return factory.Type().OBJECT;
     }
 
     public static <T> T getValue(CtAnnotation<?> anno, String key) {
+        if (anno.isShadow()) {
+            return ShadowSpoon.getAnnotationValue(anno, key);
+        }
         return ((CtAnnotationImpl<?>) anno).getElementValue(key);
     }
 
