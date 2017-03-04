@@ -37,7 +37,6 @@ import org.objectweb.asm.Type;
 import org.spongepowered.eventimplgen.EventImplGenTask;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.factory.ClassGenerator;
-import spoon.reflect.code.CtLiteral;
 import spoon.reflect.declaration.CtAnnotation;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtType;

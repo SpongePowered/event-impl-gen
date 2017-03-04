@@ -25,9 +25,7 @@
 package org.spongepowered.eventimplgen.eventgencore;
 
 import org.spongepowered.eventimplgen.EventImplGenTask;
-import spoon.reflect.code.CtLiteral;
 import spoon.reflect.declaration.CtAnnotation;
-import spoon.reflect.declaration.CtElement;
 
 import java.util.ArrayList;
 import java.util.Collection;

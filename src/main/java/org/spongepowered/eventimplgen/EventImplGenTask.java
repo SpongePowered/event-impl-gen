@@ -26,12 +26,12 @@ package org.spongepowered.eventimplgen;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import org.gradle.api.plugins.JavaPluginConvention;
+import org.gradle.api.JavaVersion;
+import org.gradle.api.UncheckedIOException;
+import org.gradle.api.file.SourceDirectorySet;
 import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.OutputDirectory;
-import org.gradle.api.tasks.SourceSet;
-import org.gradle.api.tasks.SourceTask;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.api.tasks.compile.AbstractCompile;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.eventgencore.PropertySorter;
 import org.spongepowered.eventimplgen.factory.ClassGenerator;
@@ -60,32 +60,19 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 
-public class EventImplGenTask extends SourceTask {
+public class EventImplGenTask extends AbstractCompile {
 
     private static final String EVENT_CLASS_PROCESSOR = EventInterfaceProcessor.class.getCanonicalName();
     private Factory factory;
     private PropertySorter sorter;
 
-    private File destinationDir;
     private String outputFactory;
 
     private String sortPriorityPrefix = "";
     private Map<String, String> groupingPrefixes = Collections.emptyMap();
     private boolean validateCode = false;
-
-    @OutputDirectory
-    public File getDestinationDir() {
-        return destinationDir;
-    }
-
-    public void setDestinationDir(Object destinationDir) {
-        setDestinationDir(getProject().file(destinationDir));
-    }
-
-    public void setDestinationDir(File destinationDir) {
-        this.destinationDir = checkNotNull(destinationDir, "destinationDir");
-    }
 
     @Input
     public String getOutputFactory() {
@@ -123,29 +110,40 @@ public class EventImplGenTask extends SourceTask {
         this.validateCode = validateCode;
     }
 
+    @Override
+    protected void compile() {
+        try {
+            generateClasses();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     @TaskAction
     public void generateClasses() throws IOException {
         // Clean the destination directory
-        getProject().delete(this.destinationDir);
+        getProject().delete(getDestinationDir());
 
         // Initialize spoon
         SpoonAPI spoon = new Launcher();
         spoon.addProcessor(EVENT_CLASS_PROCESSOR);
 
         final Environment environment = spoon.getEnvironment();
-        environment.setComplianceLevel(8);
-        environment.setAutoImports(true);
+        environment.setComplianceLevel(Integer.parseInt(JavaVersion.toVersion(getSourceCompatibility()).getMajorVersion()));
+        environment.setNoClasspath(!this.validateCode);
 
         // Configure AST generator
-        spoon.getEnvironment().setNoClasspath(!this.validateCode);
-        final SourceSet sourceSet =
-            getProject().getConvention().getPlugin(JavaPluginConvention.class).getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
         final SpoonModelBuilder compiler = spoon.createCompiler();
-        compiler.setSourceClasspath(sourceSet.getCompileClasspath().getFiles().stream()
-                .filter(file -> !file.equals(this.destinationDir))
-                .map(File::getAbsolutePath)
-                .toArray(String[]::new));
-        sourceSet.getAllJava().getSrcDirs().forEach(compiler::addInputSource);
+        compiler.setSourceClasspath(toPathArray(getClasspath().getFiles()));
+
+        for (Object source : this.source) {
+            if (!(source instanceof SourceDirectorySet)) {
+                throw new UnsupportedOperationException("Source of type " + source.getClass() + " is not supported.");
+            }
+
+            ((SourceDirectorySet) source).getSrcDirs().forEach(compiler::addInputSource);
+        }
+
         this.factory = compiler.getFactory();
 
         // Generate AST
@@ -165,7 +163,7 @@ public class EventImplGenTask extends SourceTask {
         String packageName = this.outputFactory.substring(0, this.outputFactory.lastIndexOf('.'));
         ClassGeneratorProvider provider = new ClassGeneratorProvider(packageName);
 
-        Path destinationDir = this.destinationDir.toPath();
+        Path destinationDir = getDestinationDir().toPath();
         // Create package directory
         Files.createDirectories(destinationDir.resolve(packageName.replace('.', File.separatorChar)));
 
@@ -236,6 +234,15 @@ public class EventImplGenTask extends SourceTask {
         } while (event != null);
         name.insert(0, "create");
         return name.toString();
+    }
+
+    private static String[] toPathArray(Set<File> files) {
+        String[] result = new String[files.size()];
+        int i = 0;
+        for (File file : files) {
+            result[i++] = file.getAbsolutePath();
+        }
+        return result;
     }
 
 }
