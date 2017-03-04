@@ -17,6 +17,8 @@ plugins {
     id 'eclipse'
     id 'idea'
     id 'net.minecrell.licenser' version '0.3'
+
+    id 'com.gradle.plugin-publish' version '0.9.7'
 }
 
 apply plugin: 'com.github.johnrengelman.shadow'
@@ -133,6 +135,21 @@ license {
 
 // Deployment configuration
 apply from: 'gradle/deploy.gradle'
+
+pluginBundle {
+    website = "https://github.com/$project.organization/$project.name"
+    vcsUrl = website
+    description = project.description
+    tags = ['minecraft', 'sponge']
+
+    plugins {
+        eventImplGenPlugin {
+            id = 'org.spongepowered.event-impl-gen'
+            displayName = 'Sponge Event Implementation Generator'
+            description = project.description
+        }
+    }
+}
 
 task wrapper(type: Wrapper) {
     gradleVersion = project.gradleVersion
