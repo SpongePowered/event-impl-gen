@@ -28,7 +28,6 @@ import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.file.CopySpec;
-import org.gradle.api.plugins.JavaBasePlugin;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.tasks.SourceSet;
@@ -39,7 +38,7 @@ public class EventImplGenPlugin implements Plugin<Project> {
 
     @Override
     public void apply(Project project) {
-        project.getPlugins().apply(JavaBasePlugin.class);
+        project.getPlugins().apply(JavaPlugin.class);
         SourceSet sourceSet = project.getConvention().getPlugin(JavaPluginConvention.class).getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
 
         final EventImplGenTask task = project.getTasks().create("genEventImpl", EventImplGenTask.class);
@@ -47,10 +46,8 @@ public class EventImplGenPlugin implements Plugin<Project> {
         task.conventionMapping("destinationDir", () -> project.file(".gradle/event-factory"));
         task.conventionMapping("classpath", () -> this.classpath);
 
-        project.getPlugins().withType(JavaPlugin.class, (plugin) -> {
-            // Include event factory classes in JAR
-            ((CopySpec) project.getTasks().getByName(sourceSet.getJarTaskName())).from(task);
-        });
+        // Include event factory classes in JAR
+        ((CopySpec) project.getTasks().getByName(sourceSet.getJarTaskName())).from(task);
 
         project.afterEvaluate(project1 -> {
             // We add the generated event factory to the compile dependencies.

@@ -105,9 +105,7 @@ task sourceJar(type: Jar) {
 }
 
 artifacts {
-    archives(shadowJar) {
-        type = 'jar'
-    }
+    archives shadowJar
     archives sourceJar
 }
 
