@@ -44,9 +44,7 @@ repositories {
 
 configurations {
     shade
-    compile {
-        extendsFrom configurations.shade
-    }
+    compileOnly.extendsFrom shade
 }
 
 dependencies {
@@ -107,7 +105,9 @@ task sourceJar(type: Jar) {
 }
 
 artifacts {
-    archives shadowJar
+    archives(shadowJar) {
+        type = 'jar'
+    }
     archives sourceJar
 }
 
