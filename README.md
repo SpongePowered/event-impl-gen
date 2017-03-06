@@ -9,7 +9,7 @@ To use it in your plugin, you need to apply it to your Gradle build script:
 
 ```gradle
 plugins {
-    id 'org.spongepowered.event-impl-gen' version '5.0.1'
+    id 'org.spongepowered.event-impl-gen' version '5.0.2'
 }
 
 genEventImpl {
