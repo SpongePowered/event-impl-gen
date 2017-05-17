@@ -1,27 +1,12 @@
-buildscript {
-    repositories {
-        maven {
-            name = 'jitpack'
-            url = 'https://jitpack.io'
-        }
-    }
-    dependencies {
-        // We need the latest shadow snapshot build
-        // Shadow 1.2.4 causes issues when Eclipse JDT is relocated
-        classpath 'com.github.johnrengelman:shadow:master-SNAPSHOT'
-    }
-}
-
 plugins {
     id 'java-gradle-plugin'
     id 'eclipse'
     id 'idea'
     id 'net.minecrell.licenser' version '0.3'
+    id 'com.github.johnrengelman.shadow' version '2.0.0'
 
     id 'com.gradle.plugin-publish' version '0.9.7'
 }
-
-apply plugin: 'com.github.johnrengelman.shadow'
 
 // Default tasks
 defaultTasks 'licenseFormat', 'build'
