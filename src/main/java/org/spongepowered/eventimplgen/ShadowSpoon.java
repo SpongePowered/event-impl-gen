@@ -55,7 +55,7 @@ final class ShadowSpoon {
             Annotation annotation = loadAnnotation(annotationElement);
             return (T) annotation.getClass().getMethod(key).invoke(annotation);
         } catch (Exception e) {
-            throw Throwables.propagate(e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -66,7 +66,7 @@ final class ShadowSpoon {
             Class<?> reference = (Class<?>) annotation.getClass().getMethod(key).invoke(annotation);
             return annotationElement.getFactory().createCtTypeReference(reference);
         } catch (Exception e) {
-            throw Throwables.propagate(e);
+            throw new RuntimeException(e);
         }
     }
 
