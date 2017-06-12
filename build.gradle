@@ -1,27 +1,12 @@
-buildscript {
-    repositories {
-        maven {
-            name = 'jitpack'
-            url = 'https://jitpack.io'
-        }
-    }
-    dependencies {
-        // We need the latest shadow snapshot build
-        // Shadow 1.2.4 causes issues when Eclipse JDT is relocated
-        classpath 'com.github.johnrengelman:shadow:master-SNAPSHOT'
-    }
-}
-
 plugins {
     id 'java-gradle-plugin'
     id 'eclipse'
     id 'idea'
     id 'net.minecrell.licenser' version '0.3'
+    id 'com.github.johnrengelman.shadow' version '2.0.0'
 
     id 'com.gradle.plugin-publish' version '0.9.7'
 }
-
-apply plugin: 'com.github.johnrengelman.shadow'
 
 // Default tasks
 defaultTasks 'licenseFormat', 'build'
@@ -48,17 +33,18 @@ configurations {
 }
 
 dependencies {
-    shade 'fr.inria.gforge.spoon:spoon-core:5.5.0'
+    shade 'fr.inria.gforge.spoon:spoon-core:5.6.0'
     compile 'org.ow2.asm:asm:5.2'
-    compile 'com.google.guava:guava:17.0'
-    compile 'com.google.code.findbugs:jsr305:1.3.9'
+    compile 'com.google.guava:guava:21.0'
+    compile 'com.google.errorprone:error_prone_annotations:2.0.15'
+    compile 'com.google.code.findbugs:jsr305:3.0.1'
 
     testCompile 'junit:junit:4.12'
     testCompile 'org.hamcrest:hamcrest-library:1.3'
 
     testCompile 'org.mockito:mockito-core:1.10.19'
-    testCompile 'org.powermock:powermock-module-junit4:1.6.5'
-    testCompile 'org.powermock:powermock-api-mockito:1.6.5'
+    testCompile 'org.powermock:powermock-module-junit4:1.6.6'
+    testCompile 'org.powermock:powermock-api-mockito:1.6.6'
 }
 
 // Source compiler configuration
