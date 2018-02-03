@@ -63,6 +63,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -78,6 +79,8 @@ public class EventImplGenTask extends AbstractCompile {
 
     private String sortPriorityPrefix = "original";
     private Map<String, String> groupingPrefixes = new HashMap<>();
+    private Set<String> inclusiveAnnotations = new LinkedHashSet<>();
+    private Set<String> exclusiveAnnotations = new LinkedHashSet<>();
     private boolean validateCode = false;
 
     public EventImplGenTask() {
@@ -128,6 +131,40 @@ public class EventImplGenTask extends AbstractCompile {
         this.validateCode = validateCode;
     }
 
+    @Input
+    public Set<String> getInclusiveAnnotations() {
+        return inclusiveAnnotations;
+    }
+
+    public void setInclusiveAnnotations(Set<String> annotations) {
+        this.inclusiveAnnotations = annotations;
+    }
+
+    public void inclusiveAnnotations(Set<String> annotations) {
+        this.inclusiveAnnotations.addAll(annotations);
+    }
+
+    public void inclusiveAnnotation(String annotation) {
+        this.inclusiveAnnotations.add(annotation);
+    }
+
+    @Input
+    public Set<String> getExclusiveAnnotations() {
+        return exclusiveAnnotations;
+    }
+
+    public void setExclusiveAnnotations(Set<String> annotations) {
+        this.exclusiveAnnotations = annotations;
+    }
+
+    public void exclusiveAnnotations(Set<String> annotations) {
+        this.exclusiveAnnotations.addAll(annotations);
+    }
+
+    public void exclusiveAnnotation(String annotation) {
+        this.exclusiveAnnotations.add(annotation);
+    }
+
     @Override
     protected void compile() {
         try {
@@ -168,7 +205,7 @@ public class EventImplGenTask extends AbstractCompile {
         compiler.build();
 
         // Analyse AST
-        final EventInterfaceProcessor processor = new EventInterfaceProcessor(getSource());
+        final EventInterfaceProcessor processor = new EventInterfaceProcessor(getSource(), this.inclusiveAnnotations, this.exclusiveAnnotations);
         compiler.process(Collections.singletonList(processor));
         final Map<CtType<?>, List<Property>> foundProperties = processor.getFoundProperties();
         final List<CtMethod<?>> forwardedMethods = processor.getForwardedMethods();
@@ -250,6 +287,15 @@ public class EventImplGenTask extends AbstractCompile {
             }
         }
         return null;
+    }
+
+    public static boolean containsAnnotation(CtElement type, Set<String> looking) {
+        for (CtAnnotation<?> annotation : type.getAnnotations()) {
+            if (looking.contains(annotation.getAnnotationType().getQualifiedName())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static String generateMethodName(CtType<?> event) {

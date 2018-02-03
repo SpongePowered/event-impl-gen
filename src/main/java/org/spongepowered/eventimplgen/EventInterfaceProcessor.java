@@ -38,6 +38,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
 
@@ -45,9 +46,13 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
     private final Map<CtType<?>, List<Property>> foundProperties = new HashMap<>();
     private final List<CtMethod<?>> forwardedMethods = new ArrayList<>();
     private final FileTree source;
+    private final Set<String> inclusiveAnnotations;
+    private final Set<String> exclusiveAnnotations;
 
-    public EventInterfaceProcessor(FileTree source) {
+    public EventInterfaceProcessor(FileTree source, Set<String> inclusiveAnnotations, Set<String> exclusiveAnnotations) {
         this.source = source;
+        this.inclusiveAnnotations = inclusiveAnnotations;
+        this.exclusiveAnnotations = exclusiveAnnotations;
     }
 
     public Map<CtType<?>, List<Property>> getFoundProperties() {
@@ -60,20 +65,26 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
 
     @Override
     public boolean isToBeProcessed(CtInterface<?> candidate) {
-        return this.source.contains(candidate.getPosition().getCompilationUnit().getFile())  && shouldGenerate(candidate);
+        return this.source.contains(candidate.getPosition().getCompilationUnit().getFile()) && shouldGenerate(candidate);
     }
 
     @Override
     public void process(CtInterface<?> event) {
         foundProperties.put(event, SEARCH_STRATEGY.findProperties(event.getReference()));
-        this.forwardedMethods.addAll(this.findForwadedMethods(event));
+        this.forwardedMethods.addAll(this.findForwardedMethods(event));
     }
 
-    public static boolean shouldGenerate(CtInterface<?> candidate) {
-        return candidate.getNestedTypes().isEmpty() || EventImplGenTask.getAnnotation(candidate, "org.spongepowered.api.util.annotation.eventgen.GenerateFactoryMethod") != null;
+    public boolean shouldGenerate(CtInterface<?> candidate) {
+        if (EventImplGenTask.containsAnnotation(candidate, this.inclusiveAnnotations)) {
+            return true;
+        }
+        if (EventImplGenTask.containsAnnotation(candidate, this.exclusiveAnnotations)) {
+            return false;
+        }
+        return candidate.getNestedTypes().isEmpty();
     }
 
-    private List<CtMethod<?>> findForwadedMethods(CtInterface<?> event) {
+    private List<CtMethod<?>> findForwardedMethods(CtInterface<?> event) {
         List<CtMethod<?>> methods = new ArrayList<>();
         for (CtMethod<?> method: event.getMethods()) {
             if (method.hasModifier(ModifierKind.STATIC) && EventImplGenTask.getAnnotation(method, "org.spongepowered.api.util.annotation.eventgen.FactoryMethod") != null) {
