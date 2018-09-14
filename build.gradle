@@ -76,14 +76,16 @@ shadowJar {
     classifier = ''
     configurations = [project.configurations.shade]
 
-    relocate 'spoon', 'org.spongepowered.eventimplgen.spoon'
-    relocate 'org.eclipse.jdt', 'org.spongepowered.eventimplgen.jdt'
-    relocate 'com.martiansoftware', 'org.spongepowered.eventimplgen.ms'
+    relocate 'spoon', 'org.spongepowered.eventimplgen.shade.spoon'
+    relocate 'org.eclipse.jdt', 'org.spongepowered.eventimplgen.shade.jdt'
+    relocate 'com.martiansoftware', 'org.spongepowered.eventimplgen.shade.ms'
+    relocate 'org.apache.commons', 'org.spongepowered.eventimplgen.shade.commons'
 
     dependencies {
         include dependency('fr.inria.gforge.spoon:spoon-core')
         include dependency('org.eclipse.tycho:org.eclipse.jdt.core')
         include dependency('com.martiansoftware:jsap')
+        include dependency('commons-io:commons-io')
     }
 }
 
