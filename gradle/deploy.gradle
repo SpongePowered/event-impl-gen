@@ -1,6 +1,7 @@
 // Shared deployment configuration for the Sponge projects
 
 apply plugin: 'maven'
+apply plugin: 'maven-publish'
 
 uploadArchives {
     repositories {
@@ -46,3 +47,16 @@ uploadArchives {
         }
     }
 }
+
+
+publishing {
+    publications {
+        pluginPublication (MavenPublication) {
+            from    components.java
+            groupId    project.group
+            artifactId project.archivesBaseName
+            version    project.version
+        }
+    }
+}
+
