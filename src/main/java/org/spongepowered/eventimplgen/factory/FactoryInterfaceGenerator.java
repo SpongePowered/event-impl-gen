@@ -31,6 +31,7 @@ import static org.objectweb.asm.Opcodes.ACC_SUPER;
 import static org.objectweb.asm.Opcodes.ARETURN;
 import static org.objectweb.asm.Opcodes.DUP;
 import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
+import static org.objectweb.asm.Opcodes.INVOKESTATIC;
 import static org.objectweb.asm.Opcodes.NEW;
 import static org.objectweb.asm.Opcodes.V1_8;
 
@@ -45,6 +46,8 @@ import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.eventgencore.PropertySorter;
 import org.spongepowered.eventimplgen.factory.plugin.AccessorModifierEventFactoryPlugin;
 import org.spongepowered.eventimplgen.factory.plugin.EventFactoryPlugin;
+import spoon.reflect.declaration.CtMethod;
+import spoon.reflect.declaration.CtParameter;
 import spoon.reflect.declaration.CtType;
 import spoon.reflect.reference.CtTypeReference;
 
@@ -55,7 +58,7 @@ public class FactoryInterfaceGenerator {
 
     public static List<? extends EventFactoryPlugin> plugins = Lists.newArrayList(new AccessorModifierEventFactoryPlugin());
 
-    public static byte[] createClass(String name, Map<CtType<?>, List<Property>> foundProperties, ClassGeneratorProvider provider, PropertySorter sorter) {
+    public static byte[] createClass(String name, Map<CtType<?>, List<Property>> foundProperties, ClassGeneratorProvider provider, PropertySorter sorter, List<CtMethod<?>> forwardedMethods) {
         String internalName = ClassGenerator.getInternalName(name);
 
         final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
@@ -65,8 +68,43 @@ public class FactoryInterfaceGenerator {
             generateRealImpl(cw, event, ClassGenerator.getInternalName(ClassGenerator.getEventName(event, provider)), ClassGenerator.getRequiredProperties(sorter.sortProperties(foundProperties.get(event))));
         }
 
+        for (CtMethod<?> forwardedMethod: forwardedMethods) {
+            generateForwardingMethod(cw, forwardedMethod);
+        }
+
         cw.visitEnd();
         return cw.toByteArray();
+    }
+
+    private static void generateForwardingMethod(ClassWriter cw, CtMethod<?> targetMethod) {
+        String desc = ClassGenerator.getDescriptor(targetMethod);
+        MethodVisitor mv = cw.visitMethod(ACC_PUBLIC | ACC_STATIC, targetMethod.getSimpleName(), desc, null, null);
+
+
+        Label start = new Label();
+        Label end = new Label();
+
+        mv.visitCode();
+        mv.visitLabel(start);
+
+        for (int i = 0, slot = 0; i < targetMethod.getParameters().size(); i++, slot++) {
+            CtParameter<?> param = targetMethod.getParameters().get(i);
+            Type type = Type.getType(ClassGenerator.getTypeDescriptor(param.getType()));
+            mv.visitVarInsn(type.getOpcode(Opcodes.ILOAD), i);
+
+            mv.visitLocalVariable(param.getSimpleName(), type.getDescriptor(), null, start, end, slot);
+            mv.visitParameter(param.getSimpleName(), 0);
+
+            if (type.getSize() > 1) {
+                slot++; // Skip over unusable following slot
+            }
+        }
+        mv.visitMethodInsn(INVOKESTATIC, ClassGenerator.getInternalName(targetMethod.getDeclaringType().getQualifiedName()), targetMethod.getSimpleName(), desc, targetMethod.getDeclaringType().isInterface());
+        mv.visitInsn(ARETURN);
+        mv.visitLabel(end);
+
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
     }
 
     private static void generateRealImpl(ClassWriter cw, CtType<?> event, String eventName, List<Property> params) {

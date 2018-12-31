@@ -30,8 +30,11 @@ import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.eventgencore.PropertySearchStrategy;
 import spoon.processing.AbstractProcessor;
 import spoon.reflect.declaration.CtInterface;
+import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtType;
+import spoon.reflect.declaration.ModifierKind;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +43,7 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
 
     private static final PropertySearchStrategy SEARCH_STRATEGY = new AccessorFirstStrategy();
     private final Map<CtType<?>, List<Property>> foundProperties = new HashMap<>();
+    private final List<CtMethod<?>> forwardedMethods = new ArrayList<>();
     private final FileTree source;
 
     public EventInterfaceProcessor(FileTree source) {
@@ -50,6 +54,10 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
         return foundProperties;
     }
 
+    public List<CtMethod<?>> getForwardedMethods() {
+        return this.forwardedMethods;
+    }
+
     @Override
     public boolean isToBeProcessed(CtInterface<?> candidate) {
         return this.source.contains(candidate.getPosition().getCompilationUnit().getFile())  && shouldGenerate(candidate);
@@ -58,9 +66,20 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
     @Override
     public void process(CtInterface<?> event) {
         foundProperties.put(event, SEARCH_STRATEGY.findProperties(event.getReference()));
+        this.forwardedMethods.addAll(this.findForwadedMethods(event));
     }
 
     public static boolean shouldGenerate(CtInterface<?> candidate) {
         return candidate.getNestedTypes().isEmpty() || EventImplGenTask.getAnnotation(candidate, "org.spongepowered.api.util.annotation.eventgen.GenerateFactoryMethod") != null;
+    }
+
+    private List<CtMethod<?>> findForwadedMethods(CtInterface<?> event) {
+        List<CtMethod<?>> methods = new ArrayList<>();
+        for (CtMethod<?> method: event.getMethods()) {
+            if (method.hasModifier(ModifierKind.STATIC) && EventImplGenTask.getAnnotation(method, "org.spongepowered.api.util.annotation.eventgen.FactoryMethod") != null) {
+                methods.add(method);
+            }
+        }
+        return methods;
     }
 }

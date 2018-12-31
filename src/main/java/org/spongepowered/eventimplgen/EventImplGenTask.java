@@ -49,6 +49,7 @@ import spoon.compiler.Environment;
 import spoon.reflect.code.CtFieldRead;
 import spoon.reflect.declaration.CtAnnotation;
 import spoon.reflect.declaration.CtElement;
+import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtType;
 import spoon.reflect.factory.Factory;
 import spoon.reflect.reference.CtTypeReference;
@@ -170,13 +171,14 @@ public class EventImplGenTask extends AbstractCompile {
         final EventInterfaceProcessor processor = new EventInterfaceProcessor(getSource());
         compiler.process(Collections.singletonList(processor));
         final Map<CtType<?>, List<Property>> foundProperties = processor.getFoundProperties();
+        final List<CtMethod<?>> forwardedMethods = processor.getForwardedMethods();
 
         this.sorter = new PropertySorter(this.sortPriorityPrefix, this.groupingPrefixes);
 
-        dumpClasses(foundProperties);
+        dumpClasses(foundProperties, forwardedMethods);
     }
 
-    private void dumpClasses(Map<CtType<?>, List<Property>> foundProperties) throws IOException {
+    private void dumpClasses(Map<CtType<?>, List<Property>> foundProperties, List<CtMethod<?>> forwardedMethods) throws IOException {
         String packageName = this.outputFactory.substring(0, this.outputFactory.lastIndexOf('.'));
         ClassGeneratorProvider provider = new ClassGeneratorProvider(packageName);
 
@@ -184,7 +186,7 @@ public class EventImplGenTask extends AbstractCompile {
         // Create package directory
         Files.createDirectories(destinationDir.resolve(packageName.replace('.', File.separatorChar)));
 
-        byte[] clazz = FactoryInterfaceGenerator.createClass(this.outputFactory, foundProperties, provider, this.sorter);
+        byte[] clazz = FactoryInterfaceGenerator.createClass(this.outputFactory, foundProperties, provider, this.sorter, forwardedMethods);
         addClass(destinationDir, this.outputFactory, clazz);
 
         ClassGenerator generator = new ClassGenerator();
