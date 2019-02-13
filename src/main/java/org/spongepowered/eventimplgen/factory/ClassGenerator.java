@@ -86,6 +86,13 @@ public class ClassGenerator {
     private NullPolicy nullPolicy = NullPolicy.DISABLE_PRECONDITIONS;
 
     private static CtAnnotation<?> getPropertySettings(Property property) {
+        // Check the most specific method first.
+        // This ensures that users can add @PropertySettings on an
+        // overridden method.
+        CtAnnotation<?> anno = EventImplGenTask.getAnnotation(property.getMostSpecificMethod(), "org.spongepowered.api.util.annotation.eventgen.PropertySettings");
+        if (anno != null) {
+            return anno;
+        }
         return EventImplGenTask.getAnnotation(property.getAccessor(), "org.spongepowered.api.util.annotation.eventgen.PropertySettings");
     }
 
