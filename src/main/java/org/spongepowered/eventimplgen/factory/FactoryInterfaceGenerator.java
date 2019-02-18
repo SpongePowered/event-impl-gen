@@ -41,6 +41,8 @@ import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
+import org.objectweb.asm.signature.SignatureVisitor;
+import org.objectweb.asm.signature.SignatureWriter;
 import org.spongepowered.eventimplgen.EventImplGenTask;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.eventgencore.PropertySorter;
@@ -49,6 +51,7 @@ import org.spongepowered.eventimplgen.factory.plugin.EventFactoryPlugin;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtParameter;
 import spoon.reflect.declaration.CtType;
+import spoon.reflect.reference.CtArrayTypeReference;
 import spoon.reflect.reference.CtTypeReference;
 
 import java.util.List;
@@ -108,7 +111,7 @@ public class FactoryInterfaceGenerator {
     }
 
     private static void generateRealImpl(ClassWriter cw, CtType<?> event, String eventName, List<Property> params) {
-        MethodVisitor mv = cw.visitMethod(ACC_PUBLIC | ACC_STATIC, EventImplGenTask.generateMethodName(event), getDescriptor(event, params), null, null);
+        MethodVisitor mv = cw.visitMethod(ACC_PUBLIC | ACC_STATIC, EventImplGenTask.generateMethodName(event), getDescriptor(event, params), getSignature(event, params), null);
 
         Label start = new Label();
         Label end = new Label();
@@ -164,6 +167,53 @@ public class FactoryInterfaceGenerator {
         builder.append(">;");
         return builder.toString();
     }*/
+
+    private static String getSignature(CtType<?> event, List<? extends Property> params) {
+        SignatureVisitor v = new SignatureWriter();
+        for (Property property: params) {
+            SignatureVisitor pv = v.visitParameterType();
+            visitTypeForSignature(pv, property.getType());
+            if (!property.getType().getActualTypeArguments().isEmpty()) {
+                SignatureVisitor inner = pv.visitTypeArgument('=');
+                processTypes(inner, property.getType().getActualTypeArguments());
+            }
+            pv.visitEnd();
+        }
+
+        SignatureVisitor rv = v.visitReturnType();
+        rv.visitClassType(event.getQualifiedName().replace('.', '/'));
+        processTypes(rv, event.getReference().getActualTypeArguments());
+
+        v.visitEnd();
+
+        return v.toString();
+    }
+
+    private static void visitTypeForSignature(SignatureVisitor pv, CtTypeReference<?> type) {
+        if (type.isPrimitive()) {
+            pv.visitBaseType(Type.getDescriptor(type.getActualClass()).charAt(0));
+        } else if (type instanceof CtArrayTypeReference) {
+            SignatureVisitor ar = pv.visitArrayType();
+            visitTypeForSignature(ar, ((CtArrayTypeReference<?>) type).getComponentType());
+        } else {
+            pv.visitClassType(type.getQualifiedName().replace('.', '/'));
+        }
+    }
+
+    private static void processTypes(SignatureVisitor baseVisitor, List<CtTypeReference<?>> types) {
+        for (CtTypeReference<?> type: types) {
+            SignatureVisitor pv = baseVisitor.visitParameterType();
+
+            visitTypeForSignature(pv, type);
+
+            if (!type.getActualTypeArguments().isEmpty()) {
+                SignatureVisitor inner = pv.visitTypeArgument('=');
+                processTypes(inner, type.getActualTypeArguments());
+                //inner.visitEnd();
+            }
+            pv.visitEnd();
+        }
+    }
 
     private static String getDescriptor(CtType<?> event, List<? extends Property> params) {
         StringBuilder builder = new StringBuilder();
