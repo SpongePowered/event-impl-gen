@@ -52,7 +52,9 @@ import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtParameter;
 import spoon.reflect.declaration.CtType;
 import spoon.reflect.reference.CtArrayTypeReference;
+import spoon.reflect.reference.CtTypeParameterReference;
 import spoon.reflect.reference.CtTypeReference;
+import spoon.reflect.reference.CtWildcardReference;
 
 import java.util.List;
 import java.util.Map;
@@ -174,8 +176,7 @@ public class FactoryInterfaceGenerator {
             SignatureVisitor pv = v.visitParameterType();
             boolean doVisitEnd = visitTypeForSignature(pv, property.getType());
             if (!property.getType().getActualTypeArguments().isEmpty()) {
-                SignatureVisitor inner = pv.visitTypeArgument('=');
-                processTypes(inner, property.getType().getActualTypeArguments());
+                processTypes(pv, property.getType().getActualTypeArguments());
             }
             if (doVisitEnd) {
                 pv.visitEnd();
@@ -199,6 +200,13 @@ public class FactoryInterfaceGenerator {
             SignatureVisitor ar = pv.visitArrayType();
             visitTypeForSignature(ar, ((CtArrayTypeReference<?>) type).getComponentType());
             return true;
+        } else if (type instanceof CtTypeParameterReference) {
+            CtTypeReference<?> bound = ((CtTypeParameterReference) type).getBoundingType();
+            if (bound == null) {
+                bound = type.getFactory().Type().OBJECT;
+            }
+            visitTypeForSignature(pv, bound);
+            return true;
         } else {
             pv.visitClassType(type.getQualifiedName().replace('.', '/'));
             return true;
@@ -207,13 +215,20 @@ public class FactoryInterfaceGenerator {
 
     private static void processTypes(SignatureVisitor baseVisitor, List<CtTypeReference<?>> types) {
         for (CtTypeReference<?> type: types) {
-            SignatureVisitor pv = baseVisitor.visitParameterType();
+            SignatureVisitor inner;
+            if (type instanceof CtWildcardReference) {
+                inner = baseVisitor.visitTypeArgument(((CtWildcardReference) type).isUpper() ? '+' : '-');
+            } else {
+                inner = baseVisitor.visitTypeArgument('=');
+            }
+            SignatureVisitor pv = inner.visitParameterType();
 
             boolean doVisitEnd = visitTypeForSignature(pv, type);
 
             if (!type.getActualTypeArguments().isEmpty()) {
-                SignatureVisitor inner = pv.visitTypeArgument('=');
-                processTypes(inner, type.getActualTypeArguments());
+                processTypes(pv, type.getActualTypeArguments());
+                //SignatureVisitor nested = pv.visitTypeArgument('=');
+                //processTypes(nested, type.getActualTypeArguments());
                 //inner.visitEnd();
             }
             if (doVisitEnd) {
