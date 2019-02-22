@@ -172,12 +172,14 @@ public class FactoryInterfaceGenerator {
         SignatureVisitor v = new SignatureWriter();
         for (Property property: params) {
             SignatureVisitor pv = v.visitParameterType();
-            visitTypeForSignature(pv, property.getType());
+            boolean doVisitEnd = visitTypeForSignature(pv, property.getType());
             if (!property.getType().getActualTypeArguments().isEmpty()) {
                 SignatureVisitor inner = pv.visitTypeArgument('=');
                 processTypes(inner, property.getType().getActualTypeArguments());
             }
-            pv.visitEnd();
+            if (doVisitEnd) {
+                pv.visitEnd();
+            }
         }
 
         SignatureVisitor rv = v.visitReturnType();
@@ -189,14 +191,17 @@ public class FactoryInterfaceGenerator {
         return v.toString();
     }
 
-    private static void visitTypeForSignature(SignatureVisitor pv, CtTypeReference<?> type) {
+    private static boolean visitTypeForSignature(SignatureVisitor pv, CtTypeReference<?> type) {
         if (type.isPrimitive()) {
             pv.visitBaseType(Type.getDescriptor(type.getActualClass()).charAt(0));
+            return false;
         } else if (type instanceof CtArrayTypeReference) {
             SignatureVisitor ar = pv.visitArrayType();
             visitTypeForSignature(ar, ((CtArrayTypeReference<?>) type).getComponentType());
+            return true;
         } else {
             pv.visitClassType(type.getQualifiedName().replace('.', '/'));
+            return true;
         }
     }
 
@@ -204,14 +209,16 @@ public class FactoryInterfaceGenerator {
         for (CtTypeReference<?> type: types) {
             SignatureVisitor pv = baseVisitor.visitParameterType();
 
-            visitTypeForSignature(pv, type);
+            boolean doVisitEnd = visitTypeForSignature(pv, type);
 
             if (!type.getActualTypeArguments().isEmpty()) {
                 SignatureVisitor inner = pv.visitTypeArgument('=');
                 processTypes(inner, type.getActualTypeArguments());
                 //inner.visitEnd();
             }
-            pv.visitEnd();
+            if (doVisitEnd) {
+                pv.visitEnd();
+            }
         }
     }
 
