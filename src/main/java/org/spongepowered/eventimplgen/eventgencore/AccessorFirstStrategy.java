@@ -31,12 +31,15 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Multimap;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtParameter;
+import spoon.reflect.declaration.CtType;
 import spoon.reflect.declaration.ModifierKind;
 import spoon.reflect.reference.CtTypeReference;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -167,32 +170,44 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
         final Map<String, CtMethod<?>> mostSpecific = new HashMap<>();
         final Set<String> signatures = new HashSet<>();
 
-        for (CtMethod<?> method : type.getDeclaration().getAllMethods()) {
-            String name;
+        Deque<CtType<?>> queue = new ArrayDeque<>();
+        queue.push(type.getDeclaration());
 
-            String signature = method.getSimpleName() + ";";
-            for (CtParameter<?> parameterType : method.getParameters()) {
-                signature += parameterType.getType().getQualifiedName() + ";";
+        while (!queue.isEmpty()) {
+            CtType<?> ourType = queue.pop();
+            for (CtMethod<?> method: ourType.getMethods()) {
+                String name;
+
+                String signature = method.getSimpleName() + ";";
+                for (CtParameter<?> parameterType : method.getParameters()) {
+                    signature += parameterType.getType().getQualifiedName() + ";";
+                }
+                signature += method.getType().getSimpleName();
+
+                CtMethod<?> leastSpecificMethod;
+                if ((name = getAccessorName(method)) != null && !signatures.contains(signature)
+                        && ((leastSpecificMethod = accessorHierarchyBottoms.get(name)) == null
+                                    || !leastSpecificMethod.getType().getQualifiedName().equals(method.getType().getQualifiedName()))) {
+                    accessors.put(name, method);
+                    signatures.add(signature);
+
+                    if (!mostSpecific.containsKey(name) || method.getType().isSubtypeOf(mostSpecific.get(name).getType())) {
+                        mostSpecific.put(name, method);
+                    }
+
+                    if (accessorHierarchyBottoms.get(name) == null
+                            || accessorHierarchyBottoms.get(name).getType().isSubtypeOf(method.getType())) {
+                        accessorHierarchyBottoms.put(name, method);
+                    }
+                } else if ((name = getMutatorName(method)) != null) {
+                    mutators.put(name, method);
+                }
             }
-            signature += method.getType().getSimpleName();
-
-            CtMethod<?> leastSpecificMethod;
-            if ((name = getAccessorName(method)) != null && !signatures.contains(signature)
-                    && ((leastSpecificMethod = accessorHierarchyBottoms.get(name)) == null
-                    || !leastSpecificMethod.getType().getQualifiedName().equals(method.getType().getQualifiedName()))) {
-                accessors.put(name, method);
-                signatures.add(signature);
-
-                if (!mostSpecific.containsKey(name) || method.getType().isSubtypeOf(mostSpecific.get(name).getType())) {
-                    mostSpecific.put(name, method);
-                }
-
-                if (accessorHierarchyBottoms.get(name) == null
-                        || accessorHierarchyBottoms.get(name).getType().isSubtypeOf(method.getType())) {
-                    accessorHierarchyBottoms.put(name, method);
-                }
-            } else if ((name = getMutatorName(method)) != null) {
-                mutators.put(name, method);
+            if (ourType.getSuperclass() != null) {
+                queue.push(ourType.getSuperclass().getDeclaration());
+            }
+            for (CtTypeReference<?> iface: ourType.getSuperInterfaces()) {
+                queue.push(iface.getDeclaration());
             }
         }
 
