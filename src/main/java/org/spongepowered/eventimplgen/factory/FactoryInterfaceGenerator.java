@@ -209,9 +209,12 @@ public class FactoryInterfaceGenerator {
 
         SignatureVisitor rv = v.visitReturnType();
         rv.visitClassType(event.getQualifiedName().replace('.', '/'));
-        processTypes(rv, event.getReference().getActualTypeArguments());
-
-        v.visitEnd();
+        for (CtTypeParameter param: event.getFormalCtTypeParameters()) {
+            SignatureVisitor argVisitor = rv.visitTypeArgument('=');
+            argVisitor.visitTypeVariable(param.getSimpleName());
+            argVisitor.visitEnd();
+        }
+        //processTypes(rv, event.getReference().getActualTypeArguments());
 
         return v.toString();
     }
