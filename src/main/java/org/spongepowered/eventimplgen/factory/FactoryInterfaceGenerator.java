@@ -216,6 +216,7 @@ public class FactoryInterfaceGenerator {
         }
         //processTypes(rv, event.getReference().getActualTypeArguments());
 
+        v.visitEnd();
         return v.toString();
     }
 
@@ -228,12 +229,29 @@ public class FactoryInterfaceGenerator {
             visitTypeForSignature(ar, ((CtArrayTypeReference<?>) type).getComponentType());
             return true;
         } else if (type instanceof CtTypeParameterReference) {
-            CtTypeReference<?> bound = ((CtTypeParameterReference) type).getBoundingType();
-            if (bound == null) {
-                bound = type.getFactory().Type().OBJECT;
+            if (type instanceof CtWildcardReference) {
+                CtTypeReference<?> bound = ((CtTypeParameterReference) type).getBoundingType();
+                if (bound == null) {
+                    bound = type.getFactory().Type().OBJECT;
+                }
+                visitTypeForSignature(pv, bound);
+                // We have an 'extends' bound
+                /*if (((CtWildcardReference) type).isUpper()) {
+                    inner = pv.visitTypeArgument(SignatureVisitor.EXTENDS);
+                } else {
+                    inner = pv.visitTypeArgument(SignatureVisitor.SUPER);
+                }
+                CtTypeReference<?> bound = ((CtTypeParameterReference) type).getBoundingType();
+                if (bound == null) {
+                    bound = type.getFactory().Type().OBJECT;
+                }
+                visitTypeForSignature(pv, bound);
+                inner.visitEnd();*/
+                return true;
+            } else {
+                pv.visitTypeVariable(type.getSimpleName());
+                return false;
             }
-            visitTypeForSignature(pv, bound);
-            return true;
         } else {
             pv.visitClassType(type.getQualifiedName().replace('.', '/'));
             return true;
@@ -251,6 +269,7 @@ public class FactoryInterfaceGenerator {
             SignatureVisitor pv = inner.visitParameterType();
 
             boolean doVisitEnd = visitTypeForSignature(pv, type);
+            //boolean doVisitEnd = visitTypeForSignature(baseVisitor, type);
 
             if (!type.getActualTypeArguments().isEmpty()) {
                 processTypes(pv, type.getActualTypeArguments());
