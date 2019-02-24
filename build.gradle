@@ -33,7 +33,8 @@ configurations {
 }
 
 dependencies {
-    shade 'fr.inria.gforge.spoon:spoon-core:5.6.0'
+    //shade 'fr.inria.gforge.spoon:spoon-core:5.6.0'
+    shade 'fr.inria.gforge.spoon:spoon-core:7.3.0'
     compile 'org.ow2.asm:asm:5.2'
     compile 'com.google.guava:guava:21.0'
     compile 'com.google.code.findbugs:jsr305:3.0.1'
@@ -76,16 +77,17 @@ shadowJar {
     classifier = ''
     configurations = [project.configurations.shade]
 
-    relocate 'spoon', 'org.spongepowered.eventimplgen.shade.spoon'
-    relocate 'org.eclipse.jdt', 'org.spongepowered.eventimplgen.shade.jdt'
-    relocate 'com.martiansoftware', 'org.spongepowered.eventimplgen.shade.ms'
-    relocate 'org.apache.commons', 'org.spongepowered.eventimplgen.shade.commons'
+    //relocate 'spoon', 'org.spongepowered.eventimplgen.shade.spoon'
+    //relocate 'org.eclipse.jdt', 'org.spongepowered.eventimplgen.shade.jdt'
+    //relocate 'com.martiansoftware', 'org.spongepowered.eventimplgen.shade.ms'
+    //relocate 'org.apache.commons', 'org.spongepowered.eventimplgen.shade.commons'
 
     dependencies {
         include dependency('fr.inria.gforge.spoon:spoon-core')
         include dependency('org.eclipse.tycho:org.eclipse.jdt.core')
         include dependency('com.martiansoftware:jsap')
         include dependency('commons-io:commons-io')
+        include dependency('org.apache.commons:commons-lang3')
     }
 }
 

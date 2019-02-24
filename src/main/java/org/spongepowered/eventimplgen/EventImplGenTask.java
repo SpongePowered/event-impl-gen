@@ -53,7 +53,6 @@ import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtType;
 import spoon.reflect.factory.Factory;
 import spoon.reflect.reference.CtTypeReference;
-import spoon.support.reflect.declaration.CtAnnotationImpl;
 
 import java.io.File;
 import java.io.IOException;
@@ -277,7 +276,7 @@ public class EventImplGenTask extends AbstractCompile {
         if (anno.isShadow()) {
             return ShadowSpoon.getAnnotationValue(anno, key);
         }
-        return ((CtAnnotationImpl<?>) anno).getElementValue(key);
+        return (T) anno.getValueAsObject(key);
     }
 
     public static CtAnnotation<?> getAnnotation(CtElement type, String name) {
