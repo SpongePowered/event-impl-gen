@@ -51,10 +51,12 @@ import org.spongepowered.eventimplgen.factory.plugin.EventFactoryPlugin;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtParameter;
 import spoon.reflect.declaration.CtType;
+import spoon.reflect.declaration.CtTypeParameter;
 import spoon.reflect.reference.CtArrayTypeReference;
 import spoon.reflect.reference.CtTypeParameterReference;
 import spoon.reflect.reference.CtTypeReference;
 import spoon.reflect.reference.CtWildcardReference;
+import spoon.support.visitor.ClassTypingContext;
 
 import java.util.List;
 import java.util.Map;
@@ -172,11 +174,33 @@ public class FactoryInterfaceGenerator {
 
     private static String getSignature(CtType<?> event, List<? extends Property> params) {
         SignatureVisitor v = new SignatureWriter();
+
+        for (CtTypeParameter param: event.getFormalCtTypeParameters()) {
+            v.visitFormalTypeParameter(param.getSimpleName());
+            boolean doVisitEnd = visitTypeForSignature(v, param.getSuperclass());
+            if (!param.getSuperclass().getActualTypeArguments().isEmpty()) {
+                processTypes(v, param.getSuperclass().getActualTypeArguments());
+            }
+            if (doVisitEnd) {
+                v.visitEnd();
+            }
+            /*v.visitClassType(param.getSuperclass().getQualifiedName().replace(".", "/"));
+            /*if (param.getSuperInterfaces().isEmpty()) {
+                v/*.visitInterfaceBound()*///.visitClassType("java/lang/Object;");
+            /*} else {
+                for (CtTypeReference<?> superType: param.getSuperInterfaces()) {
+                    SignatureVisitor inner = v.visitInterfaceBound();
+                    visitTypeForSignature(inner, superType);
+                }
+            }*/
+        }
+
         for (Property property: params) {
             SignatureVisitor pv = v.visitParameterType();
-            boolean doVisitEnd = visitTypeForSignature(pv, property.getType());
+            CtTypeReference<?> actualType = new ClassTypingContext(event).adaptType(property.getMostSpecificType());
+            boolean doVisitEnd = visitTypeForSignature(pv, actualType);
             if (!property.getType().getActualTypeArguments().isEmpty()) {
-                processTypes(pv, property.getType().getActualTypeArguments());
+                processTypes(pv, actualType.getActualTypeArguments());
             }
             if (doVisitEnd) {
                 pv.visitEnd();
