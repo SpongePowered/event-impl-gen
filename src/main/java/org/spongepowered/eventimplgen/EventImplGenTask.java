@@ -46,16 +46,19 @@ import spoon.Launcher;
 import spoon.SpoonAPI;
 import spoon.SpoonModelBuilder;
 import spoon.compiler.Environment;
+import spoon.reflect.code.CtExpression;
 import spoon.reflect.code.CtFieldRead;
 import spoon.reflect.declaration.CtAnnotation;
 import spoon.reflect.declaration.CtElement;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtType;
 import spoon.reflect.factory.Factory;
+import spoon.reflect.reference.CtFieldReference;
 import spoon.reflect.reference.CtTypeReference;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -275,6 +278,17 @@ public class EventImplGenTask extends AbstractCompile {
     public static <T> T getValue(CtAnnotation<?> anno, String key) {
         if (anno.isShadow()) {
             return ShadowSpoon.getAnnotationValue(anno, key);
+        }
+        CtExpression<?> expr = anno.getWrappedValue(key);
+        if (expr instanceof CtFieldRead) {
+            CtFieldReference<?> fieldRef = ((CtFieldRead<?>) expr).getVariable();
+            Class<?> c = fieldRef.getDeclaringType().getActualClass();
+            try {
+                Field f = c.getField(fieldRef.getSimpleName());
+                return (T) f.get(null);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to lookup field for ref: " + expr);
+            }
         }
         return (T) anno.getValueAsObject(key);
     }

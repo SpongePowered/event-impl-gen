@@ -253,7 +253,7 @@ public class ClassGenerator {
                         + "but it's private. This just won't work.");
             } else if (!property.getType().isSubtypeOf(field.getType())) {
                 throw new RuntimeException(String.format("In event %s with parent %s - you've specified field '%s' of type %s"
-                        + " but the property has the type of %s", property.getAccessor().getDeclaringType().getQualifiedName(), parentType.getQualifiedName(), field.getSimpleName(), field.getType().getQualifiedName(), property.getType().getQualifiedName()));
+                        + " but the property has the type of %s", property.getAccessor().getDeclaringType().getQualifiedName(), parentType.getQualifiedName(), field.getSimpleName(), field.getType(), property.getType()));
             }
         }
     }

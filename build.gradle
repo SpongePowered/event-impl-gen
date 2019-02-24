@@ -3,7 +3,7 @@ plugins {
     id 'eclipse'
     id 'idea'
     id 'net.minecrell.licenser' version '0.3'
-    id 'com.github.johnrengelman.shadow' version '2.0.4'
+    id 'com.github.johnrengelman.shadow' version '4.0.2'
 
     id 'com.gradle.plugin-publish' version '0.9.10'
 }
@@ -27,14 +27,14 @@ repositories {
     }
 }
 
-configurations {
+/*configurations {
     shade
     compileOnly.extendsFrom shade
-}
+}*/
 
 dependencies {
     //shade 'fr.inria.gforge.spoon:spoon-core:5.6.0'
-    shade 'fr.inria.gforge.spoon:spoon-core:7.3.0'
+    compile 'fr.inria.gforge.spoon:spoon-core:7.3.0'
     compile 'org.ow2.asm:asm:5.2'
     compile 'com.google.guava:guava:21.0'
     compile 'com.google.code.findbugs:jsr305:3.0.1'
@@ -75,7 +75,8 @@ jar {
 
 shadowJar {
     classifier = ''
-    configurations = [project.configurations.shade]
+    //configurations = [project.configurations.shadeo]
+    configurations = [project.configurations.compile]
 
     //relocate 'spoon', 'org.spongepowered.eventimplgen.shade.spoon'
     //relocate 'org.eclipse.jdt', 'org.spongepowered.eventimplgen.shade.jdt'
@@ -83,11 +84,12 @@ shadowJar {
     //relocate 'org.apache.commons', 'org.spongepowered.eventimplgen.shade.commons'
 
     dependencies {
-        include dependency('fr.inria.gforge.spoon:spoon-core')
-        include dependency('org.eclipse.tycho:org.eclipse.jdt.core')
+        /*include dependency('fr.inria.gforge.spoon:spoon-core')
+        include dependency('org.eclipse.jdt:org.eclipse.jdt.core')
         include dependency('com.martiansoftware:jsap')
         include dependency('commons-io:commons-io')
         include dependency('org.apache.commons:commons-lang3')
+        include dependency('com.fasterxml.jackson.core:jackson-databind')*/
     }
 }
 
