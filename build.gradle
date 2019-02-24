@@ -27,14 +27,14 @@ repositories {
     }
 }
 
-/*configurations {
+configurations {
     shade
     compileOnly.extendsFrom shade
-}*/
+}
 
 dependencies {
     //shade 'fr.inria.gforge.spoon:spoon-core:5.6.0'
-    compile 'fr.inria.gforge.spoon:spoon-core:7.3.0'
+    shade 'fr.inria.gforge.spoon:spoon-core:7.3.0'
     compile 'org.ow2.asm:asm:5.2'
     compile 'com.google.guava:guava:21.0'
     compile 'com.google.code.findbugs:jsr305:3.0.1'
@@ -75,22 +75,24 @@ jar {
 
 shadowJar {
     classifier = ''
-    //configurations = [project.configurations.shadeo]
-    configurations = [project.configurations.compile]
+    configurations = [project.configurations.shade]
+    minimize()
+    //configurations = [project.configurations.compile]
 
     //relocate 'spoon', 'org.spongepowered.eventimplgen.shade.spoon'
     //relocate 'org.eclipse.jdt', 'org.spongepowered.eventimplgen.shade.jdt'
     //relocate 'com.martiansoftware', 'org.spongepowered.eventimplgen.shade.ms'
     //relocate 'org.apache.commons', 'org.spongepowered.eventimplgen.shade.commons'
 
-    dependencies {
-        /*include dependency('fr.inria.gforge.spoon:spoon-core')
+    /*dependencies {
+        include dependency('fr.inria.gforge.spoon:spoon-core')
         include dependency('org.eclipse.jdt:org.eclipse.jdt.core')
         include dependency('com.martiansoftware:jsap')
         include dependency('commons-io:commons-io')
         include dependency('org.apache.commons:commons-lang3')
-        include dependency('com.fasterxml.jackson.core:jackson-databind')*/
-    }
+	include dependency('com.fasterxml.jackson.core:jackson-core')
+        include dependency('com.fasterxml.jackson.core:jackson-databind')
+    }*/
 }
 
 task sourceJar(type: Jar) {
