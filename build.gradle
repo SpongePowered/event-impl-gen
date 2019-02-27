@@ -77,22 +77,6 @@ shadowJar {
     classifier = ''
     configurations = [project.configurations.shade]
     minimize()
-    //configurations = [project.configurations.compile]
-
-    //relocate 'spoon', 'org.spongepowered.eventimplgen.shade.spoon'
-    //relocate 'org.eclipse.jdt', 'org.spongepowered.eventimplgen.shade.jdt'
-    //relocate 'com.martiansoftware', 'org.spongepowered.eventimplgen.shade.ms'
-    //relocate 'org.apache.commons', 'org.spongepowered.eventimplgen.shade.commons'
-
-    /*dependencies {
-        include dependency('fr.inria.gforge.spoon:spoon-core')
-        include dependency('org.eclipse.jdt:org.eclipse.jdt.core')
-        include dependency('com.martiansoftware:jsap')
-        include dependency('commons-io:commons-io')
-        include dependency('org.apache.commons:commons-lang3')
-	include dependency('com.fasterxml.jackson.core:jackson-core')
-        include dependency('com.fasterxml.jackson.core:jackson-databind')
-    }*/
 }
 
 task sourceJar(type: Jar) {

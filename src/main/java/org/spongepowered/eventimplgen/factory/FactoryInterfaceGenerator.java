@@ -154,24 +154,6 @@ public class FactoryInterfaceGenerator {
         mv.visitEnd();
     }
 
-    // TODO: work this out
-    /*private static String getSignature(CtTypeReference<?> type) {
-        List<CtTypeReference<?>> typeParams = type.getActualTypeArguments();
-        if (typeParams.size() == 0) {
-            return null;
-        }
-        StringBuilder builder = new StringBuilder();
-        builder.append('L');
-        builder.append(ClassGenerator.getInternalName(type.getQualifiedName()));
-        builder.append('<');
-
-        for (CtTypeReference<?> typeParam: typeParams) {
-            builder.append(ClassGenerator.getTypeDescriptor(typeParam));
-        }
-        builder.append(">;");
-        return builder.toString();
-    }*/
-
     private static String getSignature(CtType<?> event, List<? extends Property> params) {
         SignatureVisitor v = new SignatureWriter();
 
@@ -184,15 +166,6 @@ public class FactoryInterfaceGenerator {
             if (doVisitEnd) {
                 v.visitEnd();
             }
-            /*v.visitClassType(param.getSuperclass().getQualifiedName().replace(".", "/"));
-            /*if (param.getSuperInterfaces().isEmpty()) {
-                v/*.visitInterfaceBound()*///.visitClassType("java/lang/Object;");
-            /*} else {
-                for (CtTypeReference<?> superType: param.getSuperInterfaces()) {
-                    SignatureVisitor inner = v.visitInterfaceBound();
-                    visitTypeForSignature(inner, superType);
-                }
-            }*/
         }
 
         for (Property property: params) {
@@ -209,12 +182,12 @@ public class FactoryInterfaceGenerator {
 
         SignatureVisitor rv = v.visitReturnType();
         rv.visitClassType(event.getQualifiedName().replace('.', '/'));
+
         for (CtTypeParameter param: event.getFormalCtTypeParameters()) {
             SignatureVisitor argVisitor = rv.visitTypeArgument('=');
             argVisitor.visitTypeVariable(param.getSimpleName());
             argVisitor.visitEnd();
         }
-        //processTypes(rv, event.getReference().getActualTypeArguments());
 
         v.visitEnd();
         return v.toString();
@@ -235,18 +208,6 @@ public class FactoryInterfaceGenerator {
                     bound = type.getFactory().Type().OBJECT;
                 }
                 visitTypeForSignature(pv, bound);
-                // We have an 'extends' bound
-                /*if (((CtWildcardReference) type).isUpper()) {
-                    inner = pv.visitTypeArgument(SignatureVisitor.EXTENDS);
-                } else {
-                    inner = pv.visitTypeArgument(SignatureVisitor.SUPER);
-                }
-                CtTypeReference<?> bound = ((CtTypeParameterReference) type).getBoundingType();
-                if (bound == null) {
-                    bound = type.getFactory().Type().OBJECT;
-                }
-                visitTypeForSignature(pv, bound);
-                inner.visitEnd();*/
                 return true;
             } else {
                 pv.visitTypeVariable(type.getSimpleName());
@@ -269,13 +230,9 @@ public class FactoryInterfaceGenerator {
             SignatureVisitor pv = inner.visitParameterType();
 
             boolean doVisitEnd = visitTypeForSignature(pv, type);
-            //boolean doVisitEnd = visitTypeForSignature(baseVisitor, type);
 
             if (!type.getActualTypeArguments().isEmpty()) {
                 processTypes(pv, type.getActualTypeArguments());
-                //SignatureVisitor nested = pv.visitTypeArgument('=');
-                //processTypes(nested, type.getActualTypeArguments());
-                //inner.visitEnd();
             }
             if (doVisitEnd) {
                 pv.visitEnd();
