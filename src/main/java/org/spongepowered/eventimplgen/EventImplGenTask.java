@@ -263,7 +263,10 @@ public class EventImplGenTask extends AbstractCompile {
             }
 
             for (CtTypeReference<?> implInterface : scannedType.getSuperInterfaces()) {
-                queue.offer(implInterface.getTypeDeclaration());
+                final CtType<?> type = implInterface.getTypeDeclaration();
+                if (type != null) {
+                    queue.offer(type);
+                }
             }
         }
 

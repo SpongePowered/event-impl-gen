@@ -207,7 +207,12 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
                 queue.push(ourType.getSuperclass().getDeclaration());
             }
             for (CtTypeReference<?> iface: ourType.getSuperInterfaces()) {
-                queue.push(iface.getDeclaration());
+                if (iface != null) {
+                    final CtType<?> declaration = iface.getDeclaration();
+                    if (declaration != null) {
+                        queue.push(declaration);
+                    }
+                }
             }
         }
 
