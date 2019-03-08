@@ -43,6 +43,7 @@ public class EventImplGenPlugin implements Plugin<Project> {
 
         final EventImplGenTask task = project.getTasks().create("genEventImpl", EventImplGenTask.class);
         task.source(sourceSet.getAllJava());
+        task.setSpoonCompileSource(sourceSet.getAllJava());
         task.conventionMapping("destinationDir", () -> project.file(".gradle/event-factory"));
         task.conventionMapping("classpath", () -> this.classpath);
 

@@ -82,6 +82,7 @@ public class EventImplGenTask extends AbstractCompile {
     private Set<String> inclusiveAnnotations = new LinkedHashSet<>();
     private Set<String> exclusiveAnnotations = new LinkedHashSet<>();
     private boolean validateCode = false;
+    private SourceDirectorySet spoonCompileSource;
 
     public EventImplGenTask() {
         this.groupingPrefixes.put("from", "to");
@@ -113,10 +114,21 @@ public class EventImplGenTask extends AbstractCompile {
         this.sortPriorityPrefix = checkNotNull(sortPriorityPrefix, "sortPriorityPrefix");
     }
 
+    @InputFiles
+    public SourceDirectorySet getSpoonCompileSource() {
+        return this.spoonCompileSource;
+    }
+
+    public void setSpoonCompileSource(SourceDirectorySet source) {
+        this.spoonCompileSource = source;
+    }
+
     @Input
     public Map<String, String> getGroupingPrefixes() {
         return groupingPrefixes;
     }
+
+
 
     public void setGroupingPrefixes(Map<String, String> groupingPrefixes) {
         this.groupingPrefixes = checkNotNull(groupingPrefixes, "groupingPrefixes");
@@ -191,13 +203,13 @@ public class EventImplGenTask extends AbstractCompile {
         final SpoonModelBuilder compiler = spoon.createCompiler();
         compiler.setSourceClasspath(toPathArray(getClasspath().getFiles()));
 
-        for (Object source : this.source) {
-            if (!(source instanceof SourceDirectorySet)) {
-                throw new UnsupportedOperationException("Source of type " + source.getClass() + " is not supported.");
-            }
+        // We want Spoon to use the entire SpongeAPI repository
+        // for compilation purposes, but to only generate factory
+        // methods for classes that we include/exclude
 
-            ((SourceDirectorySet) source).getSrcDirs().forEach(compiler::addInputSource);
-        }
+        // spoonCompileSource contains that regular Gradle 'java main' sourceset,
+        // wsithout any user-supplied inclusions-exclusions
+        this.spoonCompileSource.getSrcDirs().forEach(compiler::addInputSource);
 
         this.factory = compiler.getFactory();
 
