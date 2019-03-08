@@ -30,10 +30,12 @@ import org.gradle.api.JavaVersion;
 import org.gradle.api.UncheckedIOException;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.file.SourceDirectorySet;
+import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.tasks.Classpath;
 import org.gradle.api.tasks.CompileClasspath;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFiles;
+import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.compile.AbstractCompile;
 import org.spongepowered.eventimplgen.eventgencore.Property;
@@ -193,12 +195,12 @@ public class EventImplGenTask extends AbstractCompile {
         final SpoonModelBuilder compiler = spoon.createCompiler();
         compiler.setSourceClasspath(toPathArray(getClasspath().getFiles()));
 
-        for (Object source : this.getSource()) {
-            if (!(source instanceof SourceDirectorySet)) {
-                throw new UnsupportedOperationException("Source of type " + source.getClass() + " is not supported.");
+        for (Object source : getSource()) {
+            if (source instanceof File) {
+                compiler.addInputSource((File) source);
+            } else if (source instanceof SourceDirectorySet) {
+                ((SourceDirectorySet) source).getSrcDirs().forEach(compiler::addInputSource);
             }
-
-            ((SourceDirectorySet) source).getSrcDirs().forEach(compiler::addInputSource);
         }
 
         this.factory = compiler.getFactory();
