@@ -193,7 +193,7 @@ public class EventImplGenTask extends AbstractCompile {
         final SpoonModelBuilder compiler = spoon.createCompiler();
         compiler.setSourceClasspath(toPathArray(getClasspath().getFiles()));
 
-        for (Object source : this.source) {
+        for (Object source : this.getSource()) {
             if (!(source instanceof SourceDirectorySet)) {
                 throw new UnsupportedOperationException("Source of type " + source.getClass() + " is not supported.");
             }
