@@ -40,14 +40,13 @@ public class PropertySorter {
     private final String prefix;
     private final Map<String, String> groupingPrefixes;
 
-    public PropertySorter(String prefix, Map<String, String> groupingPrefixes) {
+    public PropertySorter(final String prefix, final Map<String, String> groupingPrefixes) {
         this.prefix = prefix;
         this.groupingPrefixes = groupingPrefixes;
     }
 
     @SuppressWarnings("rawtypes")
-    public List<Property> sortProperties(
-        Collection<Property> properties) {
+    public List<Property> sortProperties(final Collection<Property> properties) {
 
         final List<Property> finalProperties = new ArrayList<>();
         final Map<String, Property> propertyMap = new HashMap<>();
@@ -63,10 +62,10 @@ public class PropertySorter {
             }
         });
 
-        for (Map.Entry<String, Property> entry : new HashSet<>(propertyMap.entrySet())) {
+        for (final Map.Entry<String, Property> entry : new HashSet<>(propertyMap.entrySet())) {
             final String name = entry.getValue().getName();
             final String unprefixedName = getUnprefixedName(name);
-            if (name.startsWith(prefix)) {
+            if (name.startsWith(this.prefix)) {
                 if (propertyMap.containsKey(unprefixedName)) {
                     pairs.add(new PrefixPair(entry.getValue(), propertyMap.get(unprefixedName)));
                     propertyMap.remove(name);
@@ -75,14 +74,14 @@ public class PropertySorter {
             }
         }
 
-        for (Map.Entry<String, Property> entry : new HashSet<>(propertyMap.entrySet())) {
+        for (final Map.Entry<String, Property> entry : new HashSet<>(propertyMap.entrySet())) {
             final String name = entry.getKey();
             final Property property = entry.getValue();
             if (property.getWrapperType().isPrimitive()) {
                 primitiveProperties.add(property);
                 propertyMap.remove(name);
             } else {
-                for (Map.Entry<String, String> prefixEntry : groupingPrefixes.entrySet()) {
+                for (final Map.Entry<String, String> prefixEntry : this.groupingPrefixes.entrySet()) {
                     if (name.startsWith(prefixEntry.getKey())) {
                         final String modifiedName = name.replaceFirst(prefixEntry.getKey(), prefixEntry.getValue());
                         if (propertyMap.containsKey(modifiedName)) {
@@ -98,7 +97,7 @@ public class PropertySorter {
 
         Collections.sort(pairs);
 
-        for (PrefixPair pair : pairs) {
+        for (final PrefixPair pair : pairs) {
             finalProperties.add(pair.prefixed);
             finalProperties.add(pair.unprefixed);
         }
@@ -119,20 +118,20 @@ public class PropertySorter {
         private final Property prefixed;
         private final Property unprefixed;
 
-        private PrefixPair(Property prefixed, Property unprefixed) {
+        private PrefixPair(final Property prefixed, final Property unprefixed) {
             this.prefixed = prefixed;
             this.unprefixed = unprefixed;
         }
 
         @Override
-        public int compareTo(PrefixPair other) {
+        public int compareTo(final PrefixPair other) {
             return this.unprefixed.getName().compareTo(other.unprefixed.getName());
         }
     }
 
-    private String getUnprefixedName(String name) {
-        if (name.startsWith(prefix)) {
-            return AccessorFirstStrategy.getPropertyName(name.replaceFirst(prefix, ""));
+    private String getUnprefixedName(final String name) {
+        if (name.startsWith(this.prefix)) {
+            return AccessorFirstStrategy.getPropertyName(name.replaceFirst(this.prefix, ""));
         }
         return name;
     }

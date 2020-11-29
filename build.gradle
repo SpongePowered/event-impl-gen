@@ -23,11 +23,12 @@ repositories {
 }
 
 dependencies {
-    //shade 'fr.inria.gforge.spoon:spoon-core:5.6.0'
     implementation(gradleApi())
     implementation 'fr.inria.gforge.spoon:spoon-core:8.3.0'
     implementation 'org.ow2.asm:asm:9.0'
-    implementation 'com.google.guava:guava:30.0-jre'
+    implementation('com.google.guava:guava:30.0-jre') {
+        exclude group: "com.google.code.findbugs", module: "jsr305"
+    }
     compileOnly 'org.checkerframework:checker-qual:3.7.1'
     compileOnly 'com.google.errorprone:error_prone_annotations:2.4.0'
 

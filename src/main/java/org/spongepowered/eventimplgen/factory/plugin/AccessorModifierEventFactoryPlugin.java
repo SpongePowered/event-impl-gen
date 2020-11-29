@@ -47,10 +47,10 @@ import spoon.reflect.declaration.CtType;
  */
 public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
 
-    private MethodPair getLinkedField(Property property) {
+    private MethodPair getLinkedField(final Property property) {
 
-        CtMethod<?> leastSpecificMethod = property.getLeastSpecificMethod();
-        CtAnnotation<?> transformResult;
+        final CtMethod<?> leastSpecificMethod = property.getLeastSpecificMethod();
+        final CtAnnotation<?> transformResult;
         CtMethod<?> transformWith = null;
         String name = null;
 
@@ -60,8 +60,9 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
             // use covariant types, we can call getMethods on the more specific version,
             // allowing the annotation to be present on a method defined there, as well as in
             // the least specific type.
-            for (CtMethod<?> method: property.getAccessor().getType().getDeclaration().getMethods()) {
-                CtAnnotation<?> annotation = EventImplGenTask.getAnnotation(method, "org.spongepowered.api.util.annotation.eventgen.TransformWith");
+            for (final CtMethod<?> method: property.getAccessor().getType().getDeclaration().getMethods()) {
+                final CtAnnotation<?> annotation = EventImplGenTask.getAnnotation(method, "org.spongepowered.api.util.annotation.eventgen"
+                        + ".TransformWith");
                 if (annotation != null &&  EventImplGenTask.getValue(annotation, "value").equals(name)) {
                     if (transformWith != null) {
                         throw new RuntimeException("Multiple @TransformResult annotations were found with the name "
@@ -82,16 +83,16 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
         return null;
     }
 
-    private void generateTransformingAccessor(ClassWriter cw, String internalName, MethodPair pair, Property property) {
+    private void generateTransformingAccessor(final ClassWriter cw, final String internalName, final MethodPair pair, final Property property) {
 
-        CtMethod<?> accessor = property.getAccessor();
+        final CtMethod<?> accessor = property.getAccessor();
 
-        MethodVisitor mv = cw.visitMethod(ACC_PUBLIC, accessor.getSimpleName(), ClassGenerator.getDescriptor(accessor), null, null);
+        final MethodVisitor mv = cw.visitMethod(ACC_PUBLIC, accessor.getSimpleName(), ClassGenerator.getDescriptor(accessor), null, null);
         mv.visitCode();
         mv.visitVarInsn(ALOAD, 0);
         mv.visitFieldInsn(GETFIELD, internalName, property.getName(), ClassGenerator.getTypeDescriptor(property.getLeastSpecificType()));
 
-        CtMethod<?> transformerMethod = pair.getTransformerMethod();
+        final CtMethod<?> transformerMethod = pair.getTransformerMethod();
 
         int opcode = INVOKEVIRTUAL;
         if (transformerMethod.getDeclaringType().isInterface()) {
@@ -107,8 +108,8 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
     }
 
     @Override
-    public boolean contributeProperty(CtType<?> eventClass, String internalName, ClassWriter classWriter, Property property) {
-        MethodPair methodPair = this.getLinkedField(property);
+    public boolean contributeProperty(final CtType<?> eventClass, final String internalName, final ClassWriter classWriter, final Property property) {
+        final MethodPair methodPair = this.getLinkedField(property);
         if (methodPair == null) {
             return false;
         }
@@ -142,7 +143,7 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
          * @param transformerMethod The transformer method
          * @param property The property
          */
-        public MethodPair(String name, CtMethod<?> callerMethod, CtMethod<?> transformerMethod, Property property) {
+        public MethodPair(final String name, final CtMethod<?> callerMethod, final CtMethod<?> transformerMethod, final Property property) {
             this.name = name;
             this.callerMethod = callerMethod;
             this.transformerMethod = transformerMethod;

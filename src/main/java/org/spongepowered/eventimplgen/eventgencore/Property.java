@@ -24,14 +24,12 @@
  */
 package org.spongepowered.eventimplgen.eventgencore;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
+import org.checkerframework.checker.nullness.qual.Nullable;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.reference.CtTypeReference;
 
+import java.util.Objects;
 import java.util.Optional;
-
-import javax.annotation.Nullable;
 
 /**
  * A property is a getter with possibly a setter pair.
@@ -55,13 +53,19 @@ public final class Property implements Comparable<Property> {
      * @param accessor The accessor
      * @param mutator The mutator
      */
-    public Property(String name, CtTypeReference<?> type, CtMethod<?> leastSpecificMethod, CtMethod<?> mostSpecificMethod,
-        CtMethod<?> accessor, @Nullable CtMethod<?> mutator) {
-        checkNotNull(name, "name");
-        checkNotNull(type, "type");
-        checkNotNull(leastSpecificMethod, "leastSpecificMethod");
-        checkNotNull(mostSpecificMethod, "mostSpecificMethod");
-        checkNotNull(accessor, "accessor");
+    public Property(
+        final String name,
+        final CtTypeReference<?> type,
+        final CtMethod<?> leastSpecificMethod,
+        final CtMethod<?> mostSpecificMethod,
+        final CtMethod<?> accessor,
+        final @Nullable CtMethod<?> mutator
+   ) {
+        Objects.requireNonNull(name, "name");
+        Objects.requireNonNull(type, "type");
+        Objects.requireNonNull(leastSpecificMethod, "leastSpecificMethod");
+        Objects.requireNonNull(mostSpecificMethod, "mostSpecificMethod");
+        Objects.requireNonNull(accessor, "accessor");
         this.name = name;
         this.type = type;
         this.leastSpecificMethod = leastSpecificMethod;
@@ -167,7 +171,7 @@ public final class Property implements Comparable<Property> {
     }
 
     @Override
-    public int compareTo(Property otherProperty) {
-        return this.getName().compareTo(otherProperty.getName());
+    public int compareTo(final Property other) {
+        return this.getName().compareTo(other.getName());
     }
 }

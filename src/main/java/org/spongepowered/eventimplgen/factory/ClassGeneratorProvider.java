@@ -24,9 +24,9 @@
  */
 package org.spongepowered.eventimplgen.factory;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import spoon.reflect.declaration.CtType;
+
+import java.util.Objects;
 
 /**
  * Creates event implementations by generating the necessary event class
@@ -43,8 +43,8 @@ public class ClassGeneratorProvider {
      *
      * @param targetPackage The target package to place generated event classes in
      */
-    public ClassGeneratorProvider(String targetPackage) {
-        checkNotNull(targetPackage, "targetPackage");
+    public ClassGeneratorProvider(final String targetPackage) {
+        Objects.requireNonNull(targetPackage, "targetPackage");
         this.targetPackage = targetPackage;
     }
 
@@ -55,7 +55,7 @@ public class ClassGeneratorProvider {
      * @param classifier The classifier
      * @return Canonical name
      */
-    protected String getClassName(CtType<?> clazz, String classifier) {
+    protected String getClassName(CtType<?> clazz, final String classifier) {
         String name = clazz.getSimpleName();
         while (clazz.getDeclaringType() != null) {
             clazz = clazz.getDeclaringType();

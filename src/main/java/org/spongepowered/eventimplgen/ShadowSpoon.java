@@ -24,7 +24,6 @@
  */
 package org.spongepowered.eventimplgen;
 
-import com.google.common.base.Throwables;
 import spoon.reflect.declaration.CtAnnotation;
 import spoon.reflect.declaration.CtElement;
 import spoon.reflect.declaration.CtMethod;
@@ -50,30 +49,30 @@ final class ShadowSpoon {
     }
 
     @SuppressWarnings("unchecked")
-    static <T> T getAnnotationValue(CtAnnotation<?> annotationElement, String key) {
+    static <T> T getAnnotationValue(final CtAnnotation<?> annotationElement, final String key) {
         try {
-            Annotation annotation = loadAnnotation(annotationElement);
+            final Annotation annotation = loadAnnotation(annotationElement);
             return (T) annotation.getClass().getMethod(key).invoke(annotation);
-        } catch (Exception e) {
+        } catch (final Exception e) {
             throw new RuntimeException(e);
         }
     }
 
     @SuppressWarnings("unchecked")
-    static CtTypeReference<?> getAnnotationTypeReference(CtAnnotation<?> annotationElement, String key) {
+    static CtTypeReference<?> getAnnotationTypeReference(final CtAnnotation<?> annotationElement, final String key) {
         try {
-            Annotation annotation = loadAnnotation(annotationElement);
-            Class<?> reference = (Class<?>) annotation.getClass().getMethod(key).invoke(annotation);
+            final Annotation annotation = loadAnnotation(annotationElement);
+            final Class<?> reference = (Class<?>) annotation.getClass().getMethod(key).invoke(annotation);
             return annotationElement.getFactory().createCtTypeReference(reference);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    private static Annotation loadAnnotation(CtAnnotation<?> annotationElement) throws Exception {
+    private static Annotation loadAnnotation(final CtAnnotation<?> annotationElement) throws Exception {
         Annotation annotation = (Annotation) annotationElement.getMetadata("annotation");
         if (annotation == null) {
-            CtTypeReference<? extends Annotation> type = annotationElement.getAnnotationType();
+            final CtTypeReference<? extends Annotation> type = annotationElement.getAnnotationType();
 
             // Due to a bug in Spoon, it does not always set the correct
             // factory for the generated elements. This will cause the wrong
@@ -87,10 +86,10 @@ final class ShadowSpoon {
         return annotation;
     }
 
-    private static Annotation findAnnotation(CtElement parent, Class<? extends Annotation> annotationClass) throws Exception {
+    private static Annotation findAnnotation(final CtElement parent, final Class<? extends Annotation> annotationClass) throws Exception {
         if (parent instanceof CtMethod) {
-            Class<?> clazz = ((CtType<?>) parent.getParent()).getActualClass();
-            Method method = clazz.getMethod(((CtMethod<?>) parent).getSimpleName(), ((CtMethod<?>) parent).getParameters().stream()
+            final Class<?> clazz = ((CtType<?>) parent.getParent()).getActualClass();
+            final Method method = clazz.getMethod(((CtMethod<?>) parent).getSimpleName(), ((CtMethod<?>) parent).getParameters().stream()
                     .map(p -> p.getType().getActualClass())
                     .toArray(Class<?>[]::new));
             return method.getAnnotation(annotationClass);

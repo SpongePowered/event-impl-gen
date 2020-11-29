@@ -37,17 +37,18 @@ public class EventImplGenPlugin implements Plugin<Project> {
     private Configuration classpath;
 
     @Override
-    public void apply(Project project) {
+    public void apply(final Project project) {
         project.getPlugins().apply(JavaPlugin.class);
-        SourceSet sourceSet = project.getConvention().getPlugin(JavaPluginConvention.class).getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
+        final SourceSet mainSourceSet = project.getConvention().getPlugin(JavaPluginConvention.class)
+                        .getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
 
         final EventImplGenTask task = project.getTasks().create("genEventImpl", EventImplGenTask.class);
-        task.source(sourceSet.getAllJava());
-        task.conventionMapping("destinationDir", () -> project.file(".gradle/event-factory"));
+        task.source(mainSourceSet.getAllJava());
+        task.conventionMapping("destinationDir", () -> project.getLayout().getBuildDirectory().dir("generated/event-factory"));
         task.conventionMapping("classpath", () -> this.classpath);
 
         // Include event factory classes in JAR
-        ((CopySpec) project.getTasks().getByName(sourceSet.getJarTaskName())).from(task);
+        ((CopySpec) project.getTasks().getByName(mainSourceSet.getJarTaskName())).from(task);
 
         project.afterEvaluate(project1 -> {
             // We add the generated event factory to the compile dependencies.
@@ -60,10 +61,10 @@ public class EventImplGenPlugin implements Plugin<Project> {
             // before we add the event factory. This needs to be done in afterEvaluate
             // however, so any dependencies added after event-impl-gen is applied will
             // be included in the Spoon classpath.
-            this.classpath = project1.getConfigurations().getByName(sourceSet.getCompileClasspathConfigurationName()).copyRecursive();
+            this.classpath = project1.getConfigurations().getByName(mainSourceSet.getCompileClasspathConfigurationName()).copyRecursive();
 
             // Add the event factory to the compile dependencies
-            project1.getDependencies().add(sourceSet.getCompileConfigurationName(), project.files(task));
+            project1.getDependencies().add(mainSourceSet.getCompileConfigurationName(), project.files(task));
         });
     }
 

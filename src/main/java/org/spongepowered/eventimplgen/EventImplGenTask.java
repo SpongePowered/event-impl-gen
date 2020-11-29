@@ -24,8 +24,6 @@
  */
 package org.spongepowered.eventimplgen;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import org.gradle.api.JavaVersion;
 import org.gradle.api.UncheckedIOException;
 import org.gradle.api.file.FileCollection;
@@ -69,6 +67,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
 
@@ -113,80 +112,80 @@ public class EventImplGenTask extends AbstractCompile {
 
     @Input
     public String getOutputFactory() {
-        return outputFactory;
+        return this.outputFactory;
     }
 
-    public void setOutputFactory(String outputFactory) {
-        this.outputFactory = checkNotNull(outputFactory, "outputFactory");
+    public void setOutputFactory(final String outputFactory) {
+        this.outputFactory = Objects.requireNonNull(outputFactory, "outputFactory");
     }
 
     @Input
     public String getSortPriorityPrefix() {
-        return sortPriorityPrefix;
+        return this.sortPriorityPrefix;
     }
 
-    public void setSortPriorityPrefix(String sortPriorityPrefix) {
-        this.sortPriorityPrefix = checkNotNull(sortPriorityPrefix, "sortPriorityPrefix");
+    public void setSortPriorityPrefix(final String sortPriorityPrefix) {
+        this.sortPriorityPrefix = Objects.requireNonNull(sortPriorityPrefix, "sortPriorityPrefix");
     }
 
     @Input
     public Map<String, String> getGroupingPrefixes() {
-        return groupingPrefixes;
+        return this.groupingPrefixes;
     }
 
-    public void setGroupingPrefixes(Map<String, String> groupingPrefixes) {
-        this.groupingPrefixes = checkNotNull(groupingPrefixes, "groupingPrefixes");
+    public void setGroupingPrefixes(final Map<String, String> groupingPrefixes) {
+        this.groupingPrefixes = Objects.requireNonNull(groupingPrefixes, "groupingPrefixes");
     }
 
     @Input
     public boolean isValidateCode() {
-        return validateCode;
+        return this.validateCode;
     }
 
-    public void setValidateCode(boolean validateCode) {
+    public void setValidateCode(final boolean validateCode) {
         this.validateCode = validateCode;
     }
 
     @Input
     public Set<String> getInclusiveAnnotations() {
-        return inclusiveAnnotations;
+        return this.inclusiveAnnotations;
     }
 
-    public void setInclusiveAnnotations(Set<String> annotations) {
+    public void setInclusiveAnnotations(final Set<String> annotations) {
         this.inclusiveAnnotations = annotations;
     }
 
-    public void inclusiveAnnotations(Set<String> annotations) {
+    public void inclusiveAnnotations(final Set<String> annotations) {
         this.inclusiveAnnotations.addAll(annotations);
     }
 
-    public void inclusiveAnnotation(String annotation) {
+    public void inclusiveAnnotation(final String annotation) {
         this.inclusiveAnnotations.add(annotation);
     }
 
     @Input
     public Set<String> getExclusiveAnnotations() {
-        return exclusiveAnnotations;
+        return this.exclusiveAnnotations;
     }
 
-    public void setExclusiveAnnotations(Set<String> annotations) {
+    public void setExclusiveAnnotations(final Set<String> annotations) {
         this.exclusiveAnnotations = annotations;
     }
 
-    public void exclusiveAnnotations(Set<String> annotations) {
+    public void exclusiveAnnotations(final Set<String> annotations) {
         this.exclusiveAnnotations.addAll(annotations);
     }
 
-    public void exclusiveAnnotation(String annotation) {
+    public void exclusiveAnnotation(final String annotation) {
         this.exclusiveAnnotations.add(annotation);
     }
 
     @Override
     protected void compile() {
         try {
-            generateClasses();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
+            this.generateClasses();
+        } catch (final IOException ex) {
+            throw new UncheckedIOException(ex);
         }
     }
 
@@ -196,7 +195,7 @@ public class EventImplGenTask extends AbstractCompile {
         getProject().delete(getDestinationDir());
 
         // Initialize spoon
-        SpoonAPI spoon = new Launcher();
+        final SpoonAPI spoon = new Launcher();
         spoon.addProcessor(EVENT_CLASS_PROCESSOR);
 
         final Environment environment = spoon.getEnvironment();
@@ -238,34 +237,34 @@ public class EventImplGenTask extends AbstractCompile {
         dumpClasses(foundProperties, forwardedMethods);
     }
 
-    private void dumpClasses(Map<CtType<?>, List<Property>> foundProperties, List<CtMethod<?>> forwardedMethods) throws IOException {
-        String packageName = this.outputFactory.substring(0, this.outputFactory.lastIndexOf('.'));
-        ClassGeneratorProvider provider = new ClassGeneratorProvider(packageName);
+    private void dumpClasses(final Map<CtType<?>, List<Property>> foundProperties, final List<CtMethod<?>> forwardedMethods) throws IOException {
+        final String packageName = this.outputFactory.substring(0, this.outputFactory.lastIndexOf('.'));
+        final ClassGeneratorProvider provider = new ClassGeneratorProvider(packageName);
 
-        Path destinationDir = getDestinationDir().toPath();
+        final Path destinationDir = this.getDestinationDir().toPath();
         // Create package directory
         Files.createDirectories(destinationDir.resolve(packageName.replace('.', File.separatorChar)));
 
         byte[] clazz = FactoryInterfaceGenerator.createClass(this.outputFactory, foundProperties, provider, this.sorter, forwardedMethods);
         addClass(destinationDir, this.outputFactory, clazz);
 
-        ClassGenerator generator = new ClassGenerator();
+        final ClassGenerator generator = new ClassGenerator();
         generator.setNullPolicy(NullPolicy.NON_NULL_BY_DEFAULT);
 
-        for (CtType<?> event : foundProperties.keySet()) {
-            String name = ClassGenerator.getEventName(event, provider);
+        for (final CtType<?> event : foundProperties.keySet()) {
+            final String name = ClassGenerator.getEventName(event, provider);
             clazz = generator.createClass(event, name, getBaseClass(event),
                     foundProperties.get(event), this.sorter, FactoryInterfaceGenerator.plugins);
             this.addClass(destinationDir, name, clazz);
         }
     }
 
-    private void addClass(Path destinationDir, String name, byte[] clazz) throws IOException {
-        Path classFile = destinationDir.resolve(name.replace('.', File.separatorChar) + ".class");
+    private void addClass(final Path destinationDir, final String name, final byte[] clazz) throws IOException {
+        final Path classFile = destinationDir.resolve(name.replace('.', File.separatorChar) + ".class");
         Files.write(classFile, clazz, StandardOpenOption.CREATE_NEW);
     }
 
-    private CtTypeReference<?> getBaseClass(CtType<?> event) {
+    private CtTypeReference<?> getBaseClass(final CtType<?> event) {
         CtAnnotation<?> implementedBy = null;
         int max = Integer.MIN_VALUE;
 
@@ -275,13 +274,13 @@ public class EventImplGenTask extends AbstractCompile {
         CtType<?> scannedType;
 
         while ((scannedType = queue.poll()) != null) {
-            CtAnnotation<?> anno = getAnnotation(scannedType, "org.spongepowered.api.util.annotation.eventgen.ImplementedBy");
+            final CtAnnotation<?> anno = getAnnotation(scannedType, "org.spongepowered.api.util.annotation.eventgen.ImplementedBy");
             if (anno != null && EventImplGenTask.<Integer>getValue(anno, "priority") >= max) {
                 implementedBy = anno;
                 max = getValue(anno, "priority");
             }
 
-            for (CtTypeReference<?> implInterface : scannedType.getSuperInterfaces()) {
+            for (final CtTypeReference<?> implInterface : scannedType.getSuperInterfaces()) {
                 queue.offer(implInterface.getTypeDeclaration());
             }
         }
@@ -293,29 +292,29 @@ public class EventImplGenTask extends AbstractCompile {
                 return implementedBy.<CtFieldRead<?>>getValue("value").getVariable().getDeclaringType();
             }
         }
-        return factory.Type().OBJECT;
+        return this.factory.Type().OBJECT;
     }
 
-    public static <T> T getValue(CtAnnotation<?> anno, String key) {
+    public static <T> T getValue(final CtAnnotation<?> anno, final String key) {
         if (anno.isShadow()) {
             return ShadowSpoon.getAnnotationValue(anno, key);
         }
-        CtExpression<?> expr = anno.getWrappedValue(key);
+        final CtExpression<?> expr = anno.getWrappedValue(key);
         if (expr instanceof CtFieldRead) {
-            CtFieldReference<?> fieldRef = ((CtFieldRead<?>) expr).getVariable();
-            Class<?> c = fieldRef.getDeclaringType().getActualClass();
+            final CtFieldReference<?> fieldRef = ((CtFieldRead<?>) expr).getVariable();
+            final Class<?> c = fieldRef.getDeclaringType().getActualClass();
             try {
-                Field f = c.getField(fieldRef.getSimpleName());
+                final Field f = c.getField(fieldRef.getSimpleName());
                 return (T) f.get(null);
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 throw new RuntimeException("Failed to lookup field for ref: " + expr);
             }
         }
         return (T) anno.getValueAsObject(key);
     }
 
-    public static CtAnnotation<?> getAnnotation(CtElement type, String name) {
-        for (CtAnnotation<?> annotation: type.getAnnotations()) {
+    public static CtAnnotation<?> getAnnotation(final CtElement type, final String name) {
+        for (final CtAnnotation<?> annotation : type.getAnnotations()) {
             if (annotation.getAnnotationType().getQualifiedName().equals(name)) {
                 return annotation;
             }
@@ -323,8 +322,8 @@ public class EventImplGenTask extends AbstractCompile {
         return null;
     }
 
-    public static boolean containsAnnotation(CtElement type, Set<String> looking) {
-        for (CtAnnotation<?> annotation : type.getAnnotations()) {
+    public static boolean containsAnnotation(final CtElement type, final Set<String> looking) {
+        for (final CtAnnotation<?> annotation : type.getAnnotations()) {
             if (looking.contains(annotation.getAnnotationType().getQualifiedName())) {
                 return true;
             }
@@ -342,10 +341,10 @@ public class EventImplGenTask extends AbstractCompile {
         return name.toString();
     }
 
-    private static String[] toPathArray(Set<File> files) {
-        String[] result = new String[files.size()];
+    private static String[] toPathArray(final Set<File> files) {
+        final String[] result = new String[files.size()];
         int i = 0;
-        for (File file : files) {
+        for (final File file : files) {
             result[i++] = file.getAbsolutePath();
         }
         return result;

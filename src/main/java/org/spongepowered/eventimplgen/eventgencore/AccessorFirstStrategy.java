@@ -24,11 +24,9 @@
  */
 package org.spongepowered.eventimplgen.eventgencore;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.common.collect.HashMultimap;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Multimap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtParameter;
 import spoon.reflect.declaration.CtType;
@@ -38,18 +36,18 @@ import spoon.reflect.reference.CtTypeReference;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import javax.annotation.Nullable;
 
 /**
  *
@@ -71,7 +69,7 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
      * @param method The method
      * @return The property name, if the method is an accessor
      */
-    private String getAccessorName(CtMethod<?> method) {
+    private String getAccessorName(final CtMethod<?> method) {
         Matcher m;
 
         if (this.isPublic(method) && method.getParameters().size() == 0) {
@@ -109,9 +107,8 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
      * @param method The method
      * @return The property name, if the method is an mutator
      */
-    @Nullable
-    private String getMutatorName(CtMethod<?> method) {
-        Matcher m;
+    private @Nullable String getMutatorName(final CtMethod<?> method) {
+        final Matcher m;
 
         if (this.isPublic(method) && method.getParameters().size() == 1 && method.getType().getQualifiedName().equals("void")) {
             m = MUTATOR.matcher(method.getSimpleName());
@@ -123,7 +120,7 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
         return null;
     }
 
-    private boolean isPublic(CtMethod<?> method) {
+    private boolean isPublic(final CtMethod<?> method) {
         final Set<ModifierKind> modifiers = method.getModifiers();
         return modifiers.contains(ModifierKind.PUBLIC) || !(modifiers.contains(ModifierKind.PROTECTED) || modifiers.contains(ModifierKind.PRIVATE));
     }
@@ -134,7 +131,7 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
      * @param name The name
      * @return The cleaned up name
      */
-    public static String getPropertyName(String name) {
+    public static String getPropertyName(final String name) {
         return Character.toLowerCase(name.charAt(0)) + name.substring(1);
     }
 
@@ -146,11 +143,10 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
      * @param candidates The collection of candidates
      * @return A mutator, if found
      */
-    @Nullable
-    protected CtMethod<?> findMutator(CtMethod<?> accessor, Collection<CtMethod<?>> candidates) {
+    protected @Nullable CtMethod<?> findMutator(final CtMethod<?> accessor, final Collection<CtMethod<?>> candidates) {
         final CtTypeReference<?> expectedType = accessor.getType();
 
-        for (CtMethod<?> method : candidates) {
+        for (final CtMethod<?> method : candidates) {
             // TODO: Handle supertypes
             if (method.getParameters().get(0).getType().getQualifiedName().equals(expectedType.getQualifiedName()) || expectedType.getQualifiedName().equals(Optional.class.getName())) {
                 return method;
@@ -162,7 +158,7 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
 
     @Override
     public List<Property> findProperties(final CtTypeReference<?> type) {
-        checkNotNull(type, "type");
+        Objects.requireNonNull(type, "type");
 
         final Multimap<String, CtMethod<?>> accessors = HashMultimap.create();
         final Multimap<String, CtMethod<?>> mutators = HashMultimap.create();
@@ -170,21 +166,21 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
         final Map<String, CtMethod<?>> mostSpecific = new HashMap<>();
         final Set<String> signatures = new HashSet<>();
 
-        Deque<CtType<?>> queue = new ArrayDeque<>();
+        final Deque<CtType<?>> queue = new ArrayDeque<>();
         queue.push(type.getDeclaration());
 
         while (!queue.isEmpty()) {
-            CtType<?> ourType = queue.pop();
-            for (CtMethod<?> method: ourType.getMethods()) {
+            final CtType<?> ourType = queue.pop();
+            for (final CtMethod<?> method : ourType.getMethods()) {
                 String name;
 
                 String signature = method.getSimpleName() + ";";
-                for (CtParameter<?> parameterType : method.getParameters()) {
+                for (final CtParameter<?> parameterType : method.getParameters()) {
                     signature += parameterType.getType().getQualifiedName() + ";";
                 }
                 signature += method.getType().getSimpleName();
 
-                CtMethod<?> leastSpecificMethod;
+                final CtMethod<?> leastSpecificMethod;
                 if ((name = getAccessorName(method)) != null && !signatures.contains(signature)
                         && ((leastSpecificMethod = accessorHierarchyBottoms.get(name)) == null
                                     || !leastSpecificMethod.getType().getQualifiedName().equals(method.getType().getQualifiedName()))) {
@@ -206,14 +202,14 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
             if (ourType.getSuperclass() != null) {
                 queue.push(ourType.getSuperclass().getDeclaration());
             }
-            for (CtTypeReference<?> iface: ourType.getSuperInterfaces()) {
+            for (final CtTypeReference<?> iface: ourType.getSuperInterfaces()) {
                 queue.push(iface.getDeclaration());
             }
         }
 
         final List<Property> result = new ArrayList<>();
 
-        for (Map.Entry<String, CtMethod<?>> entry : accessors.entries()) {
+        for (final Map.Entry<String, CtMethod<?>> entry : accessors.entries()) {
             final CtMethod<?> accessor = entry.getValue();
 
             @Nullable final CtMethod<?> mutator = findMutator(entry.getValue(), mutators.get(entry.getKey()));
@@ -222,7 +218,7 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
         }
 
         result.sort(Comparator.comparing(Property::getName));
-        return ImmutableList.copyOf(result);
+        return Collections.unmodifiableList(result);
     }
 
 }

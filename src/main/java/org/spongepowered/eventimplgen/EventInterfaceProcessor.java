@@ -49,14 +49,14 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
     private final Set<String> inclusiveAnnotations;
     private final Set<String> exclusiveAnnotations;
 
-    public EventInterfaceProcessor(FileTree source, Set<String> inclusiveAnnotations, Set<String> exclusiveAnnotations) {
+    public EventInterfaceProcessor(final FileTree source, final Set<String> inclusiveAnnotations, final Set<String> exclusiveAnnotations) {
         this.source = source;
         this.inclusiveAnnotations = inclusiveAnnotations;
         this.exclusiveAnnotations = exclusiveAnnotations;
     }
 
     public Map<CtType<?>, List<Property>> getFoundProperties() {
-        return foundProperties;
+        return this.foundProperties;
     }
 
     public List<CtMethod<?>> getForwardedMethods() {
@@ -64,17 +64,17 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
     }
 
     @Override
-    public boolean isToBeProcessed(CtInterface<?> candidate) {
+    public boolean isToBeProcessed(final CtInterface<?> candidate) {
         return this.source.contains(candidate.getPosition().getCompilationUnit().getFile()) && shouldGenerate(candidate);
     }
 
     @Override
-    public void process(CtInterface<?> event) {
-        foundProperties.put(event, SEARCH_STRATEGY.findProperties(event.getReference()));
+    public void process(final CtInterface<?> event) {
+        this.foundProperties.put(event, SEARCH_STRATEGY.findProperties(event.getReference()));
         this.forwardedMethods.addAll(this.findForwardedMethods(event));
     }
 
-    public boolean shouldGenerate(CtInterface<?> candidate) {
+    public boolean shouldGenerate(final CtInterface<?> candidate) {
         if (EventImplGenTask.containsAnnotation(candidate, this.inclusiveAnnotations)) {
             return true;
         }
@@ -84,10 +84,11 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
         return candidate.getNestedTypes().isEmpty();
     }
 
-    private List<CtMethod<?>> findForwardedMethods(CtInterface<?> event) {
-        List<CtMethod<?>> methods = new ArrayList<>();
-        for (CtMethod<?> method: event.getMethods()) {
-            if (method.hasModifier(ModifierKind.STATIC) && EventImplGenTask.getAnnotation(method, "org.spongepowered.api.util.annotation.eventgen.FactoryMethod") != null) {
+    private List<CtMethod<?>> findForwardedMethods(final CtInterface<?> event) {
+        final List<CtMethod<?>> methods = new ArrayList<>();
+        for (final CtMethod<?> method : event.getMethods()) {
+            if (method.hasModifier(ModifierKind.STATIC)
+                    && EventImplGenTask.getAnnotation(method, "org.spongepowered.api.util.annotation.eventgen.FactoryMethod") != null) {
                 methods.add(method);
             }
         }

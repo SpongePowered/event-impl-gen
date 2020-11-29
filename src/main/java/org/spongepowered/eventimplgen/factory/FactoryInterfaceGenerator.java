@@ -65,17 +65,22 @@ public class FactoryInterfaceGenerator {
 
     public static List<? extends EventFactoryPlugin> plugins = Lists.newArrayList(new AccessorModifierEventFactoryPlugin());
 
-    public static byte[] createClass(String name, Map<CtType<?>, List<Property>> foundProperties, ClassGeneratorProvider provider, PropertySorter sorter, List<CtMethod<?>> forwardedMethods) {
-        String internalName = ClassGenerator.getInternalName(name);
+    public static byte[] createClass(
+            final String name,
+            final Map<CtType<?>, List<Property>> foundProperties,
+            final ClassGeneratorProvider provider,
+            final PropertySorter sorter,
+            final List<CtMethod<?>> forwardedMethods) {
+        final String internalName = ClassGenerator.getInternalName(name);
 
         final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
         cw.visit(V1_8, ACC_PUBLIC | ACC_SUPER | ACC_FINAL, internalName, null, "java/lang/Object", new String[] {});
 
-        for (CtType<?> event: foundProperties.keySet()) {
+        for (final CtType<?> event : foundProperties.keySet()) {
             generateRealImpl(cw, event, ClassGenerator.getInternalName(ClassGenerator.getEventName(event, provider)), ClassGenerator.getRequiredProperties(sorter.sortProperties(foundProperties.get(event))));
         }
 
-        for (CtMethod<?> forwardedMethod: forwardedMethods) {
+        for (final CtMethod<?> forwardedMethod : forwardedMethods) {
             generateForwardingMethod(cw, forwardedMethod);
         }
 
@@ -83,20 +88,20 @@ public class FactoryInterfaceGenerator {
         return cw.toByteArray();
     }
 
-    private static void generateForwardingMethod(ClassWriter cw, CtMethod<?> targetMethod) {
-        String desc = ClassGenerator.getDescriptor(targetMethod);
-        MethodVisitor mv = cw.visitMethod(ACC_PUBLIC | ACC_STATIC, targetMethod.getSimpleName(), desc, null, null);
+    private static void generateForwardingMethod(final ClassWriter cw, final CtMethod<?> targetMethod) {
+        final String desc = ClassGenerator.getDescriptor(targetMethod);
+        final MethodVisitor mv = cw.visitMethod(ACC_PUBLIC | ACC_STATIC, targetMethod.getSimpleName(), desc, null, null);
 
 
-        Label start = new Label();
-        Label end = new Label();
+        final Label start = new Label();
+        final Label end = new Label();
 
         mv.visitCode();
         mv.visitLabel(start);
 
         for (int i = 0, slot = 0; i < targetMethod.getParameters().size(); i++, slot++) {
-            CtParameter<?> param = targetMethod.getParameters().get(i);
-            Type type = Type.getType(ClassGenerator.getTypeDescriptor(param.getType()));
+            final CtParameter<?> param = targetMethod.getParameters().get(i);
+            final Type type = Type.getType(ClassGenerator.getTypeDescriptor(param.getType()));
             mv.visitVarInsn(type.getOpcode(Opcodes.ILOAD), i);
 
             mv.visitLocalVariable(param.getSimpleName(), type.getDescriptor(), null, start, end, slot);
@@ -114,11 +119,15 @@ public class FactoryInterfaceGenerator {
         mv.visitEnd();
     }
 
-    private static void generateRealImpl(ClassWriter cw, CtType<?> event, String eventName, List<Property> params) {
-        MethodVisitor mv = cw.visitMethod(ACC_PUBLIC | ACC_STATIC, EventImplGenTask.generateMethodName(event), getDescriptor(event, params), getSignature(event, params), null);
+    private static void generateRealImpl(final ClassWriter cw, final CtType<?> event, final String eventName, final List<Property> params) {
+        final MethodVisitor mv = cw.visitMethod(ACC_PUBLIC | ACC_STATIC,
+                                                EventImplGenTask.generateMethodName(event),
+                                                getDescriptor(event, params),
+                                                getSignature(event, params),
+                                                null);
 
-        Label start = new Label();
-        Label end = new Label();
+        final Label start = new Label();
+        final Label end = new Label();
 
         mv.visitCode();
 
@@ -127,12 +136,12 @@ public class FactoryInterfaceGenerator {
         mv.visitTypeInsn(NEW, eventName);
         mv.visitInsn(DUP);
 
-        int[] slots = new int[params.size()];
+        final int[] slots = new int[params.size()];
 
         for (int i = 0, slot = 0; i < params.size(); i++, slot++) {
-            Property param = params.get(i);
+            final Property param = params.get(i);
             slots[i] = slot;
-            Type type = Type.getType(ClassGenerator.getTypeDescriptor(param.getType()));
+            final Type type = Type.getType(ClassGenerator.getTypeDescriptor(param.getType()));
             mv.visitVarInsn(type.getOpcode(Opcodes.ILOAD), slot); // Parameters start at slot 0 for static methods
 
             if (type.getSize() > 1) {
@@ -145,7 +154,7 @@ public class FactoryInterfaceGenerator {
         mv.visitLabel(end);
 
         for (int i = 0; i < params.size(); i++) {
-            Property property = params.get(i);
+            final Property property = params.get(i);
             mv.visitLocalVariable(property.getName(), ClassGenerator.getTypeDescriptor(property.getType()), null, start, end, slots[i]);
             mv.visitParameter(property.getName(), 0);
         }
@@ -154,12 +163,12 @@ public class FactoryInterfaceGenerator {
         mv.visitEnd();
     }
 
-    private static String getSignature(CtType<?> event, List<? extends Property> params) {
-        SignatureVisitor v = new SignatureWriter();
+    private static String getSignature(final CtType<?> event, final List<? extends Property> params) {
+        final SignatureVisitor v = new SignatureWriter();
 
-        for (CtTypeParameter param: event.getFormalCtTypeParameters()) {
+        for (final CtTypeParameter param : event.getFormalCtTypeParameters()) {
             v.visitFormalTypeParameter(param.getSimpleName());
-            boolean doVisitEnd = visitTypeForSignature(v, param.getSuperclass());
+            final boolean doVisitEnd = visitTypeForSignature(v, param.getSuperclass());
             if (!param.getSuperclass().getActualTypeArguments().isEmpty()) {
                 processTypes(v, param.getSuperclass().getActualTypeArguments());
             }
@@ -168,10 +177,10 @@ public class FactoryInterfaceGenerator {
             }
         }
 
-        for (Property property: params) {
-            SignatureVisitor pv = v.visitParameterType();
-            CtTypeReference<?> actualType = new ClassTypingContext(event).adaptType(property.getMostSpecificType());
-            boolean doVisitEnd = visitTypeForSignature(pv, actualType);
+        for (final Property property: params) {
+            final SignatureVisitor pv = v.visitParameterType();
+            final CtTypeReference<?> actualType = new ClassTypingContext(event).adaptType(property.getMostSpecificType());
+            final boolean doVisitEnd = visitTypeForSignature(pv, actualType);
             if (!property.getType().getActualTypeArguments().isEmpty()) {
                 processTypes(pv, actualType.getActualTypeArguments());
             }
@@ -180,11 +189,11 @@ public class FactoryInterfaceGenerator {
             }
         }
 
-        SignatureVisitor rv = v.visitReturnType();
+        final SignatureVisitor rv = v.visitReturnType();
         rv.visitClassType(event.getQualifiedName().replace('.', '/'));
 
-        for (CtTypeParameter param: event.getFormalCtTypeParameters()) {
-            SignatureVisitor argVisitor = rv.visitTypeArgument('=');
+        for (final CtTypeParameter param: event.getFormalCtTypeParameters()) {
+            final SignatureVisitor argVisitor = rv.visitTypeArgument('=');
             argVisitor.visitTypeVariable(param.getSimpleName());
             argVisitor.visitEnd();
         }
@@ -193,12 +202,12 @@ public class FactoryInterfaceGenerator {
         return v.toString();
     }
 
-    private static boolean visitTypeForSignature(SignatureVisitor pv, CtTypeReference<?> type) {
+    private static boolean visitTypeForSignature(final SignatureVisitor pv, final CtTypeReference<?> type) {
         if (type.isPrimitive()) {
             pv.visitBaseType(Type.getDescriptor(type.getActualClass()).charAt(0));
             return false;
         } else if (type instanceof CtArrayTypeReference) {
-            SignatureVisitor ar = pv.visitArrayType();
+            final SignatureVisitor ar = pv.visitArrayType();
             visitTypeForSignature(ar, ((CtArrayTypeReference<?>) type).getComponentType());
             return true;
         } else if (type instanceof CtTypeParameterReference) {
@@ -219,17 +228,17 @@ public class FactoryInterfaceGenerator {
         }
     }
 
-    private static void processTypes(SignatureVisitor baseVisitor, List<CtTypeReference<?>> types) {
-        for (CtTypeReference<?> type: types) {
-            SignatureVisitor inner;
+    private static void processTypes(final SignatureVisitor baseVisitor, final List<CtTypeReference<?>> types) {
+        for (final CtTypeReference<?> type : types) {
+            final SignatureVisitor inner;
             if (type instanceof CtWildcardReference) {
                 inner = baseVisitor.visitTypeArgument(((CtWildcardReference) type).isUpper() ? '+' : '-');
             } else {
                 inner = baseVisitor.visitTypeArgument('=');
             }
-            SignatureVisitor pv = inner.visitParameterType();
+            final SignatureVisitor pv = inner.visitParameterType();
 
-            boolean doVisitEnd = visitTypeForSignature(pv, type);
+            final boolean doVisitEnd = visitTypeForSignature(pv, type);
 
             if (!type.getActualTypeArguments().isEmpty()) {
                 processTypes(pv, type.getActualTypeArguments());
@@ -240,10 +249,10 @@ public class FactoryInterfaceGenerator {
         }
     }
 
-    private static String getDescriptor(CtType<?> event, List<? extends Property> params) {
-        StringBuilder builder = new StringBuilder();
+    private static String getDescriptor(final CtType<?> event, final List<? extends Property> params) {
+        final StringBuilder builder = new StringBuilder();
         builder.append("(");
-        for (Property property: params) {
+        for (final Property property : params) {
             builder.append(ClassGenerator.getTypeDescriptor(property.getType()));
         }
         builder.append(")");
@@ -255,7 +264,7 @@ public class FactoryInterfaceGenerator {
         return builder.toString();
     }
 
-    private static String getEventImplName(CtTypeReference<?> event, ClassGeneratorProvider provider) {
+    private static String getEventImplName(final CtTypeReference<?> event, final ClassGeneratorProvider provider) {
         return ClassGenerator.getEventName(event.getDeclaration(), provider);
     }
 
