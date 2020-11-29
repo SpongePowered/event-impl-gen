@@ -34,6 +34,7 @@ import org.gradle.api.tasks.Classpath;
 import org.gradle.api.tasks.CompileClasspath;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFiles;
+import org.gradle.api.tasks.SourceTask;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.compile.AbstractCompile;
 import org.spongepowered.eventimplgen.eventgencore.Property;
@@ -72,6 +73,19 @@ import java.util.Queue;
 import java.util.Set;
 
 public class EventImplGenTask extends AbstractCompile {
+
+    private static final Field SOURCE_FIELD;
+
+    static {
+        try {
+            SOURCE_FIELD = SourceTask.class.getDeclaredField("source");
+            SOURCE_FIELD.setAccessible(true);
+        } catch (final NoSuchFieldException ex) {
+            final ExceptionInInitializerError err = new ExceptionInInitializerError("Unable to get raw source field from source task");
+            err.initCause(ex);
+            throw err;
+        }
+    }
 
     private static final String EVENT_CLASS_PROCESSOR = EventInterfaceProcessor.class.getCanonicalName();
     private Factory factory;
@@ -193,7 +207,14 @@ public class EventImplGenTask extends AbstractCompile {
         final SpoonModelBuilder compiler = spoon.createCompiler();
         compiler.setSourceClasspath(toPathArray(getClasspath().getFiles()));
 
-        for (Object source : this.source) {
+        final Iterable<Object> sources;
+        try {
+            sources = (Iterable<Object>) SOURCE_FIELD.get(this);
+        } catch (final IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+
+        for (final Object source : sources) {
             if (!(source instanceof SourceDirectorySet)) {
                 throw new UnsupportedOperationException("Source of type " + source.getClass() + " is not supported.");
             }

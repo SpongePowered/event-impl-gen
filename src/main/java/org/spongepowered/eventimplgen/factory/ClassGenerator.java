@@ -49,6 +49,7 @@ import static org.objectweb.asm.Opcodes.NEW;
 import static org.objectweb.asm.Opcodes.PUTFIELD;
 import static org.objectweb.asm.Opcodes.RETURN;
 import static org.objectweb.asm.Opcodes.V1_6;
+import static org.objectweb.asm.Opcodes.V1_8;
 import static org.spongepowered.eventimplgen.EventImplGenTask.getValue;
 
 import org.objectweb.asm.ClassWriter;
@@ -251,7 +252,7 @@ public class ClassGenerator {
             } else if (field.getModifiers().contains(ModifierKind.PRIVATE)) {
                 throw new RuntimeException("You've annotated the field " + property.getName() + " with @SetField, "
                         + "but it's private. This just won't work.");
-            } else if (!property.getType().isSubtypeOf(field.getType())) {
+            } else if (!field.getType().isSubtypeOf(property.getType())) {
                 throw new RuntimeException(String.format("In event %s with parent %s - you've specified field '%s' of type %s"
                         + " but the property has the type of %s", property.getAccessor().getDeclaringType().getQualifiedName(), parentType.getQualifiedName(), field.getSimpleName(), field.getType(), property.getType()));
             }
@@ -550,7 +551,7 @@ public class ClassGenerator {
         final String internalName = getInternalName(name);
 
         final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
-        cw.visit(V1_6, ACC_SUPER, internalName, null, getInternalName(parentType.getQualifiedName()), new String[] {getInternalName(type.getQualifiedName())});
+        cw.visit(V1_8, ACC_SUPER, internalName, null, getInternalName(parentType.getQualifiedName()), new String[] {getInternalName(type.getQualifiedName())});
 
         MethodVisitor toStringMv = this.initializeToString(cw, type);
 

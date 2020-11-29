@@ -1,11 +1,10 @@
 plugins {
+    id 'com.gradle.plugin-publish' version '0.12.0'
     id 'java-gradle-plugin'
     id 'eclipse'
     id 'idea'
-    id 'net.minecrell.licenser' version '0.3'
-    id 'com.github.johnrengelman.shadow' version '4.0.2'
-
-    id 'com.gradle.plugin-publish' version '0.9.10'
+    id 'net.minecrell.licenser' version '0.4.1'
+    // id 'com.github.johnrengelman.shadow' version '5.2.0'
 }
 
 // Default tasks
@@ -15,30 +14,22 @@ defaultTasks 'licenseFormat', 'build'
 group = 'org.spongepowered'
 
 // Minimum version of Java required
-sourceCompatibility = '1.8'
-targetCompatibility = '1.8'
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
 
 // Project repositories and dependencies
 repositories {
-    mavenCentral()
-    maven {
-        name = 'sponge'
-        url = 'http://repo.spongepowered.org/maven'
-    }
-}
-
-configurations {
-    shade
-    compileOnly.extendsFrom shade
+    jcenter()
 }
 
 dependencies {
     //shade 'fr.inria.gforge.spoon:spoon-core:5.6.0'
-    shade 'fr.inria.gforge.spoon:spoon-core:7.3.0'
-    compile 'org.ow2.asm:asm:5.2'
-    compile 'com.google.guava:guava:21.0'
-    compile 'com.google.code.findbugs:jsr305:3.0.1'
-    compileOnly 'com.google.errorprone:error_prone_annotations:2.0.15'
+    implementation(gradleApi())
+    implementation 'fr.inria.gforge.spoon:spoon-core:8.3.0'
+    implementation 'org.ow2.asm:asm:9.0'
+    implementation 'com.google.guava:guava:30.0-jre'
+    compileOnly 'org.checkerframework:checker-qual:3.7.1'
+    compileOnly 'com.google.errorprone:error_prone_annotations:2.4.0'
 
     /* TODO: Re-enable when test is fixed
     testCompile 'junit:junit:4.12'
@@ -59,7 +50,7 @@ tasks.withType(JavaCompile) {
 
 // JAR manifest configuration
 jar {
-    enabled = false
+    // enabled = false
 
     manifest {
         attributes(
@@ -73,19 +64,17 @@ jar {
     }
 }
 
-shadowJar {
-    classifier = ''
-    configurations = [project.configurations.shade]
+/* shadowJar {
+    archiveClassifier = ''
     minimize()
-}
+} */
 
 task sourceJar(type: Jar) {
-    classifier = 'sources'
+    archiveClassifier = 'sources'
     from sourceSets.main.allSource
 }
 
 artifacts {
-    archives shadowJar
     archives sourceJar
 }
 
@@ -111,8 +100,14 @@ license {
     exclude '**/spoon/fixed/**'
 }
 
-// Deployment configuration
-apply from: 'gradle/deploy.gradle'
+gradlePlugin {
+    plugins {
+        eventImplGenPlugin {
+            id = 'org.spongepowered.event-impl-gen'
+            implementationClass = 'org.spongepowered.eventimplgen.EventImplGenPlugin'
+        }
+    }
+}
 
 pluginBundle {
     website = "https://github.com/$project.organization/$project.name"
@@ -122,9 +117,17 @@ pluginBundle {
 
     plugins {
         eventImplGenPlugin {
-            id = 'org.spongepowered.event-impl-gen'
             displayName = 'Sponge Event Implementation Generator'
             description = project.description
         }
     }
 }
+
+// Deployment configuration
+apply from: 'gradle/deploy.gradle'
+
+/* afterEvaluate {
+    publishing.publications.pluginMaven {
+        shadow.component(it)
+    }
+}*/

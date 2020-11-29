@@ -30,9 +30,6 @@ import java.util.List;
 
 /**
  * Finds all the properties in a class.
- *
- * @param <T> The underlying class type
- * @param <M> The underlying method type
  */
 public interface PropertySearchStrategy {
 

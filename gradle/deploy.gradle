@@ -1,62 +1,58 @@
 // Shared deployment configuration for the Sponge projects
 
-apply plugin: 'maven'
 apply plugin: 'maven-publish'
 
-uploadArchives {
-    repositories {
-        mavenDeployer {
-            // This is set by the build server when deploying to the repo
-            if (project.hasProperty('spongeRepo')) {
-                repository(url: project.spongeRepo) {
-                    if (project.hasProperty('spongeUsername') && project.hasProperty('spongePassword')) {
-                        authentication(userName: project.spongeUsername, password: project.spongePassword)
-                    }
-                }
-            }
+publishing {
+    publications {
+        /*pluginPublication (MavenPublication) {
+            from    components.java
+            groupId    project.group
+            artifactId project.archivesBaseName
+            version    project.version
+        }*/
 
+        withType(MavenPublication).configureEach {
+            // artifactId = project.archivesBaseName
             pom {
-                artifactId = project.archivesBaseName
+                name = project.archivesBaseName
+                description = project.description
+                url = project.url
 
-                project {
-                    name = project.archivesBaseName
-                    description = project.description
-                    packaging = 'jar'
-                    url = project.url
+                scm {
+                    url = "https://github.com/$project.organization/$project.name"
+                    connection = "scm:git:https://github.com/$project.organization/${project.name}.git"
+                    developerConnection = "scm:git:git@github.com:$project.organization/${project.name}.git"
+                }
 
-                    scm {
-                        url = "https://github.com/$project.organization/$project.name"
-                        connection = "scm:git:https://github.com/$project.organization/${project.name}.git"
-                        developerConnection = "scm:git:git@github.com:$project.organization/${project.name}.git"
-                    }
+                issueManagement {
+                    system = 'GitHub Issues'
+                    url = "https://github.com/$project.organization/$project.name/issues"
+                }
 
-                    issueManagement {
-                        system = 'GitHub Issues'
-                        url = "https://github.com/$project.organization/$project.name/issues"
-                    }
-
-                    licenses {
-                        license {
-                            name = 'MIT License'
-                            url = 'http://opensource.org/licenses/MIT'
-                            distribution = 'repo'
-                        }
+                licenses {
+                    license {
+                        name = 'MIT License'
+                        url = 'http://opensource.org/licenses/MIT'
+                        distribution = 'repo'
                     }
                 }
             }
         }
     }
-}
 
-
-publishing {
-    publications {
-        pluginPublication (MavenPublication) {
-            from    components.java
-            groupId    project.group
-            artifactId project.archivesBaseName
-            version    project.version
+    repositories {
+        // This is set by the build server when deploying to the repo
+        if (project.hasProperty('spongeRepo')) {
+            maven(url: project.spongeRepo) {
+                if (project.hasProperty('spongeUsername') && project.hasProperty('spongePassword')) {
+                    credentials(PasswordCredentials) {
+                        username = project.spongeUsername
+                        password = project.spongePassword
+                    }
+                }
+            }
         }
+
     }
 }
 
