@@ -42,8 +42,14 @@ publishing {
 
     repositories {
         // This is set by the build server when deploying to the repo
-        if (project.hasProperty('spongeRepo')) {
-            maven(url: project.spongeRepo) {
+        if (project.hasProperty('spongeSnapshotRepo') || project.hasProperty('spongeReleaseRepo')) {
+            maven {
+                if (project.version.contains("-SNAPSHOT")) {
+                    url = project.spongeSnapshotRepo
+                } else {
+                    url = project.spongeReleaseRepo
+                }
+
                 if (project.hasProperty('spongeUsername') && project.hasProperty('spongePassword')) {
                     credentials(PasswordCredentials) {
                         username = project.spongeUsername
