@@ -70,6 +70,7 @@ import spoon.reflect.declaration.CtParameter;
 import spoon.reflect.declaration.CtType;
 import spoon.reflect.declaration.ModifierKind;
 import spoon.reflect.reference.CtArrayTypeReference;
+import spoon.reflect.reference.CtTypeParameterReference;
 import spoon.reflect.reference.CtTypeReference;
 
 import java.util.ArrayList;
@@ -221,7 +222,12 @@ public class ClassGenerator {
         return types.toArray(new CtTypeReference<?>[types.size()]);
     }
 
-    public static String getTypeDescriptor(final CtTypeReference<?> type) {
+    public static String getTypeDescriptor(CtTypeReference<?> type) {
+        // For descriptors, we want the actual type
+        if (type instanceof CtTypeParameterReference) {
+            type = ((CtTypeParameterReference) type).getBoundingType();
+        }
+
         final String name = type.getQualifiedName();
         if (type.isPrimitive()) {
             if (name.equals("boolean")) {
