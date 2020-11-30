@@ -44,7 +44,7 @@ public class EventImplGenPlugin implements Plugin<Project> {
 
         final EventImplGenTask task = project.getTasks().create("genEventImpl", EventImplGenTask.class);
         task.source(mainSourceSet.getAllJava());
-        task.conventionMapping("destinationDir", () -> project.getLayout().getBuildDirectory().dir("generated/event-factory"));
+        task.conventionMapping("destinationDir", () -> project.getLayout().getBuildDirectory().dir("generated/event-factory").get().getAsFile());
         task.conventionMapping("classpath", () -> this.classpath);
 
         // Include event factory classes in JAR
