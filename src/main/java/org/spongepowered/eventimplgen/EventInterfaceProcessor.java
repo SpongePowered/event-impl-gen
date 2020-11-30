@@ -32,18 +32,20 @@ import spoon.processing.AbstractProcessor;
 import spoon.reflect.declaration.CtInterface;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtType;
+import spoon.reflect.declaration.CtTypeInformation;
 import spoon.reflect.declaration.ModifierKind;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
 
     private static final PropertySearchStrategy SEARCH_STRATEGY = new AccessorFirstStrategy();
-    private final Map<CtType<?>, List<Property>> foundProperties = new HashMap<>();
+    private final Map<CtType<?>, List<Property>> foundProperties = new TreeMap<>(Comparator.comparing(CtTypeInformation::getQualifiedName));
     private final List<CtMethod<?>> forwardedMethods = new ArrayList<>();
     private final FileTree source;
     private final Set<String> inclusiveAnnotations;
