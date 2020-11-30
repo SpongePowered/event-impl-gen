@@ -4,17 +4,17 @@ apply plugin: 'maven-publish'
 
 publishing {
     publications {
-        /*pluginPublication (MavenPublication) {
-            from    components.java
-            groupId    project.group
-            artifactId project.archivesBaseName
-            version    project.version
+        /*pluginMaven(MavenPublication) {
+            project.shadow.component(it)
+            groupId = project.group
+            artifactId = project.archivesBaseName
+            version = project.version
         }*/
 
         withType(MavenPublication).configureEach {
             // artifactId = project.archivesBaseName
             pom {
-                name = project.archivesBaseName
+                name = project.projectName
                 description = project.description
                 url = project.url
 

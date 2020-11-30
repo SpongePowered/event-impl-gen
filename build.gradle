@@ -45,6 +45,9 @@ dependencies {
 // Source compiler configuration
 tasks.withType(JavaCompile) {
     options.compilerArgs += ['-Xlint:all', '-Xlint:-path']
+    if (JavaVersion.current().java10Compatible) {
+        options.compilerArgs += ['--release', '8']
+    }
     options.deprecation = true
     options.encoding = 'UTF-8'
 }
