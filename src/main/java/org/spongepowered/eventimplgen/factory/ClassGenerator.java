@@ -52,6 +52,7 @@ import static org.spongepowered.eventimplgen.EventImplGenTask.getValue;
 
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.gradle.api.JavaVersion;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.Label;
@@ -84,6 +85,7 @@ import java.util.stream.Collectors;
 public class ClassGenerator {
 
     private NullPolicy nullPolicy = NullPolicy.DISABLE_PRECONDITIONS;
+    private JavaVersion targetVersion = JavaVersion.VERSION_1_8;
 
     private static CtAnnotation<?> getPropertySettings(final Property property) {
         // Check the most specific method first.
@@ -174,6 +176,10 @@ public class ClassGenerator {
         this.nullPolicy = Objects.requireNonNull(nullPolicy, "nullPolicy");
     }
 
+    public void setTargetCompatibility(final JavaVersion version) {
+        this.targetVersion = Objects.requireNonNull(version, "version");
+    }
+
     private boolean hasNullable(final CtMethod<?> method) {
         return method.getAnnotation(Nullable.class) != null;
     }
@@ -256,7 +262,8 @@ public class ClassGenerator {
                         + "but it's private. This just won't work.");
             } else if (!field.getType().isSubtypeOf(property.getType())) {
                 throw new RuntimeException(String.format("In event %s with parent %s - you've specified field '%s' of type %s"
-                        + " but the property has the type of %s", property.getAccessor().getDeclaringType().getQualifiedName(), parentType.getQualifiedName(), field.getSimpleName(), field.getType(), property.getType()));
+                        + " but the property has the expected type of %s", property.getAccessor().getDeclaringType().getQualifiedName(),
+                        parentType.getQualifiedName(), field.getSimpleName(), field.getType(), property.getType()));
             }
         }
     }

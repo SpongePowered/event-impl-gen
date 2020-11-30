@@ -69,8 +69,11 @@ public class FactoryInterfaceGenerator {
         final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
         cw.visit(V1_8, ACC_PUBLIC | ACC_SUPER | ACC_FINAL, internalName, null, "java/lang/Object", new String[] {});
 
-        for (final CtType<?> event : foundProperties.keySet()) {
-            generateRealImpl(cw, event, ClassGenerator.getInternalName(ClassGenerator.getEventName(event, provider)), ClassGenerator.getRequiredProperties(sorter.sortProperties(foundProperties.get(event))));
+        for (final Map.Entry<CtType<?>, List<Property>> event : foundProperties.entrySet()) {
+            generateRealImpl(cw,
+                             event.getKey(),
+                             ClassGenerator.getInternalName(ClassGenerator.getEventName(event.getKey(), provider)),
+                             ClassGenerator.getRequiredProperties(sorter.sortProperties(event.getValue())));
         }
 
         for (final CtMethod<?> forwardedMethod : forwardedMethods) {
@@ -149,7 +152,7 @@ public class FactoryInterfaceGenerator {
         for (int i = 0; i < params.size(); i++) {
             final Property property = params.get(i);
             mv.visitLocalVariable(property.getName(), ClassGenerator.getTypeDescriptor(property.getType()), null, start, end, slots[i]);
-            mv.visitParameter(property.getName(), 0);
+            mv.visitParameter(property.getName(), ACC_FINAL);
         }
 
         mv.visitMaxs(0, 0);

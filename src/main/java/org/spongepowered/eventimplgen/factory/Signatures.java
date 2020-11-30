@@ -92,7 +92,6 @@ public class Signatures {
             visitComputedType(visitor.visitExceptionType(), typeCalculator.adaptType(exceptionType));
         }
 
-        visitor.visitEnd();
         return visitor.toString();
     }
 
@@ -154,8 +153,9 @@ public class Signatures {
         } else {
             rv.visitClassType(event.getQualifiedName().replace('.', '/'));
             visitTypeParametersFromFormals(rv, event);
+            rv.visitEnd();
         }
-        v.visitEnd();
+
         return v.toString();
     }
 

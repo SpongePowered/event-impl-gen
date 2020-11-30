@@ -250,6 +250,7 @@ public class EventImplGenTask extends AbstractCompile {
 
         final ClassGenerator generator = new ClassGenerator();
         generator.setNullPolicy(NullPolicy.NON_NULL_BY_DEFAULT);
+        generator.setTargetCompatibility(JavaVersion.toVersion(this.getTargetCompatibility()));
 
         for (final CtType<?> event : foundProperties.keySet()) {
             final String name = ClassGenerator.getEventName(event, provider);
