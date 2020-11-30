@@ -114,7 +114,7 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
             return false;
         }
 
-        ClassGenerator.generateField(classWriter, property);
+        ClassGenerator.generateField(classWriter, eventClass, property);
         if (property.getMutator().isPresent()) {
             ClassGenerator.generateMutator(classWriter, eventClass, internalName, property.getName(), property.getType().getDeclaration(), property);
         }

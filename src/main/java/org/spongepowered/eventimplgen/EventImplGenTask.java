@@ -295,6 +295,7 @@ public class EventImplGenTask extends AbstractCompile {
         return this.factory.Type().OBJECT;
     }
 
+    @SuppressWarnings("unchecked")
     public static <T> T getValue(final CtAnnotation<?> anno, final String key) {
         if (anno.isShadow()) {
             return ShadowSpoon.getAnnotationValue(anno, key);

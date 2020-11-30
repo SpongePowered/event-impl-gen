@@ -72,6 +72,7 @@ import spoon.reflect.reference.CtArrayTypeReference;
 import spoon.reflect.reference.CtTypeReference;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -181,8 +182,9 @@ public class ClassGenerator {
         return method.getAnnotation(NonNull.class) != null;
     }
 
-    public static void generateField(final ClassWriter classWriter, final Property property) {
-        final FieldVisitor fv = classWriter.visitField(ACC_PRIVATE, property.getName(), getTypeDescriptor(property.getType()), null, null);
+    public static void generateField(final ClassWriter classWriter, final CtType<?> container, final Property property) {
+        final FieldVisitor fv = classWriter.visitField(ACC_PRIVATE, property.getName(), getTypeDescriptor(property.getType()),
+                                                       Signatures.ofField(container, property), null);
         fv.visitEnd();
     }
 
@@ -244,11 +246,11 @@ public class ClassGenerator {
         }
     }
 
-    private void contributeField(final ClassWriter classWriter, final CtTypeReference<?> parentType, final Property property) {
+    private void contributeField(final ClassWriter classWriter, final CtType<?> event, final CtTypeReference<?> parentType, final Property property) {
         if (property.isLeastSpecificType()) {
             final CtField<?> field = getField(parentType, property.getName());
             if (field == null || EventImplGenTask.getAnnotation(field, "org.spongepowered.api.util.annotation.eventgen.UseField") == null) {
-                generateField(classWriter, property);
+                generateField(classWriter, event, property);
             } else if (field.getModifiers().contains(ModifierKind.PRIVATE)) {
                 throw new RuntimeException("You've annotated the field " + property.getName() + " with @SetField, "
                         + "but it's private. This just won't work.");
@@ -265,6 +267,7 @@ public class ClassGenerator {
 
     private void generateConstructor(
             final ClassWriter classWriter,
+            final CtType<?> interfaceType,
             final String internalName,
             final CtTypeReference<?> parentType,
             final List<Property> properties) {
@@ -279,8 +282,19 @@ public class ClassGenerator {
 
         final String methodDesc = builder.toString();
 
-        final MethodVisitor mv =
-                classWriter.visitMethod(0, "<init>", methodDesc, null, null);
+        final MethodVisitor mv = classWriter.visitMethod(
+                0,
+                "<init>",
+                methodDesc,
+                Signatures.ofConstructor(interfaceType, requiredProperties),
+                null);
+
+        // Parameter names
+        for (final Property property : properties) {
+            mv.visitParameter(property.getName(), 0);
+        }
+
+        // The implementation
         mv.visitCode();
 
         // super()
@@ -352,10 +366,18 @@ public class ClassGenerator {
         mv.visitEnd();
     }
 
-    private void generateAccessor(final ClassWriter cw, final CtTypeReference<?> parentType, final String internalName, final Property property) {
+    private void generateAccessor(
+            final ClassWriter cw,
+            final CtType<?> eventClass,
+            final String internalName,
+            final Property property) {
         final CtMethod<?> accessor = property.getAccessor();
 
-        final MethodVisitor mv = cw.visitMethod(ACC_PUBLIC, accessor.getSimpleName(), getDescriptor(accessor), null, null);
+        final MethodVisitor mv = cw.visitMethod(ACC_PUBLIC,
+                                                accessor.getSimpleName(),
+                                                getDescriptor(accessor),
+                                                Signatures.ofMethod(eventClass, accessor),
+                                                null);
         mv.visitCode();
         mv.visitVarInsn(ALOAD, 0);
         mv.visitFieldInsn(GETFIELD, internalName, property.getName(), getTypeDescriptor(property.getLeastSpecificType()));
@@ -393,7 +415,13 @@ public class ClassGenerator {
             final Property property) {
         final CtMethod<?> mutator = property.getMutator().get();
 
-        final MethodVisitor mv = cw.visitMethod(ACC_PUBLIC, mutator.getSimpleName(), getDescriptor(mutator), null, null);
+        final MethodVisitor mv = cw.visitMethod(ACC_PUBLIC,
+                                                mutator.getSimpleName(),
+                                                getDescriptor(mutator),
+                                                Signatures.ofMethod(type, mutator),
+                                                null);
+        mv.visitParameter(fieldName, 0);
+
         mv.visitCode();
         mv.visitVarInsn(ALOAD, 0);
         mv.visitVarInsn(Type.getType(getTypeDescriptor(property.getType())).getOpcode(ILOAD), 1);
@@ -448,14 +476,14 @@ public class ClassGenerator {
         mv.visitEnd();
     }
 
-    private void generateAccessorsandMutator(
+    private void generateAccessorsAndMutator(
             final ClassWriter cw,
             final CtType<?> type,
             final CtTypeReference<?> parentType,
             final String internalName,
             final Property property) {
         if (generateMethods(property)) {
-            this.generateAccessor(cw, parentType, internalName, property);
+            this.generateAccessor(cw, type, internalName, property);
 
             final Optional<CtMethod<?>> mutatorOptional = property.getMutator();
             if (mutatorOptional.isPresent()) {
@@ -572,23 +600,29 @@ public class ClassGenerator {
         final String internalName = getInternalName(name);
 
         final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
-        cw.visit(V1_8, ACC_SUPER, internalName, null, getInternalName(parentType.getQualifiedName()), new String[] {getInternalName(type.getQualifiedName())});
+        cw.visit(V1_8,
+                 ACC_SUPER,
+                 internalName,
+                 Signatures.ofImplClass(parentType.getTypeDeclaration(), Collections.singletonList(type)),
+                 getInternalName(parentType.getQualifiedName()),
+                 new String[] {getInternalName(type.getQualifiedName())});
+
+
+        // Create the constructor
+        this.generateConstructor(cw, type, internalName, parentType, sorter.sortProperties(properties));
 
         final MethodVisitor toStringMv = this.initializeToString(cw, type);
 
-        this.generateWithPlugins(cw, type, parentType, internalName, properties, toStringMv, plugins);
-
         // Create the fields
         // this.contributeFields(cw, parentType, properties, plugins);
-
-        // Create the constructor
-        this.generateConstructor(cw, internalName, parentType, sorter.sortProperties(properties));
 
         // The return value of toString takes the form of
         // "ClassName{param1=value1, param2=value2, ...}"
 
         // Create the accessors and mutators, and fill out the toString method
+        this.generateWithPlugins(cw, type, parentType, internalName, properties, toStringMv, plugins);
 
+        // Now build the toString
         this.finalizeToString(toStringMv);
 
         cw.visitEnd();
@@ -618,8 +652,8 @@ public class ClassGenerator {
             this.contributeToString(internalName, parentType, property, toStringMv);
 
             if (!processed) {
-                this.contributeField(cw, parentType, property);
-                this.generateAccessorsandMutator(cw, eventClass, parentType, internalName, property);
+                this.contributeField(cw, eventClass, parentType, property);
+                this.generateAccessorsAndMutator(cw, eventClass, parentType, internalName, property);
             }
         }
     }

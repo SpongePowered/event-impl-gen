@@ -41,8 +41,6 @@ import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
-import org.objectweb.asm.signature.SignatureVisitor;
-import org.objectweb.asm.signature.SignatureWriter;
 import org.spongepowered.eventimplgen.EventImplGenTask;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.eventgencore.PropertySorter;
@@ -51,12 +49,7 @@ import org.spongepowered.eventimplgen.factory.plugin.EventFactoryPlugin;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtParameter;
 import spoon.reflect.declaration.CtType;
-import spoon.reflect.declaration.CtTypeParameter;
-import spoon.reflect.reference.CtArrayTypeReference;
-import spoon.reflect.reference.CtTypeParameterReference;
 import spoon.reflect.reference.CtTypeReference;
-import spoon.reflect.reference.CtWildcardReference;
-import spoon.support.visitor.ClassTypingContext;
 
 import java.util.List;
 import java.util.Map;
@@ -123,7 +116,7 @@ public class FactoryInterfaceGenerator {
         final MethodVisitor mv = cw.visitMethod(ACC_PUBLIC | ACC_STATIC,
                                                 EventImplGenTask.generateMethodName(event),
                                                 getDescriptor(event, params),
-                                                getSignature(event, params),
+                                                Signatures.ofFactoryMethod(event, params),
                                                 null);
 
         final Label start = new Label();
@@ -161,92 +154,6 @@ public class FactoryInterfaceGenerator {
 
         mv.visitMaxs(0, 0);
         mv.visitEnd();
-    }
-
-    private static String getSignature(final CtType<?> event, final List<? extends Property> params) {
-        final SignatureVisitor v = new SignatureWriter();
-
-        for (final CtTypeParameter param : event.getFormalCtTypeParameters()) {
-            v.visitFormalTypeParameter(param.getSimpleName());
-            final boolean doVisitEnd = visitTypeForSignature(v, param.getSuperclass());
-            if (!param.getSuperclass().getActualTypeArguments().isEmpty()) {
-                processTypes(v, param.getSuperclass().getActualTypeArguments());
-            }
-            if (doVisitEnd) {
-                v.visitEnd();
-            }
-        }
-
-        for (final Property property: params) {
-            final SignatureVisitor pv = v.visitParameterType();
-            final CtTypeReference<?> actualType = new ClassTypingContext(event).adaptType(property.getMostSpecificType());
-            final boolean doVisitEnd = visitTypeForSignature(pv, actualType);
-            if (!property.getType().getActualTypeArguments().isEmpty()) {
-                processTypes(pv, actualType.getActualTypeArguments());
-            }
-            if (doVisitEnd) {
-                pv.visitEnd();
-            }
-        }
-
-        final SignatureVisitor rv = v.visitReturnType();
-        rv.visitClassType(event.getQualifiedName().replace('.', '/'));
-
-        for (final CtTypeParameter param: event.getFormalCtTypeParameters()) {
-            final SignatureVisitor argVisitor = rv.visitTypeArgument('=');
-            argVisitor.visitTypeVariable(param.getSimpleName());
-            argVisitor.visitEnd();
-        }
-
-        v.visitEnd();
-        return v.toString();
-    }
-
-    private static boolean visitTypeForSignature(final SignatureVisitor pv, final CtTypeReference<?> type) {
-        if (type.isPrimitive()) {
-            pv.visitBaseType(Type.getDescriptor(type.getActualClass()).charAt(0));
-            return false;
-        } else if (type instanceof CtArrayTypeReference) {
-            final SignatureVisitor ar = pv.visitArrayType();
-            visitTypeForSignature(ar, ((CtArrayTypeReference<?>) type).getComponentType());
-            return true;
-        } else if (type instanceof CtTypeParameterReference) {
-            if (type instanceof CtWildcardReference) {
-                CtTypeReference<?> bound = ((CtTypeParameterReference) type).getBoundingType();
-                if (bound == null) {
-                    bound = type.getFactory().Type().OBJECT;
-                }
-                visitTypeForSignature(pv, bound);
-                return true;
-            } else {
-                pv.visitTypeVariable(type.getSimpleName());
-                return false;
-            }
-        } else {
-            pv.visitClassType(type.getQualifiedName().replace('.', '/'));
-            return true;
-        }
-    }
-
-    private static void processTypes(final SignatureVisitor baseVisitor, final List<CtTypeReference<?>> types) {
-        for (final CtTypeReference<?> type : types) {
-            final SignatureVisitor inner;
-            if (type instanceof CtWildcardReference) {
-                inner = baseVisitor.visitTypeArgument(((CtWildcardReference) type).isUpper() ? '+' : '-');
-            } else {
-                inner = baseVisitor.visitTypeArgument('=');
-            }
-            final SignatureVisitor pv = inner.visitParameterType();
-
-            final boolean doVisitEnd = visitTypeForSignature(pv, type);
-
-            if (!type.getActualTypeArguments().isEmpty()) {
-                processTypes(pv, type.getActualTypeArguments());
-            }
-            if (doVisitEnd) {
-                pv.visitEnd();
-            }
-        }
     }
 
     private static String getDescriptor(final CtType<?> event, final List<? extends Property> params) {
