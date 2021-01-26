@@ -32,6 +32,9 @@ dependencies {
     compileOnly 'org.checkerframework:checker-qual:3.7.1'
     compileOnly 'com.google.errorprone:error_prone_annotations:2.4.0'
 
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.0")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.0")
+
     /* TODO: Re-enable when test is fixed
     testCompile 'junit:junit:4.12'
     testCompile 'org.hamcrest:hamcrest-library:1.3'
@@ -83,6 +86,7 @@ artifacts {
 }
 
 test {
+    useJUnitPlatform()
     testLogging {
         exceptionFormat = 'full' // Always print full stack trace if something goes wrong in the unit tests
         showStandardStreams = true

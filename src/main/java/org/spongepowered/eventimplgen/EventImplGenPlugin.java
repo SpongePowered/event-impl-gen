@@ -46,11 +46,13 @@ public class EventImplGenPlugin implements Plugin<Project> {
         final EventImplGenTask task = project.getTasks().create("genEventImpl", EventImplGenTask.class);
         task.source(mainSourceSet.getAllJava());
         task.conventionMapping("destinationDir", () -> project.getLayout().getBuildDirectory().dir("generated/event-factory").get().getAsFile());
-        task.conventionMapping("destinationDirectory", () -> {
-            final DirectoryProperty dir = project.getObjects().directoryProperty();
-            dir.set(project.getLayout().getBuildDirectory().dir("generated/event-factory"));
-            return dir;
-        });
+        if (GradleVersionUtil.isGradle6(project.getGradle())) {
+            task.conventionMapping("destinationDirectory", () -> {
+                final DirectoryProperty dir = project.getObjects().directoryProperty();
+                dir.set(project.getLayout().getBuildDirectory().dir("generated/event-factory"));
+                return dir;
+            });
+        }
         task.conventionMapping("classpath", () -> this.classpath);
 
         // Include event factory classes in JAR
