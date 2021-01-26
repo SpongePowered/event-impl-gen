@@ -28,6 +28,7 @@ import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.file.CopySpec;
+import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.tasks.SourceSet;
@@ -45,6 +46,11 @@ public class EventImplGenPlugin implements Plugin<Project> {
         final EventImplGenTask task = project.getTasks().create("genEventImpl", EventImplGenTask.class);
         task.source(mainSourceSet.getAllJava());
         task.conventionMapping("destinationDir", () -> project.getLayout().getBuildDirectory().dir("generated/event-factory").get().getAsFile());
+        task.conventionMapping("destinationDirectory", () -> {
+            final DirectoryProperty dir = project.getObjects().directoryProperty();
+            dir.set(project.getLayout().getBuildDirectory().dir("generated/event-factory"));
+            return dir;
+        });
         task.conventionMapping("classpath", () -> this.classpath);
 
         // Include event factory classes in JAR

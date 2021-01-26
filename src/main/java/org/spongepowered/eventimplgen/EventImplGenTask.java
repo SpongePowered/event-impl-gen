@@ -24,9 +24,11 @@
  */
 package org.spongepowered.eventimplgen;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.gradle.api.JavaVersion;
 import org.gradle.api.UncheckedIOException;
 import org.gradle.api.file.FileCollection;
+import org.gradle.api.file.FileTree;
 import org.gradle.api.file.SourceDirectorySet;
 import org.gradle.api.tasks.Classpath;
 import org.gradle.api.tasks.CompileClasspath;
@@ -62,6 +64,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -72,19 +75,6 @@ import java.util.Queue;
 import java.util.Set;
 
 public class EventImplGenTask extends AbstractCompile {
-
-    private static final Field SOURCE_FIELD;
-
-    static {
-        try {
-            SOURCE_FIELD = SourceTask.class.getDeclaredField("source");
-            SOURCE_FIELD.setAccessible(true);
-        } catch (final NoSuchFieldException ex) {
-            final ExceptionInInitializerError err = new ExceptionInInitializerError("Unable to get raw source field from source task");
-            err.initCause(ex);
-            throw err;
-        }
-    }
 
     private static final String EVENT_CLASS_PROCESSOR = EventInterfaceProcessor.class.getCanonicalName();
     private Factory factory;
@@ -97,6 +87,7 @@ public class EventImplGenTask extends AbstractCompile {
     private Set<String> inclusiveAnnotations = new LinkedHashSet<>();
     private Set<String> exclusiveAnnotations = new LinkedHashSet<>();
     private boolean validateCode = false;
+    private final List<Object> allSource = new ArrayList<>();
 
     public EventImplGenTask() {
         this.groupingPrefixes.put("from", "to");
@@ -181,6 +172,24 @@ public class EventImplGenTask extends AbstractCompile {
     }
 
     @Override
+    public void setSource(final @NonNull FileTree source) {
+        this.setSource((Object) source);
+    }
+
+    @Override
+    public void setSource(final @NonNull Object source) {
+        this.allSource.clear();
+        this.allSource.add(source);
+        super.setSource(source);
+    }
+
+    @Override
+    public @NonNull SourceTask source(final @NonNull Object@NonNull... sources) {
+        Collections.addAll(this.allSource, sources);
+        return super.source(sources);
+    }
+
+    @Override
     protected void compile() {
         try {
             this.generateClasses();
@@ -206,14 +215,7 @@ public class EventImplGenTask extends AbstractCompile {
         final SpoonModelBuilder compiler = spoon.createCompiler();
         compiler.setSourceClasspath(toPathArray(getClasspath().getFiles()));
 
-        final Iterable<Object> sources;
-        try {
-            sources = (Iterable<Object>) SOURCE_FIELD.get(this);
-        } catch (final IllegalAccessException e) {
-            throw new RuntimeException(e);
-        }
-
-        for (final Object source : sources) {
+        for (final Object source : this.allSource) {
             if (!(source instanceof SourceDirectorySet)) {
                 throw new UnsupportedOperationException("Source of type " + source.getClass() + " is not supported.");
             }
