@@ -72,7 +72,7 @@ public class EventImplGenPlugin implements Plugin<Project> {
             this.classpath = project1.getConfigurations().getByName(mainSourceSet.getCompileClasspathConfigurationName()).copyRecursive();
 
             // Add the event factory to the compile dependencies
-            project1.getDependencies().add(mainSourceSet.getCompileConfigurationName(), project.files(task));
+            project1.getDependencies().add(mainSourceSet.getApiConfigurationName(), project.files(task));
         });
     }
 
