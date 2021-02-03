@@ -24,8 +24,6 @@
  */
 package org.spongepowered.eventimplgen.eventgencore;
 
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Multimap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtParameter;
@@ -143,7 +141,11 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
      * @param candidates The collection of candidates
      * @return A mutator, if found
      */
-    protected @Nullable CtMethod<?> findMutator(final CtMethod<?> accessor, final Collection<CtMethod<?>> candidates) {
+    protected @Nullable CtMethod<?> findMutator(final CtMethod<?> accessor, final @Nullable Collection<CtMethod<?>> candidates) {
+        if (candidates == null) {
+            return null;
+        }
+
         final CtTypeReference<?> expectedType = accessor.getType();
 
         for (final CtMethod<?> method : candidates) {
@@ -160,8 +162,8 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
     public List<Property> findProperties(final CtTypeReference<?> type) {
         Objects.requireNonNull(type, "type");
 
-        final Multimap<String, CtMethod<?>> accessors = HashMultimap.create();
-        final Multimap<String, CtMethod<?>> mutators = HashMultimap.create();
+        final Map<String, Set<CtMethod<?>>> accessors = new HashMap<>();
+        final Map<String, Set<CtMethod<?>>> mutators = new HashMap<>();
         final Map<String, CtMethod<?>> accessorHierarchyBottoms = new HashMap<>();
         final Map<String, CtMethod<?>> mostSpecific = new HashMap<>();
         final Set<String> signatures = new HashSet<>();
@@ -181,10 +183,10 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
                 signature += method.getType().getSimpleName();
 
                 final CtMethod<?> leastSpecificMethod;
-                if ((name = getAccessorName(method)) != null && !signatures.contains(signature)
+                if ((name = this.getAccessorName(method)) != null && !signatures.contains(signature)
                         && ((leastSpecificMethod = accessorHierarchyBottoms.get(name)) == null
                                     || !leastSpecificMethod.getType().getQualifiedName().equals(method.getType().getQualifiedName()))) {
-                    accessors.put(name, method);
+                    accessors.computeIfAbsent(name, $ -> new HashSet<>()).add(method);
                     signatures.add(signature);
 
                     if (!mostSpecific.containsKey(name) || method.getType().isSubtypeOf(mostSpecific.get(name).getType())) {
@@ -195,26 +197,27 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
                             || accessorHierarchyBottoms.get(name).getType().isSubtypeOf(method.getType())) {
                         accessorHierarchyBottoms.put(name, method);
                     }
-                } else if ((name = getMutatorName(method)) != null) {
-                    mutators.put(name, method);
+                } else if ((name = this.getMutatorName(method)) != null) {
+                    mutators.computeIfAbsent(name, $ -> new HashSet<>()).add(method);
                 }
             }
             if (ourType.getSuperclass() != null) {
                 queue.push(ourType.getSuperclass().getDeclaration());
             }
-            for (final CtTypeReference<?> iface: ourType.getSuperInterfaces()) {
+            for (final CtTypeReference<?> iface : ourType.getSuperInterfaces()) {
                 queue.push(iface.getDeclaration());
             }
         }
 
         final List<Property> result = new ArrayList<>();
 
-        for (final Map.Entry<String, CtMethod<?>> entry : accessors.entries()) {
-            final CtMethod<?> accessor = entry.getValue();
-
-            @Nullable final CtMethod<?> mutator = findMutator(entry.getValue(), mutators.get(entry.getKey()));
-            result.add(new Property(entry.getKey(), accessor.getType(), accessorHierarchyBottoms.get(entry.getKey()),
-                mostSpecific.get(entry.getKey()), accessor, mutator));
+        for (final Map.Entry<String, Set<CtMethod<?>>> entry : accessors.entrySet()) {
+            for (final CtMethod<?> accessor : entry.getValue()) {
+                final @Nullable CtMethod<?> mutator = this.findMutator(accessor, mutators.get(entry.getKey()));
+                result.add(new Property(entry.getKey(), accessor.getType(), accessorHierarchyBottoms.get(entry.getKey()),
+                    mostSpecific.get(entry.getKey()), accessor, mutator
+                ));
+            }
         }
 
         result.sort(Comparator.comparing(Property::getName));

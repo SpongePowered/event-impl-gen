@@ -19,16 +19,13 @@ targetCompatibility = JavaVersion.VERSION_1_8
 
 // Project repositories and dependencies
 repositories {
-    jcenter()
+    mavenCentral()
 }
 
 dependencies {
     implementation(gradleApi())
     implementation 'fr.inria.gforge.spoon:spoon-core:8.3.0'
     implementation 'org.ow2.asm:asm:9.0'
-    implementation('com.google.guava:guava:30.0-jre') {
-        exclude group: "com.google.code.findbugs", module: "jsr305"
-    }
     compileOnly 'org.checkerframework:checker-qual:3.7.1'
     compileOnly 'com.google.errorprone:error_prone_annotations:2.4.0'
 
@@ -130,6 +127,18 @@ pluginBundle {
         }
     }
 }
+
+// Needed to publish plugins using GH actions secrets
+
+def copyProperty(String definition, String target) {
+    def property = project.findProperty(definition)
+    if (property != null) {
+        project.extra[target] = property
+    }
+}
+
+copyProperty("pluginPortalApiKey", "gradle.publish.key")
+copyProperty("pluginPortalApiSecret", "gradle.publish.secret")
 
 // Deployment configuration
 apply from: 'gradle/deploy.gradle'

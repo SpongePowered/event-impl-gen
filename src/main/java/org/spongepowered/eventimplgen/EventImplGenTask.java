@@ -253,7 +253,8 @@ public class EventImplGenTask extends AbstractCompile {
         for (final CtType<?> event : foundProperties.keySet()) {
             final String name = ClassGenerator.getEventName(event, provider);
             clazz = generator.createClass(event, name, getBaseClass(event),
-                    foundProperties.get(event), this.sorter, FactoryInterfaceGenerator.plugins);
+                    foundProperties.get(event), this.sorter, FactoryInterfaceGenerator.PLUGINS
+            );
             this.addClass(destinationDir, name, clazz);
         }
     }

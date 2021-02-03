@@ -35,7 +35,6 @@ import static org.objectweb.asm.Opcodes.INVOKESTATIC;
 import static org.objectweb.asm.Opcodes.NEW;
 import static org.objectweb.asm.Opcodes.V1_8;
 
-import com.google.common.collect.Lists;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
@@ -51,12 +50,17 @@ import spoon.reflect.declaration.CtParameter;
 import spoon.reflect.declaration.CtType;
 import spoon.reflect.reference.CtTypeReference;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 public class FactoryInterfaceGenerator {
 
-    public static List<? extends EventFactoryPlugin> plugins = Lists.newArrayList(new AccessorModifierEventFactoryPlugin());
+    public static final List<EventFactoryPlugin> PLUGINS = new ArrayList<>();
+
+    static {
+        PLUGINS.add(new AccessorModifierEventFactoryPlugin());
+    }
 
     public static byte[] createClass(
             final String name,
@@ -172,10 +176,6 @@ public class FactoryInterfaceGenerator {
             builder.append("V");
         }
         return builder.toString();
-    }
-
-    private static String getEventImplName(final CtTypeReference<?> event, final ClassGeneratorProvider provider) {
-        return ClassGenerator.getEventName(event.getDeclaration(), provider);
     }
 
 }
