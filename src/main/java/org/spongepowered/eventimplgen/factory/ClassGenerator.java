@@ -78,6 +78,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
@@ -182,11 +183,35 @@ public class ClassGenerator {
     }
 
     private boolean hasNullable(final CtMethod<?> method) {
-        return method.getAnnotation(Nullable.class) != null;
+        return ClassGenerator.hasAnnotationOnSelfOrReturnType(method, name -> name.equals("Nullable"));
     }
 
     private boolean hasNonNull(final CtMethod<?> method) {
-        return method.getAnnotation(NonNull.class) != null;
+        return ClassGenerator.hasAnnotationOnSelfOrReturnType(method, name -> name.equals("NotNull") || name.equals("Nonnull"));
+    }
+
+    private static boolean hasAnnotationOnSelfOrReturnType(final CtMethod<?> method, final Predicate<String> annotationTest) {
+        // On the method itself
+        final List<CtAnnotation<?>> annotations = method.getAnnotations();
+        if (!annotations.isEmpty()) {
+            for (final CtAnnotation<?> annotation : annotations) {
+                if (annotationTest.test(annotation.getType().getSimpleName())) {
+                    return true;
+                }
+            }
+        }
+
+        // On return type
+        final List<CtAnnotation<?>> typeUseAnnotations = method.getType().getAnnotations();
+        if (!typeUseAnnotations.isEmpty()) {
+            for (final CtAnnotation<?> annotation : annotations) {
+                if (annotationTest.test(annotation.getType().getSimpleName())) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     public static void generateField(final ClassWriter classWriter, final CtType<?> container, final Property property) {
