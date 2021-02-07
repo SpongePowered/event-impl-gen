@@ -74,24 +74,24 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
             final String methodName = method.getSimpleName();
             final CtTypeReference<?> returnType = method.getType();
 
-            m = ACCESSOR.matcher(methodName);
+            m = AccessorFirstStrategy.ACCESSOR.matcher(methodName);
             if (m.matches() && !returnType.getQualifiedName().equals("void")) {
-                return getPropertyName(m.group(1));
+                return AccessorFirstStrategy.getPropertyName(m.group(1));
             }
 
-            m = ACCESSOR_BOOL.matcher(methodName);
+            m = AccessorFirstStrategy.ACCESSOR_BOOL.matcher(methodName);
             if (m.matches() && returnType.getQualifiedName().equals("boolean")) {
-                return getPropertyName(m.group(1));
+                return AccessorFirstStrategy.getPropertyName(m.group(1));
             }
 
-            m = ACCESSOR_KEEPS.matcher(methodName);
+            m = AccessorFirstStrategy.ACCESSOR_KEEPS.matcher(methodName);
             if (m.matches() && returnType.getQualifiedName().equals("boolean")) {
-                return getPropertyName(m.group(1));
+                return AccessorFirstStrategy.getPropertyName(m.group(1));
             }
 
-            m = ACCESSOR_HAS.matcher(methodName);
+            m = AccessorFirstStrategy.ACCESSOR_HAS.matcher(methodName);
             if (m.matches() && returnType.getQualifiedName().equals("boolean")) {
-                return getPropertyName(methodName); // This is intentional, we want to keep the 'has'
+                return AccessorFirstStrategy.getPropertyName(methodName); // This is intentional, we want to keep the 'has'
             }
         }
 
@@ -109,9 +109,9 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
         final Matcher m;
 
         if (this.isPublic(method) && method.getParameters().size() == 1 && method.getType().getQualifiedName().equals("void")) {
-            m = MUTATOR.matcher(method.getSimpleName());
+            m = AccessorFirstStrategy.MUTATOR.matcher(method.getSimpleName());
             if (m.matches()) {
-                return getPropertyName(m.group(1));
+                return AccessorFirstStrategy.getPropertyName(m.group(1));
             }
         }
 

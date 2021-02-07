@@ -48,7 +48,6 @@ import org.spongepowered.eventimplgen.factory.plugin.EventFactoryPlugin;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtParameter;
 import spoon.reflect.declaration.CtType;
-import spoon.reflect.reference.CtTypeReference;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -59,7 +58,7 @@ public class FactoryInterfaceGenerator {
     public static final List<EventFactoryPlugin> PLUGINS = new ArrayList<>();
 
     static {
-        PLUGINS.add(new AccessorModifierEventFactoryPlugin());
+        FactoryInterfaceGenerator.PLUGINS.add(new AccessorModifierEventFactoryPlugin());
     }
 
     public static byte[] createClass(
@@ -74,14 +73,14 @@ public class FactoryInterfaceGenerator {
         cw.visit(V1_8, ACC_PUBLIC | ACC_SUPER | ACC_FINAL, internalName, null, "java/lang/Object", new String[] {});
 
         for (final Map.Entry<CtType<?>, List<Property>> event : foundProperties.entrySet()) {
-            generateRealImpl(cw,
+            FactoryInterfaceGenerator.generateRealImpl(cw,
                              event.getKey(),
                              ClassGenerator.getInternalName(ClassGenerator.getEventName(event.getKey(), provider)),
                              ClassGenerator.getRequiredProperties(sorter.sortProperties(event.getValue())));
         }
 
         for (final CtMethod<?> forwardedMethod : forwardedMethods) {
-            generateForwardingMethod(cw, forwardedMethod);
+            FactoryInterfaceGenerator.generateForwardingMethod(cw, forwardedMethod);
         }
 
         cw.visitEnd();
@@ -120,11 +119,13 @@ public class FactoryInterfaceGenerator {
     }
 
     private static void generateRealImpl(final ClassWriter cw, final CtType<?> event, final String eventName, final List<Property> params) {
-        final MethodVisitor mv = cw.visitMethod(ACC_PUBLIC | ACC_STATIC,
-                                                EventImplGenTask.generateMethodName(event),
-                                                getDescriptor(event, params),
-                                                Signatures.ofFactoryMethod(event, params),
-                                                null);
+        final MethodVisitor mv = cw.visitMethod(
+            ACC_PUBLIC | ACC_STATIC,
+            EventImplGenTask.generateMethodName(event),
+            FactoryInterfaceGenerator.getDescriptor(event, params),
+            Signatures.ofFactoryMethod(event, params),
+            null
+        );
 
         final Label start = new Label();
         final Label end = new Label();
@@ -148,7 +149,7 @@ public class FactoryInterfaceGenerator {
                 slot++; // Skip over unusable following slot
             }
         }
-        mv.visitMethodInsn(INVOKESPECIAL, eventName, "<init>", getDescriptor(null, params), false);
+        mv.visitMethodInsn(INVOKESPECIAL, eventName, "<init>", FactoryInterfaceGenerator.getDescriptor(null, params), false);
 
         mv.visitInsn(ARETURN);
         mv.visitLabel(end);

@@ -185,7 +185,7 @@ public class EventImplGenTask extends AbstractCompile {
         return super.source(sources);
     }
 
-    @Override
+    // @Override // pre-Gradle 6 only
     protected void compile() {
         try {
             this.generateClasses();
@@ -201,7 +201,7 @@ public class EventImplGenTask extends AbstractCompile {
 
         // Initialize spoon
         final SpoonAPI spoon = new Launcher();
-        spoon.addProcessor(EVENT_CLASS_PROCESSOR);
+        spoon.addProcessor(EventImplGenTask.EVENT_CLASS_PROCESSOR);
 
         final Environment environment = spoon.getEnvironment();
         environment.setComplianceLevel(Integer.parseInt(JavaVersion.toVersion(getSourceCompatibility()).getMajorVersion()));
@@ -209,7 +209,7 @@ public class EventImplGenTask extends AbstractCompile {
 
         // Configure AST generator
         final SpoonModelBuilder compiler = spoon.createCompiler();
-        compiler.setSourceClasspath(toPathArray(getClasspath().getFiles()));
+        compiler.setSourceClasspath(EventImplGenTask.toPathArray(getClasspath().getFiles()));
 
         for (final Object source : this.allSource) {
             if (!(source instanceof SourceDirectorySet)) {
@@ -274,10 +274,10 @@ public class EventImplGenTask extends AbstractCompile {
         CtType<?> scannedType;
 
         while ((scannedType = queue.poll()) != null) {
-            final CtAnnotation<?> anno = getAnnotation(scannedType, "org.spongepowered.api.util.annotation.eventgen.ImplementedBy");
+            final CtAnnotation<?> anno = EventImplGenTask.getAnnotation(scannedType, "org.spongepowered.api.util.annotation.eventgen.ImplementedBy");
             if (anno != null && EventImplGenTask.<Integer>getValue(anno, "priority") >= max) {
                 implementedBy = anno;
-                max = getValue(anno, "priority");
+                max = EventImplGenTask.getValue(anno, "priority");
             }
 
             for (final CtTypeReference<?> implInterface : scannedType.getSuperInterfaces()) {

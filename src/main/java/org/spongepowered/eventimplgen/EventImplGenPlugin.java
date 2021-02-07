@@ -32,6 +32,7 @@ import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.tasks.SourceSet;
+import org.gradle.util.GradleVersion;
 
 public class EventImplGenPlugin implements Plugin<Project> {
 
@@ -45,8 +46,10 @@ public class EventImplGenPlugin implements Plugin<Project> {
 
         final EventImplGenTask task = project.getTasks().create("genEventImpl", EventImplGenTask.class);
         task.source(mainSourceSet.getAllJava());
-        task.conventionMapping("destinationDir", () -> project.getLayout().getBuildDirectory().dir("generated/event-factory").get().getAsFile());
-        if (GradleVersionUtil.isGradle6(project.getGradle())) {
+        if (GradleVersion.current().compareTo(GradleVersion.version("7.0.0")) < 0) {
+            task.conventionMapping("destinationDir", () -> project.getLayout().getBuildDirectory().dir("generated/event-factory").get().getAsFile());
+        }
+        if (GradleVersion.current().compareTo(GradleVersion.version("6.0.0")) >= 0) {
             task.conventionMapping("destinationDirectory", () -> {
                 final DirectoryProperty dir = project.getObjects().directoryProperty();
                 dir.set(project.getLayout().getBuildDirectory().dir("generated/event-factory"));

@@ -67,12 +67,12 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
 
     @Override
     public boolean isToBeProcessed(final CtInterface<?> candidate) {
-        return this.source.contains(candidate.getPosition().getCompilationUnit().getFile()) && shouldGenerate(candidate);
+        return this.source.contains(candidate.getPosition().getCompilationUnit().getFile()) && this.shouldGenerate(candidate);
     }
 
     @Override
     public void process(final CtInterface<?> event) {
-        this.foundProperties.put(event, SEARCH_STRATEGY.findProperties(event.getReference()));
+        this.foundProperties.put(event, EventInterfaceProcessor.SEARCH_STRATEGY.findProperties(event.getReference()));
         this.forwardedMethods.addAll(this.findForwardedMethods(event));
     }
 

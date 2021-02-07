@@ -48,11 +48,11 @@ import java.util.List;
 public class Signatures {
 
     static String ofFactoryMethod(final CtType<?> event, final List<? extends Property> params) {
-        return getSignature(event, params, false);
+        return Signatures.getSignature(event, params, false);
     }
 
     static String ofConstructor(final CtType<?> eventInterface, final List<? extends Property> properties) {
-        return getSignature(eventInterface, properties, true);
+        return Signatures.getSignature(eventInterface, properties, true);
     }
 
     /**
@@ -68,7 +68,7 @@ public class Signatures {
             return null;
         }
         final SignatureVisitor visitor = new SignatureWriter();
-        writePropertyType(visitor, container, field);
+        Signatures.writePropertyType(visitor, container, field);
         return visitor.toString();
     }
 
@@ -77,19 +77,19 @@ public class Signatures {
         final ClassTypingContext typeCalculator = new ClassTypingContext(container);
 
         // Formal type parameters
-        visitTypeParametersFromFormals(visitor, method);
+        Signatures.visitTypeParametersFromFormals(visitor, method);
 
         // Parameters
         for (final CtParameter<?> parameter : method.getParameters()) {
-            visitComputedType(visitor.visitParameterType(), typeCalculator.adaptType(parameter.getType()));
+            Signatures.visitComputedType(visitor.visitParameterType(), typeCalculator.adaptType(parameter.getType()));
         }
 
         // Return type
-        visitComputedType(visitor.visitReturnType(), typeCalculator.adaptType(method.getType()));
+        Signatures.visitComputedType(visitor.visitReturnType(), typeCalculator.adaptType(method.getType()));
 
         // Exception type
         for (final CtTypeReference<?> exceptionType : method.getThrownTypes()) {
-            visitComputedType(visitor.visitExceptionType(), typeCalculator.adaptType(exceptionType));
+            Signatures.visitComputedType(visitor.visitExceptionType(), typeCalculator.adaptType(exceptionType));
         }
 
         return visitor.toString();
@@ -108,24 +108,24 @@ public class Signatures {
     static String ofImplClass(final CtType<?> supertype, final List<CtType<?>> interfaces) {
         final SignatureVisitor visitor = new SignatureWriter();
 
-        visitFormalTypeParameters(visitor, supertype.getFormalCtTypeParameters());
+        Signatures.visitFormalTypeParameters(visitor, supertype.getFormalCtTypeParameters());
         for (final CtType<?> superinterface : interfaces) {
             // XX: Deduplicate type parameter names
             // Hopefully this isn't an issue yet because it's annoying to do
-            visitFormalTypeParameters(visitor, superinterface.getFormalCtTypeParameters());
+            Signatures.visitFormalTypeParameters(visitor, superinterface.getFormalCtTypeParameters());
         }
 
         final SignatureVisitor stV = visitor.visitSuperclass();
-        boolean doVisitEnd = visitBaseType(stV, supertype.getReference());
-        visitTypeParametersFromFormals(stV, supertype);
+        boolean doVisitEnd = Signatures.visitBaseType(stV, supertype.getReference());
+        Signatures.visitTypeParametersFromFormals(stV, supertype);
         if (doVisitEnd) {
             stV.visitEnd();
         }
 
         for (final CtType<?> itf : interfaces) {
             final SignatureVisitor itfVisitor = visitor.visitInterface();
-            doVisitEnd = visitBaseType(itfVisitor, itf.getReference());
-            visitTypeParametersFromFormals(itfVisitor, itf);
+            doVisitEnd = Signatures.visitBaseType(itfVisitor, itf.getReference());
+            Signatures.visitTypeParametersFromFormals(itfVisitor, itf);
             if (doVisitEnd) {
                 itfVisitor.visitEnd();
             }
@@ -139,12 +139,12 @@ public class Signatures {
         final SignatureVisitor v = new SignatureWriter();
 
         if (!isConstructor) {
-            visitFormalTypeParameters(v, event.getFormalCtTypeParameters());
+            Signatures.visitFormalTypeParameters(v, event.getFormalCtTypeParameters());
         }
 
         for (final Property property : params) {
             final SignatureVisitor pv = v.visitParameterType();
-            writePropertyType(pv, event, property);
+            Signatures.writePropertyType(pv, event, property);
         }
 
         final SignatureVisitor rv = v.visitReturnType();
@@ -152,7 +152,7 @@ public class Signatures {
             rv.visitBaseType('V');
         } else {
             rv.visitClassType(event.getQualifiedName().replace('.', '/'));
-            visitTypeParametersFromFormals(rv, event);
+            Signatures.visitTypeParametersFromFormals(rv, event);
             rv.visitEnd();
         }
 
@@ -169,9 +169,9 @@ public class Signatures {
     private static void visitFormalTypeParameters(final SignatureVisitor visitor, final List<CtTypeParameter> parameters) {
         for (final CtTypeParameter param : parameters) {
             visitor.visitFormalTypeParameter(param.getSimpleName());
-            final boolean doVisitEnd = visitBaseType(visitor, param.getSuperclass());
+            final boolean doVisitEnd = Signatures.visitBaseType(visitor, param.getSuperclass());
             if (!param.getSuperclass().getActualTypeArguments().isEmpty()) {
-                visitTypeParameters(visitor, param.getSuperclass().getActualTypeArguments());
+                Signatures.visitTypeParameters(visitor, param.getSuperclass().getActualTypeArguments());
             }
             if (doVisitEnd) {
                 visitor.visitEnd();
@@ -182,14 +182,14 @@ public class Signatures {
 
     private static void writePropertyType(final SignatureVisitor visitor, final CtType<?> container, final Property property) {
         final CtTypeReference<?> actualType = new ClassTypingContext(container).adaptType(property.getMostSpecificType());
-        visitComputedType(visitor, actualType);
+        Signatures.visitComputedType(visitor, actualType);
     }
 
     private static void visitComputedType(final SignatureVisitor visitor, final CtTypeReference<?> actualType) {
-        final boolean doVisitEnd = visitBaseType(visitor, actualType);
+        final boolean doVisitEnd = Signatures.visitBaseType(visitor, actualType);
         final List<CtTypeReference<?>> typeArguments = actualType.getActualTypeArguments();
         if (!typeArguments.isEmpty()) {
-            visitTypeParameters(visitor, typeArguments);
+            Signatures.visitTypeParameters(visitor, typeArguments);
         }
         if (doVisitEnd) {
             visitor.visitEnd();
@@ -209,7 +209,7 @@ public class Signatures {
             return false;
         } else if (type instanceof CtArrayTypeReference) {
             final SignatureVisitor ar = pv.visitArrayType();
-            visitBaseType(ar, ((CtArrayTypeReference<?>) type).getComponentType());
+            Signatures.visitBaseType(ar, ((CtArrayTypeReference<?>) type).getComponentType());
             return true;
         } else if (type instanceof CtTypeParameterReference) {
             if (type instanceof CtWildcardReference) {
@@ -217,7 +217,7 @@ public class Signatures {
                 if (bound == null) {
                     bound = type.getFactory().Type().OBJECT;
                 }
-                visitBaseType(pv, bound);
+                Signatures.visitBaseType(pv, bound);
                 return true;
             } else {
                 pv.visitTypeVariable(type.getSimpleName());
@@ -238,10 +238,10 @@ public class Signatures {
                 inner = baseVisitor.visitTypeArgument(SignatureVisitor.INSTANCEOF);
             }
 
-            final boolean doVisitEnd = visitBaseType(inner, type);
+            final boolean doVisitEnd = Signatures.visitBaseType(inner, type);
 
             if (!type.getActualTypeArguments().isEmpty()) {
-                visitTypeParameters(inner, type.getActualTypeArguments());
+                Signatures.visitTypeParameters(inner, type.getActualTypeArguments());
             }
             if (doVisitEnd) {
                 inner.visitEnd();

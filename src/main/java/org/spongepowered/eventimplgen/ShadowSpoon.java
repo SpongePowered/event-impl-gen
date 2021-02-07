@@ -51,7 +51,7 @@ final class ShadowSpoon {
     @SuppressWarnings("unchecked")
     static <T> T getAnnotationValue(final CtAnnotation<?> annotationElement, final String key) {
         try {
-            final Annotation annotation = loadAnnotation(annotationElement);
+            final Annotation annotation = ShadowSpoon.loadAnnotation(annotationElement);
             return (T) annotation.getClass().getMethod(key).invoke(annotation);
         } catch (final Exception e) {
             throw new RuntimeException(e);
@@ -61,7 +61,7 @@ final class ShadowSpoon {
     @SuppressWarnings("unchecked")
     static CtTypeReference<?> getAnnotationTypeReference(final CtAnnotation<?> annotationElement, final String key) {
         try {
-            final Annotation annotation = loadAnnotation(annotationElement);
+            final Annotation annotation = ShadowSpoon.loadAnnotation(annotationElement);
             final Class<?> reference = (Class<?>) annotation.getClass().getMethod(key).invoke(annotation);
             return annotationElement.getFactory().createCtTypeReference(reference);
         } catch (Exception e) {
@@ -79,7 +79,7 @@ final class ShadowSpoon {
             // classpath to be used.
             type.setFactory(annotationElement.getParent().getFactory());
 
-            annotation = findAnnotation(annotationElement.getParent(), type.getActualClass());
+            annotation = ShadowSpoon.findAnnotation(annotationElement.getParent(), type.getActualClass());
             annotationElement.putMetadata("annotation", annotation);
         }
 
