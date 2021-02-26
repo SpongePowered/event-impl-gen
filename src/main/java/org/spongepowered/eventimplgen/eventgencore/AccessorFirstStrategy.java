@@ -60,6 +60,12 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
     private static final Pattern ACCESSOR_KEEPS = Pattern.compile("^(keeps[A-Z].*)");
     private static final Pattern MUTATOR = Pattern.compile("^set([A-Z].*)");
 
+    private final boolean allowFluentStyle;
+
+    public AccessorFirstStrategy(final boolean allowFluentStyle) {
+        this.allowFluentStyle = allowFluentStyle;
+    }
+
     /**
      * Detect whether the given method is an accessor and if so, return the
      * property name.
@@ -70,12 +76,16 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
     private String getAccessorName(final CtMethod<?> method) {
         Matcher m;
 
-        if (this.isPublic(method) && method.getParameters().size() == 0) {
+        if (this.isPublic(method) && method.getParameters().isEmpty()) {
             final String methodName = method.getSimpleName();
             final CtTypeReference<?> returnType = method.getType();
 
+            if (returnType.getQualifiedName().equals("void")) {
+                return null;
+            }
+
             m = AccessorFirstStrategy.ACCESSOR.matcher(methodName);
-            if (m.matches() && !returnType.getQualifiedName().equals("void")) {
+            if (m.matches()) {
                 return AccessorFirstStrategy.getPropertyName(m.group(1));
             }
 
@@ -92,6 +102,10 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
             m = AccessorFirstStrategy.ACCESSOR_HAS.matcher(methodName);
             if (m.matches() && returnType.getQualifiedName().equals("boolean")) {
                 return AccessorFirstStrategy.getPropertyName(methodName); // This is intentional, we want to keep the 'has'
+            }
+
+            if (this.allowFluentStyle) {
+                return methodName;
             }
         }
 
@@ -112,6 +126,8 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
             m = AccessorFirstStrategy.MUTATOR.matcher(method.getSimpleName());
             if (m.matches()) {
                 return AccessorFirstStrategy.getPropertyName(m.group(1));
+            } else if (this.allowFluentStyle) {
+                return method.getSimpleName();
             }
         }
 
@@ -176,18 +192,18 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
             for (final CtMethod<?> method : ourType.getMethods()) {
                 String name;
 
-                String signature = method.getSimpleName() + ";";
+                final StringBuilder signature = new StringBuilder(method.getSimpleName() + ";");
                 for (final CtParameter<?> parameterType : method.getParameters()) {
-                    signature += parameterType.getType().getQualifiedName() + ";";
+                    signature.append(parameterType.getType().getQualifiedName()).append(";");
                 }
-                signature += method.getType().getSimpleName();
+                signature.append(method.getType().getSimpleName());
 
                 final CtMethod<?> leastSpecificMethod;
-                if ((name = this.getAccessorName(method)) != null && !signatures.contains(signature)
+                if ((name = this.getAccessorName(method)) != null && !signatures.contains(signature.toString())
                         && ((leastSpecificMethod = accessorHierarchyBottoms.get(name)) == null
                                     || !leastSpecificMethod.getType().getQualifiedName().equals(method.getType().getQualifiedName()))) {
                     accessors.computeIfAbsent(name, $ -> new HashSet<>()).add(method);
-                    signatures.add(signature);
+                    signatures.add(signature.toString());
 
                     if (!mostSpecific.containsKey(name) || method.getType().isSubtypeOf(mostSpecific.get(name).getType())) {
                         mostSpecific.put(name, method);

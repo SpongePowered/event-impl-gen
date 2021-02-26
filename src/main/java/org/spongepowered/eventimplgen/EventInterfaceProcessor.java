@@ -44,7 +44,7 @@ import java.util.TreeMap;
 
 public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
 
-    private static final PropertySearchStrategy SEARCH_STRATEGY = new AccessorFirstStrategy();
+    private static final PropertySearchStrategy SEARCH_STRATEGY = new AccessorFirstStrategy(true);
     private final Map<CtType<?>, List<Property>> foundProperties = new TreeMap<>(Comparator.comparing(CtTypeInformation::getQualifiedName));
     private final List<CtMethod<?>> forwardedMethods = new ArrayList<>();
     private final FileTree source;
