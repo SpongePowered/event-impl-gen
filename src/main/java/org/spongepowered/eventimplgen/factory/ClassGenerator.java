@@ -103,18 +103,20 @@ public class ClassGenerator {
 
     private static boolean isRequired(final Property property) {
         final CtAnnotation<?> settings = ClassGenerator.getPropertySettings(property);
-        if (settings != null) {
+        if (settings == null) {
+            return !property.getMostSpecificMethod().isDefaultMethod();
+        } else {
             return getValue(settings, "requiredParameter");
         }
-        return true;
     }
 
     private static boolean generateMethods(final Property property) {
         final CtAnnotation<?> settings = ClassGenerator.getPropertySettings(property);
         if (settings != null) {
             return getValue(settings, "generateMethods");
+        } else {
+            return !property.getMostSpecificMethod().isDefaultMethod();
         }
-        return true;
     }
 
     private static CtAnnotation<?> getUseField(final CtTypeReference<?> clazz, final String fieldName) {
@@ -213,6 +215,11 @@ public class ClassGenerator {
     }
 
     public static void generateField(final ClassWriter classWriter, final CtType<?> container, final Property property) {
+        if (!ClassGenerator.isRequired(property) && !ClassGenerator.generateMethods(property)) {
+            // If the field will be unused, don't generate it at all
+            return;
+        }
+
         final FieldVisitor fv = classWriter.visitField(ACC_PRIVATE, property.getName(), ClassGenerator.getTypeDescriptor(property.getType()),
                                                        Signatures.ofField(container, property), null);
         fv.visitEnd();
@@ -552,7 +559,7 @@ public class ClassGenerator {
             final Property property,
             final MethodVisitor toStringMv) {
 
-        if (property.isLeastSpecificType()) {
+        if (property.isLeastSpecificType() && (ClassGenerator.isRequired(property) || ClassGenerator.generateMethods(property))) {
             boolean overrideToString = false;
             final CtAnnotation<?> useField = ClassGenerator.getUseField(parentType, property.getName());
             if (useField != null) {
