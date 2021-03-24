@@ -1,36 +1,59 @@
 plugins {
-    id 'com.gradle.plugin-publish' version '0.12.0'
-    id 'java-gradle-plugin'
-    id 'eclipse'
-    id 'idea'
-    id 'net.minecrell.licenser' version '0.4.1'
-    // id 'com.github.johnrengelman.shadow' version '5.2.0'
+    id "java-library"
+    id 'org.cadixdev.licenser' version '0.5.1'
+    id "org.spongepowered.gradle.sponge.dev" version "1.0.2"
+    id "dev.gradleplugins.java-gradle-plugin" version "1.3"
+    id 'com.gradle.plugin-publish' version '0.13.0'
+    id "net.kyori.indra.publishing.gradle-plugin" version "1.3.1"
 }
 
 // Default tasks
 defaultTasks 'licenseFormat', 'build'
 
 // Basic project information
-group = 'org.spongepowered'
+group = "org.spongepowered"
 
-// Minimum version of Java required
-sourceCompatibility = JavaVersion.VERSION_1_8
-targetCompatibility = JavaVersion.VERSION_1_8
+spongeConvention {
+    repository("event-impl-gen") {
+        ci = true
+        publishing = true
+    }
+    mitLicense()
+
+    licenseParameters {
+        name = rootProject.projectName
+        organization = rootProject.organization
+        url = rootProject.url
+    }
+
+    sharedManifest {
+        attributes(
+                'Git-Commit': grgit?.head()?.id,
+                "Git-Branch": grgit?.branch?.current()?.name,
+
+                "Implementation-Title": project.name,
+                "Implementation-Version": project.version,
+                "Implementation-Vendor": project.url
+        )
+    }
+}
 
 // Project repositories and dependencies
 repositories {
-    mavenCentral()
+    maven {
+        url = "https://repo.spongepowered.org/repository/maven-public/"
+        name = "sponge"
+    }
 }
 
 dependencies {
-    implementation(gradleApi())
-    implementation 'fr.inria.gforge.spoon:spoon-core:8.3.0'
-    implementation 'org.ow2.asm:asm:9.0'
-    compileOnly 'org.checkerframework:checker-qual:3.7.1'
-    compileOnly 'com.google.errorprone:error_prone_annotations:2.4.0'
+    implementation "fr.inria.gforge.spoon:spoon-core:8.3.0"
+    implementation "org.ow2.asm:asm:9.0"
+    compileOnlyApi "org.checkerframework:checker-qual:3.11.0"
+    compileOnlyApi "com.google.errorprone:error_prone_annotations:2.5.1"
 
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.0")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.0")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.1")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.1")
 
     /* TODO: Re-enable when test is fixed
     testCompile 'junit:junit:4.12'
@@ -42,75 +65,19 @@ dependencies {
     */
 }
 
-// Source compiler configuration
-tasks.withType(JavaCompile) {
-    options.compilerArgs += ['-Xlint:all', '-Xlint:-path']
-    if (JavaVersion.current().java10Compatible) {
-        options.compilerArgs += ['--release', '8']
-    }
-    options.deprecation = true
-    options.encoding = 'UTF-8'
-}
-
-// JAR manifest configuration
-jar {
-    // enabled = false
-
-    manifest {
-        attributes(
-                'Built-By': System.properties['user.name'],
-                'Created-By': "${System.properties['java.vm.version']} (${System.properties['java.vm.vendor']})",
-
-                'Implementation-Title': project.name,
-                'Implementation-Version': project.version,
-                'Implementation-Vendor': project.url
-        )
-    }
-}
-
-/* shadowJar {
-    archiveClassifier = ''
-    minimize()
-} */
-
-task sourceJar(type: Jar) {
-    archiveClassifier = 'sources'
-    from sourceSets.main.allSource
-}
-
-artifacts {
-    archives sourceJar
-}
-
-test {
-    useJUnitPlatform()
-    testLogging {
-        exceptionFormat = 'full' // Always print full stack trace if something goes wrong in the unit tests
-        showStandardStreams = true
-    }
-}
-
-// License header formatting
-license {
-    header = rootProject.file('HEADER.txt')
-    newLine = false
-
-    ext {
-        name = rootProject.projectName
-        organization = rootProject.organization
-        url = rootProject.url
-    }
-
-    include '**/*.java'
-    exclude '**/spoon/fixed/**'
+indraPluginPublishing {
+    plugin(
+            "event-impl-gen",
+            "org.spongepowered.eventimplgen.EventImplGenPlugin",
+            "Sponge Event Implementation Generator",
+            project.description,
+            ["minecraft", "sponge"]
+    )
 }
 
 gradlePlugin {
-    plugins {
-        eventImplGenPlugin {
-            id = 'org.spongepowered.event-impl-gen'
-            implementationClass = 'org.spongepowered.eventimplgen.EventImplGenPlugin'
-        }
+    compatibility {
+        minimumGradleVersion = "5.6.4"
     }
 }
 
@@ -119,32 +86,4 @@ pluginBundle {
     vcsUrl = website
     description = project.description
     tags = ['minecraft', 'sponge']
-
-    plugins {
-        eventImplGenPlugin {
-            displayName = 'Sponge Event Implementation Generator'
-            description = project.description
-        }
-    }
 }
-
-// Needed to publish plugins using GH actions secrets
-
-def copyProperty(String definition, String target) {
-    def property = project.findProperty(definition)
-    if (property != null) {
-        project.extra[target] = property
-    }
-}
-
-copyProperty("pluginPortalApiKey", "gradle.publish.key")
-copyProperty("pluginPortalApiSecret", "gradle.publish.secret")
-
-// Deployment configuration
-apply from: 'gradle/deploy.gradle'
-
-/* afterEvaluate {
-    publishing.publications.pluginMaven {
-        shadow.component(it)
-    }
-}*/

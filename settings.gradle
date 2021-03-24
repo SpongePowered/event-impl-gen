@@ -1,1 +1,19 @@
+pluginManagement {
+    repositories {
+        maven {
+            url = "https://repo.nokee.dev/release/"
+            name = "nokeee"
+            mavenContent {
+                releasesOnly()
+                includeGroupByRegex("dev\\.nokee.*")
+                includeGroupByRegex("dev\\.gradleplugins.*")
+            }
+        }
+        maven {
+            url = "https://repo.spongepowered.org/repository/maven-public/"
+            name = "sponge"
+        }
+    }
+}
+
 rootProject.name = "event-impl-gen"
