@@ -4,19 +4,20 @@ Generates the event implementations and factory for SpongeAPI based on event
 templates formatted as Java interfaces using [Spoon](https://github.com/INRIA/spoon).
 
 ## Usage
-You can use `event-impl-gen` in your plugins to generate event implementations based on event interfaces.
+You can use `event-impl-gen` in your plugins to generate event implementations based on event interfaces. `event-impl-gen` is primarily tested on 
+Gradle 6+, but should work on 5.6.4 and up.
 To use it in your plugin, you need to apply it to your Gradle build script:
 
 ```gradle
 plugins {
-    id 'org.spongepowered.event-impl-gen' version '5.3.0'
+    id("org.spongepowered.gradle.event-impl-gen") version "7.0.0"
 }
 
 genEventImpl {
     // The full qualified class name of the factory
-    outputFactory = 'com.example.myplugin.event.factory.MyPluginEventFactory'
+    outputFactory = "com.example.myplugin.event.factory.MyPluginEventFactory"
     // The path to your event interfaces
-    include 'com/example/myplugin/event/'
+    include "com/example/myplugin/event/"
 }
 ```
 

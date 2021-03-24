@@ -37,7 +37,7 @@ public class SimpleExecutionTest {
         final Project project = ProjectBuilder.builder().build();
 
         project.getPlugins().apply("java-library");
-        project.getPlugins().apply("org.spongepowered.event-impl-gen");
+        project.getPlugins().apply("org.spongepowered.gradle.event-impl-gen");
 
         // Basic task application
         assertNotNull(project.getTasks().findByName("genEventImpl"));

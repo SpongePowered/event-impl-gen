@@ -64,12 +64,13 @@ dependencies {
 }
 
 indraPluginPublishing {
+    pluginIdBase = "${project.group}.gradle"
     plugin(
-            "event-impl-gen",
-            "org.spongepowered.eventimplgen.EventImplGenPlugin",
-            "Sponge Event Implementation Generator",
-            project.description,
-            ["minecraft", "sponge"]
+        "event-impl-gen",
+        "org.spongepowered.eventimplgen.EventImplGenPlugin",
+        "Sponge Event Implementation Generator",
+        project.description,
+        ["minecraft", "sponge"]
     )
 }
 
