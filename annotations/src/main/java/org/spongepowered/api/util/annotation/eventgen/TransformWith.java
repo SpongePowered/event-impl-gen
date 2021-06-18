@@ -1,5 +1,5 @@
 /*
- * This file is part of Event Implementation Generator, licensed under the MIT License (MIT).
+ * This file is part of SpongeAPI, licensed under the MIT License (MIT).
  *
  * Copyright (c) SpongePowered <https://www.spongepowered.org>
  * Copyright (c) contributors
@@ -22,26 +22,37 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.eventimplgen.eventgencore;
+package org.spongepowered.api.util.annotation.eventgen;
 
-import java.util.List;
-
-import javax.lang.model.element.TypeElement;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * Finds all the properties in a class.
+ * Used to indicate a method that will be called from the method with the
+ * corresponding {@link TransformResult} annotation.
+ *
+ * <p>This annotation should be placed on the method with the least specific
+ * return type, if covariant return types are used.</p>
+ *
+ * <p>The method annotated with this annotation <strong>must</strong> either return
+ * an instance of the method's class, or Object (for compatibility with
+ * generics).</p>
  */
-public interface PropertySearchStrategy {
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+public @interface TransformWith {
 
     /**
-     * Enumerate a list of properties on a class, considering super types
-     * and implemented interfaces.
+     * Gets the name used to match this annotation to a {@link TransformResult}
+     * annotation.
      *
-     * <p>The returned list is sorted lexographically by property name</p>
+     * <p>Changing this is only necessary when this annotation is present on
+     * multiple methods in a class, or its superinterfaces/superclass.</p>
      *
-     * @param type The class
-     * @return A set of properties
+     * @return The name to use
      */
-    List<Property> findProperties(final TypeElement type);
+    String value() default "";
 
 }

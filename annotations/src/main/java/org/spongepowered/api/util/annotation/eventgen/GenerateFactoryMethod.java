@@ -1,5 +1,5 @@
 /*
- * This file is part of Event Implementation Generator, licensed under the MIT License (MIT).
+ * This file is part of SpongeAPI, licensed under the MIT License (MIT).
  *
  * Copyright (c) SpongePowered <https://www.spongepowered.org>
  * Copyright (c) contributors
@@ -22,26 +22,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.eventimplgen.eventgencore;
-
-import java.util.List;
-
-import javax.lang.model.element.TypeElement;
+package org.spongepowered.api.util.annotation.eventgen;
 
 /**
- * Finds all the properties in a class.
+ * Explicitly enables generation of an event factory method for an event class.
+ *
+ * <p>By default, an event which contains subinterfaces will not have
+ * an event factory method generated.</p>
  */
-public interface PropertySearchStrategy {
-
-    /**
-     * Enumerate a list of properties on a class, considering super types
-     * and implemented interfaces.
-     *
-     * <p>The returned list is sorted lexographically by property name</p>
-     *
-     * @param type The class
-     * @return A set of properties
-     */
-    List<Property> findProperties(final TypeElement type);
+public @interface GenerateFactoryMethod {
 
 }

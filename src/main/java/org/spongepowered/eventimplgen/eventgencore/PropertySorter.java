@@ -25,7 +25,6 @@
 package org.spongepowered.eventimplgen.eventgencore;
 
 import org.spongepowered.eventimplgen.EventImplGenTask;
-import spoon.reflect.declaration.CtAnnotation;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -34,6 +33,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+
+import javax.lang.model.element.AnnotationMirror;
 
 public class PropertySorter {
 
@@ -55,7 +56,7 @@ public class PropertySorter {
 
         properties.stream().filter(Property::isMostSpecificType).forEach(property -> {
             propertyMap.put(property.getName(), property);
-            final CtAnnotation<?> sortPosition = EventImplGenTask.getAnnotation(property.getAccessor(), "org.spongepowered.api.util.annotation.eventgen.AbsoluteSortPosition");
+            final AnnotationMirror sortPosition = EventImplGenTask.getAnnotation(property.getAccessor(), "org.spongepowered.api.util.annotation.eventgen.AbsoluteSortPosition");
             if (sortPosition != null) {
                 finalProperties.add(Math.min(EventImplGenTask.getValue(sortPosition, "value"), finalProperties.size()), property);
                 propertyMap.remove(property.getName());
@@ -64,7 +65,7 @@ public class PropertySorter {
 
         for (final Map.Entry<String, Property> entry : new HashSet<>(propertyMap.entrySet())) {
             final String name = entry.getValue().getName();
-            final String unprefixedName = getUnprefixedName(name);
+            final String unprefixedName = this.getUnprefixedName(name);
             if (name.startsWith(this.prefix)) {
                 if (propertyMap.containsKey(unprefixedName)) {
                     pairs.add(new PrefixPair(entry.getValue(), propertyMap.get(unprefixedName)));
@@ -77,7 +78,7 @@ public class PropertySorter {
         for (final Map.Entry<String, Property> entry : new HashSet<>(propertyMap.entrySet())) {
             final String name = entry.getKey();
             final Property property = entry.getValue();
-            if (property.getWrapperType().isPrimitive()) {
+            if (property.getWrapperType().getKind().isPrimitive()) {
                 primitiveProperties.add(property);
                 propertyMap.remove(name);
             } else {

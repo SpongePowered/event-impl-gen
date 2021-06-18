@@ -25,6 +25,7 @@
 package org.spongepowered.eventimplgen;
 
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.gradle.api.JavaVersion;
 import org.gradle.api.UncheckedIOException;
 import org.gradle.api.file.FileCollection;
@@ -35,6 +36,7 @@ import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.SourceTask;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.compile.AbstractCompile;
+import org.spongepowered.api.util.annotation.eventgen.ImplementedBy;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.eventgencore.PropertySorter;
 import org.spongepowered.eventimplgen.factory.ClassGenerator;
@@ -71,6 +73,16 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
+
+import javax.lang.model.AnnotatedConstruct;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.AnnotationValue;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.ExecutableType;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Types;
 
 public class EventImplGenTask extends AbstractCompile {
 
@@ -227,15 +239,15 @@ public class EventImplGenTask extends AbstractCompile {
         // Analyse AST
         final EventInterfaceProcessor processor = new EventInterfaceProcessor(getSource(), this.inclusiveAnnotations, this.exclusiveAnnotations);
         compiler.process(Collections.singletonList(processor));
-        final Map<CtType<?>, List<Property>> foundProperties = processor.getFoundProperties();
-        final List<CtMethod<?>> forwardedMethods = processor.getForwardedMethods();
+        final Map<TypeElement, List<Property>> foundProperties = processor.getFoundProperties();
+        final List<ExecutableElement> forwardedMethods = processor.getForwardedMethods();
 
         this.sorter = new PropertySorter(this.sortPriorityPrefix, this.groupingPrefixes);
 
         dumpClasses(foundProperties, forwardedMethods);
     }
 
-    private void dumpClasses(final Map<CtType<?>, List<Property>> foundProperties, final List<CtMethod<?>> forwardedMethods) throws IOException {
+    private void dumpClasses(final Map<TypeElement, List<Property>> foundProperties, final List<ExecutableElement> forwardedMethods) throws IOException {
         final String packageName = this.outputFactory.substring(0, this.outputFactory.lastIndexOf('.'));
         final ClassGeneratorProvider provider = new ClassGeneratorProvider(packageName);
 
@@ -250,7 +262,7 @@ public class EventImplGenTask extends AbstractCompile {
         generator.setNullPolicy(NullPolicy.NON_NULL_BY_DEFAULT);
         generator.setTargetCompatibility(JavaVersion.toVersion(this.getTargetCompatibility()));
 
-        for (final CtType<?> event : foundProperties.keySet()) {
+        for (final TypeElement event : foundProperties.keySet()) {
             final String name = ClassGenerator.getEventName(event, provider);
             clazz = generator.createClass(event, name, getBaseClass(event),
                     foundProperties.get(event), this.sorter, FactoryInterfaceGenerator.PLUGINS
@@ -264,23 +276,23 @@ public class EventImplGenTask extends AbstractCompile {
         Files.write(classFile, clazz, StandardOpenOption.CREATE_NEW);
     }
 
-    private CtTypeReference<?> getBaseClass(final CtType<?> event) {
+    private CtTypeReference<?> getBaseClass(final TypeElement event, final Types types) {
         CtAnnotation<?> implementedBy = null;
         int max = Integer.MIN_VALUE;
 
-        final Queue<CtType<?>> queue = new ArrayDeque<>();
+        final Queue<TypeMirror> queue = new ArrayDeque<>();
 
         queue.add(event);
-        CtType<?> scannedType;
+        TypeMirror scannedType;
 
         while ((scannedType = queue.poll()) != null) {
-            final CtAnnotation<?> anno = EventImplGenTask.getAnnotation(scannedType, "org.spongepowered.api.util.annotation.eventgen.ImplementedBy");
+            final AnnotationMirror anno = scannedType.getAnnotation(ImplementedBy.class);
             if (anno != null && EventImplGenTask.<Integer>getValue(anno, "priority") >= max) {
                 implementedBy = anno;
                 max = EventImplGenTask.getValue(anno, "priority");
             }
 
-            for (final CtTypeReference<?> implInterface : scannedType.getSuperInterfaces()) {
+            for (final CtTypeReference<?> implInterface : scannedType()) {
                 queue.offer(implInterface.getTypeDeclaration());
             }
         }
@@ -296,36 +308,23 @@ public class EventImplGenTask extends AbstractCompile {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> T getValue(final CtAnnotation<?> anno, final String key) {
-        if (anno.isShadow()) {
-            return ShadowSpoon.getAnnotationValue(anno, key);
-        }
-        final CtExpression<?> expr = anno.getWrappedValue(key);
-        if (expr instanceof CtFieldRead) {
-            final CtFieldReference<?> fieldRef = ((CtFieldRead<?>) expr).getVariable();
-            final Class<?> c = fieldRef.getDeclaringType().getActualClass();
-            try {
-                final Field f = c.getField(fieldRef.getSimpleName());
-                return (T) f.get(null);
-            } catch (final Exception e) {
-                throw new RuntimeException("Failed to lookup field for ref: " + expr);
-            }
-        }
-        return (T) anno.getValueAsObject(key);
+    public static <T> T getValue(final AnnotationMirror anno, final String key) {
+        final AnnotationValue expr = anno.getElementValues(). // TODO: find one matching the provided name
+        return expr == null ? null : (T) expr.getValue();
     }
 
-    public static CtAnnotation<?> getAnnotation(final CtElement type, final String name) {
-        for (final CtAnnotation<?> annotation : type.getAnnotations()) {
-            if (annotation.getAnnotationType().getQualifiedName().equals(name)) {
+    public static @Nullable AnnotationMirror getAnnotation(final AnnotatedConstruct type, final String name) {
+        for (final AnnotationMirror annotation : type.getAnnotationMirrors()) {
+            if (((TypeElement) annotation.getAnnotationType().asElement()).getQualifiedName().toString().equals(name)) {
                 return annotation;
             }
         }
         return null;
     }
 
-    public static boolean containsAnnotation(final CtElement type, final Set<String> looking) {
-        for (final CtAnnotation<?> annotation : type.getAnnotations()) {
-            if (looking.contains(annotation.getAnnotationType().getQualifiedName())) {
+    public static boolean containsAnnotation(final AnnotatedConstruct type, final Set<String> looking) {
+        for (final AnnotationMirror annotation : type.getAnnotationMirrors()) {
+            if (looking.contains(((TypeElement) annotation.getAnnotationType().asElement()).getQualifiedName().toString())) {
                 return true;
             }
         }

@@ -24,9 +24,9 @@
  */
 package org.spongepowered.eventimplgen.factory;
 
-import spoon.reflect.declaration.CtType;
-
 import java.util.Objects;
+
+import javax.lang.model.element.TypeElement;
 
 /**
  * Creates event implementations by generating the necessary event class
@@ -55,10 +55,10 @@ public class ClassGeneratorProvider {
      * @param classifier The classifier
      * @return Canonical name
      */
-    protected String getClassName(CtType<?> clazz, final String classifier) {
-        String name = clazz.getSimpleName();
-        while (clazz.getDeclaringType() != null) {
-            clazz = clazz.getDeclaringType();
+    protected String getClassName(TypeElement clazz, final String classifier) {
+        String name = clazz.getSimpleName().toString();
+        while (clazz.getEnclosingElement() != null && clazz.getEnclosingElement() instanceof TypeElement) {
+            clazz = (TypeElement) clazz.getEnclosingElement();
             name = clazz.getSimpleName() + "$" + name;
         }
         return this.targetPackage + "." + name + "$" + classifier;

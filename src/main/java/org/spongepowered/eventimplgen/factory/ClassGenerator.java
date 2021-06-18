@@ -50,7 +50,6 @@ import static org.objectweb.asm.Opcodes.RETURN;
 import static org.objectweb.asm.Opcodes.V1_8;
 import static org.spongepowered.eventimplgen.EventImplGenTask.getValue;
 
-import org.gradle.api.JavaVersion;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.Label;
@@ -79,19 +78,31 @@ import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Name;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.ArrayType;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
+
 /**
  * Generates the bytecode for classes needed by {@link ClassGeneratorProvider}.
  */
 public class ClassGenerator {
 
     private NullPolicy nullPolicy = NullPolicy.DISABLE_PRECONDITIONS;
-    private JavaVersion targetVersion = JavaVersion.VERSION_1_8;
+    private SourceVersion targetVersion = SourceVersion.RELEASE_8;
 
-    private static CtAnnotation<?> getPropertySettings(final Property property) {
+    private static AnnotationMirror getPropertySettings(final Property property) {
         // Check the most specific method first.
         // This ensures that users can add @PropertySettings on an
         // overridden method.
-        final CtAnnotation<?> anno = EventImplGenTask.getAnnotation(
+        final AnnotationMirror anno = EventImplGenTask.getAnnotation(
                 property.getMostSpecificMethod(),
                 "org.spongepowered.api.util.annotation.eventgen.PropertySettings");
 
@@ -102,20 +113,20 @@ public class ClassGenerator {
     }
 
     private static boolean isRequired(final Property property) {
-        final CtAnnotation<?> settings = ClassGenerator.getPropertySettings(property);
+        final AnnotationMirror settings = ClassGenerator.getPropertySettings(property);
         if (settings == null) {
-            return !property.getMostSpecificMethod().isDefaultMethod();
+            return !property.getMostSpecificMethod().isDefault();
         } else {
             return getValue(settings, "requiredParameter");
         }
     }
 
     private static boolean generateMethods(final Property property) {
-        final CtAnnotation<?> settings = ClassGenerator.getPropertySettings(property);
+        final AnnotationMirror settings = ClassGenerator.getPropertySettings(property);
         if (settings != null) {
             return getValue(settings, "generateMethods");
         } else {
-            return !property.getMostSpecificMethod().isDefaultMethod();
+            return !property.getMostSpecificMethod().isDefault();
         }
     }
 
@@ -146,9 +157,9 @@ public class ClassGenerator {
         return false;
     }
 
-    public static CtField<?> getField(final CtTypeReference<?> clazz, final String fieldName) {
+    public static CtField<?> getField(final DeclaredType clazz, final String fieldName) {
         CtField<?> field;
-        CtType<?> type = clazz.getDeclaration();
+        TypeElement type = (TypeElement) clazz.asElement();
         while (type != null) {
             field = type.getField(fieldName);
             if (field != null) {
@@ -178,23 +189,23 @@ public class ClassGenerator {
         this.nullPolicy = Objects.requireNonNull(nullPolicy, "nullPolicy");
     }
 
-    public void setTargetCompatibility(final JavaVersion version) {
+    public void setTargetCompatibility(final SourceVersion version) {
         this.targetVersion = Objects.requireNonNull(version, "version");
     }
 
-    private boolean hasNullable(final CtMethod<?> method) {
+    private boolean hasNullable(final ExecutableElement method) {
         return ClassGenerator.hasAnnotationOnSelfOrReturnType(method, name -> name.equals("Nullable"));
     }
 
-    private boolean hasNonNull(final CtMethod<?> method) {
+    private boolean hasNonNull(final ExecutableElement method) {
         return ClassGenerator.hasAnnotationOnSelfOrReturnType(method, name -> name.equals("NotNull") || name.equals("Nonnull"));
     }
 
-    private static boolean hasAnnotationOnSelfOrReturnType(final CtMethod<?> method, final Predicate<String> annotationTest) {
+    private static boolean hasAnnotationOnSelfOrReturnType(final ExecutableElement method, final Predicate<Name> annotationTest) {
         // On the method itself
-        final List<CtAnnotation<?>> annotations = method.getAnnotations();
+        final List<? extends AnnotationMirror> annotations = method.getAnnotationMirrors();
         if (!annotations.isEmpty()) {
-            for (final CtAnnotation<?> annotation : annotations) {
+            for (final AnnotationMirror annotation : annotations) {
                 if (annotationTest.test(annotation.getType().getSimpleName())) {
                     return true;
                 }
@@ -202,9 +213,9 @@ public class ClassGenerator {
         }
 
         // On return type
-        final List<CtAnnotation<?>> typeUseAnnotations = method.getType().getAnnotations();
+        final List<? extends AnnotationMirror> typeUseAnnotations = method.getReturnType().getAnnotationMirrors();
         if (!typeUseAnnotations.isEmpty()) {
-            for (final CtAnnotation<?> annotation : annotations) {
+            for (final AnnotationMirror annotation : annotations) {
                 if (annotationTest.test(annotation.getType().getSimpleName())) {
                     return true;
                 }
@@ -225,70 +236,63 @@ public class ClassGenerator {
         fv.visitEnd();
     }
 
-    public static String getDescriptor(final CtMethod<?> method) {
+    public static String getDescriptor(final ExecutableElement method) {
         return ClassGenerator.getDescriptor(method, true);
     }
 
-    public static String getDescriptor(final CtMethod<?> method, final boolean includeReturnType) {
+    public static String getDescriptor(final ExecutableElement method, final boolean includeReturnType) {
         final StringBuilder builder = new StringBuilder();
         builder.append("(");
-        for (final CtParameter<?> type: method.getParameters()) {
-            builder.append(ClassGenerator.getTypeDescriptor(type.getType()));
+        for (final VariableElement type : method.getParameters()) {
+            builder.append(ClassGenerator.getTypeDescriptor(type.asType()));
         }
         builder.append(")");
         if (includeReturnType) {
-            builder.append(ClassGenerator.getTypeDescriptor(method.getType()));
+            builder.append(ClassGenerator.getTypeDescriptor(method.getReturnType()));
         } else {
             builder.append("V");
         }
         return builder.toString();
     }
 
-    public static CtTypeReference<?>[] getParameterTypes(final CtMethod<?> method) {
-        final List<CtTypeReference<?>> types = new ArrayList<>();
-        for (final CtParameter<?> parameter: method.getParameters()) {
-            types.add(parameter.getType());
+    public static TypeMirror[] getParameterTypes(final ExecutableElement method) {
+        final List<TypeMirror> types = new ArrayList<>();
+        for (final VariableElement parameter: method.getParameters()) {
+            types.add(parameter.asType());
         }
-        return types.toArray(new CtTypeReference<?>[types.size()]);
+        return types.toArray(new TypeMirror[types.size()]);
     }
 
-    public static String getTypeDescriptor(CtTypeReference<?> type) {
+    public static String getTypeDescriptor(TypeMirror type) {
         // For descriptors, we want the actual type
-        if (type instanceof CtTypeParameterReference) {
-            type = ((CtTypeParameterReference) type).getBoundingType();
+        if (type.getKind() == TypeKind.TYPEVAR) {
+            type = ((TypeVariable) type).getUpperBound();
         }
 
-        final String name = type.getQualifiedName();
-        if (type.isPrimitive()) {
-            if (name.equals("boolean")) {
-                return "Z";
-            } else if (name.equals("int")) {
-                return "I";
-            } else if (name.equals("byte")) {
-                return "B";
-            } else if (name.equals("short")) {
-                return "S";
-            } else if (name.equals("char")) {
-                return "C";
-            } else if (name.equals("void")) {
-                return "V";
-            } else if (name.equals("float")) {
-                return "F";
-            } else if (name.equals("long")) {
-                return "J";
-            } else if (name.equals("double")) {
-                return "D";
-            } else {
-                return "V";
-            }
-        } else if (type instanceof CtArrayTypeReference) {
-            return "[" + ClassGenerator.getTypeDescriptor(((CtArrayTypeReference) type).getComponentType());
-        } else {
-            return "L" + name.replace(".", "/") + ";";
+        // TODO: use a visitor here
+        switch (type.getKind()) {
+            case BOOLEAN: return "Z";
+            case CHAR: return "C";
+            case BYTE: return "B";
+            case SHORT: return "S";
+            case INT: return "I";
+            case LONG: return "J";
+            case FLOAT: return "F";
+            case DOUBLE: return "D";
+            case VOID: return "V";
+            case NONE: return "Ljava/lang/Object;";
+            case ARRAY:
+                return "[" + ClassGenerator.getTypeDescriptor(((ArrayType) type).getComponentType());
+            case DECLARED: // object
+                final String name = ((TypeElement) ((DeclaredType) type).asElement()).getQualifiedName().toString();
+                return "L" + name.replace(".", "/") + ";";
+            default:
+                // log error
+                return "";
         }
     }
 
-    private void contributeField(final ClassWriter classWriter, final CtType<?> event, final CtTypeReference<?> parentType, final Property property) {
+    private void contributeField(final ClassWriter classWriter, final TypeElement event, final DeclaredType parentType, final Property property) {
         if (property.isLeastSpecificType()) {
             final CtField<?> field = ClassGenerator.getField(parentType, property.getName());
             if (field == null || EventImplGenTask.getAnnotation(field, "org.spongepowered.api.util.annotation.eventgen.UseField") == null) {
@@ -453,12 +457,12 @@ public class ClassGenerator {
      */
     public static void generateMutator(
             final ClassWriter cw,
-            final CtType<?> type,
+            final TypeMirror type,
             final String internalName,
             final String fieldName,
-            final CtType<?> fieldType,
+            final TypeMirror fieldType,
             final Property property) {
-        final CtMethod<?> mutator = property.getMutator().get();
+        final ExecutableElement mutator = property.getMutator().get();
 
         final MethodVisitor mv = cw.visitMethod(
             ACC_PUBLIC,
@@ -634,9 +638,9 @@ public class ClassGenerator {
      * @return The class' contents, to be loaded via a {@link ClassLoader}
      */
     public byte[] createClass(
-            final CtType<?> type,
+            final TypeElement type,
             final String name,
-            final CtTypeReference<?> parentType,
+            final TypeMirror parentType,
             final List<Property> properties,
             final PropertySorter sorter,
             final List<? extends EventFactoryPlugin> plugins) {
@@ -654,6 +658,7 @@ public class ClassGenerator {
             Signatures.ofImplClass(parentType.getTypeDeclaration(), Collections.singletonList(type)),
             ClassGenerator.getInternalName(parentType.getQualifiedName()),
             new String[] {ClassGenerator.getInternalName(type.getQualifiedName())}
+
         );
 
 
@@ -681,8 +686,8 @@ public class ClassGenerator {
 
     private void generateWithPlugins(
             final ClassWriter cw,
-            final CtType<?> eventClass,
-            final CtTypeReference<?> parentType,
+            final TypeElement eventClass,
+            final TypeMirror parentType,
             final String internalName,
             final List<? extends Property> properties,
             final MethodVisitor toStringMv,
@@ -707,7 +712,7 @@ public class ClassGenerator {
         }
     }
 
-    public static String getEventName(final CtType<?> event, final ClassGeneratorProvider classGeneratorProvider) {
+    public static String getEventName(final TypeElement event, final ClassGeneratorProvider classGeneratorProvider) {
         return classGeneratorProvider.getClassName(event, "Impl");
     }
 }

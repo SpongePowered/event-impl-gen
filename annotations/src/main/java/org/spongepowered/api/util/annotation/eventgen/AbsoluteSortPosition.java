@@ -1,5 +1,5 @@
 /*
- * This file is part of Event Implementation Generator, licensed under the MIT License (MIT).
+ * This file is part of SpongeAPI, licensed under the MIT License (MIT).
  *
  * Copyright (c) SpongePowered <https://www.spongepowered.org>
  * Copyright (c) contributors
@@ -22,26 +22,34 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.eventimplgen.eventgencore;
+package org.spongepowered.api.util.annotation.eventgen;
 
-import java.util.List;
-
-import javax.lang.model.element.TypeElement;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * Finds all the properties in a class.
+ * Used to indicate the absolute position of a property when sorted.
+ *
+ * <p>A value of 0 indicates that a property would always be sorted first,
+ * a value of 1 indicates that a property would always be sorted second,
+ * and so on.</p>
+ *
+ * <p>If a gap is left in the absolute ordering of properties, the
+ * next-highest-numbered property will be placed next. For example,
+ * properties with the absolute ordering 0, 1, and 3 will still be adjacent to
+ * each other.</p>
  */
-public interface PropertySearchStrategy {
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+public @interface AbsoluteSortPosition {
 
     /**
-     * Enumerate a list of properties on a class, considering super types
-     * and implemented interfaces.
+     * Gets the absolute position for the annotated property.
      *
-     * <p>The returned list is sorted lexographically by property name</p>
-     *
-     * @param type The class
-     * @return A set of properties
+     * @return the absolute position
      */
-    List<Property> findProperties(final TypeElement type);
+    int value();
 
 }

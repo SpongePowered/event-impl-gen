@@ -1,5 +1,5 @@
 /*
- * This file is part of Event Implementation Generator, licensed under the MIT License (MIT).
+ * This file is part of SpongeAPI, licensed under the MIT License (MIT).
  *
  * Copyright (c) SpongePowered <https://www.spongepowered.org>
  * Copyright (c) contributors
@@ -22,26 +22,34 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.eventimplgen.eventgencore;
+package org.spongepowered.api.util.annotation.eventgen;
 
-import java.util.List;
-
-import javax.lang.model.element.TypeElement;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * Finds all the properties in a class.
+ * Used to mark fields which should be used by the class generator.
+ *
+ * <p>The class generator will reference the annotated field when
+ * generating methods, and set it from the constructor arguments</p>
+ *
+ * <p>Any field in an abstract class without this field will not be
+ * set automatically, even if it matches a property from the implemented
+ * event.</p>
  */
-public interface PropertySearchStrategy {
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.FIELD)
+public @interface UseField {
 
     /**
-     * Enumerate a list of properties on a class, considering super types
-     * and implemented interfaces.
+     * Indicates whether to use the annotated field directly in the
+     * generated '{@link #toString()}' method, rather than calling the
+     * normal accessor method.
      *
-     * <p>The returned list is sorted lexographically by property name</p>
-     *
-     * @param type The class
-     * @return A set of properties
+     * @return Whether to override the toString
      */
-    List<Property> findProperties(final TypeElement type);
+    boolean overrideToString() default false;
 
 }

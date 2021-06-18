@@ -1,5 +1,5 @@
 /*
- * This file is part of Event Implementation Generator, licensed under the MIT License (MIT).
+ * This file is part of SpongeAPI, licensed under the MIT License (MIT).
  *
  * Copyright (c) SpongePowered <https://www.spongepowered.org>
  * Copyright (c) contributors
@@ -22,26 +22,37 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.eventimplgen.eventgencore;
+package org.spongepowered.api.util.annotation.eventgen;
 
-import java.util.List;
-
-import javax.lang.model.element.TypeElement;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * Finds all the properties in a class.
+ * Used to indicate that the return type of a method should be transformed by
+ * calling a method on it, indicated by the {@link TransformWith} annotation.
+ *
+ * <p>This annotation should be placed on the method with the least specific
+ * return type, if covariant return types are used.</p>
+ *
+ * <p>The return type of the annotation, or a superclass/superinterface of it,
+ * must have a method annotated with {@link TransformWith}, with a matching
+ * {@link #value()}.</p>
  */
-public interface PropertySearchStrategy {
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+public @interface TransformResult {
 
     /**
-     * Enumerate a list of properties on a class, considering super types
-     * and implemented interfaces.
+     * Gets the name used to match this annotation to a {@link TransformWith}
+     * annotation.
      *
-     * <p>The returned list is sorted lexographically by property name</p>
+     * <p>Changing this is only necessary when multiple {@link TransformWith}
+     * annotations are present in the annotated method's return type's class.
+     * </p>
      *
-     * @param type The class
-     * @return A set of properties
+     * @return The name to use
      */
-    List<Property> findProperties(final TypeElement type);
-
+    String value() default "";
 }

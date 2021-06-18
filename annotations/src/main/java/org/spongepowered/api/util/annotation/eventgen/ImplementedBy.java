@@ -1,5 +1,5 @@
 /*
- * This file is part of Event Implementation Generator, licensed under the MIT License (MIT).
+ * This file is part of SpongeAPI, licensed under the MIT License (MIT).
  *
  * Copyright (c) SpongePowered <https://www.spongepowered.org>
  * Copyright (c) contributors
@@ -22,26 +22,38 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.eventimplgen.eventgencore;
+package org.spongepowered.api.util.annotation.eventgen;
 
-import java.util.List;
-
-import javax.lang.model.element.TypeElement;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Inherited;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * Finds all the properties in a class.
+ * Used to indicate the base class that a generated event class extends from.
  */
-public interface PropertySearchStrategy {
+@Inherited
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface ImplementedBy {
 
     /**
-     * Enumerate a list of properties on a class, considering super types
-     * and implemented interfaces.
+     * Gets the class which serves as the base class which the generated class
+     * for this event interface will extend.
      *
-     * <p>The returned list is sorted lexographically by property name</p>
-     *
-     * @param type The class
-     * @return A set of properties
+     * @return The base class to use
      */
-    List<Property> findProperties(final TypeElement type);
+    Class<?> value();
+
+    /**
+     * Gets the priority for this annotation, relative to other annotations in
+     * the same hierarchy of the event interface.
+     *
+     * <p>The annotation with the highest priority will be used.</p>
+     *
+     * @return The priority to use
+     */
+    int priority() default 1;
 
 }

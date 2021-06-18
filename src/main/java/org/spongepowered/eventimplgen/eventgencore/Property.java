@@ -25,11 +25,13 @@
 package org.spongepowered.eventimplgen.eventgencore;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
-import spoon.reflect.declaration.CtMethod;
-import spoon.reflect.reference.CtTypeReference;
 
 import java.util.Objects;
 import java.util.Optional;
+
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Types;
 
 /**
  * A property is a getter with possibly a setter pair.
@@ -38,11 +40,11 @@ import java.util.Optional;
 public final class Property implements Comparable<Property> {
 
     private final String name;
-    private final CtTypeReference<?> type;
-    private final CtMethod<?> leastSpecificMethod;
-    private final CtMethod<?> mostSpecificMethod;
-    private final CtMethod<?> accessor;
-    private final Optional<CtMethod<?>> mutator;
+    private final TypeMirror type;
+    private final ExecutableElement leastSpecificMethod;
+    private final ExecutableElement mostSpecificMethod;
+    private final ExecutableElement accessor;
+    private final Optional<ExecutableElement> mutator;
 
     /**
      * Create a new property.
@@ -55,22 +57,17 @@ public final class Property implements Comparable<Property> {
      */
     public Property(
         final String name,
-        final CtTypeReference<?> type,
-        final CtMethod<?> leastSpecificMethod,
-        final CtMethod<?> mostSpecificMethod,
-        final CtMethod<?> accessor,
-        final @Nullable CtMethod<?> mutator
+        final TypeMirror type,
+        final ExecutableElement leastSpecificMethod,
+        final ExecutableElement mostSpecificMethod,
+        final ExecutableElement accessor,
+        final @Nullable ExecutableElement mutator
    ) {
-        Objects.requireNonNull(name, "name");
-        Objects.requireNonNull(type, "type");
-        Objects.requireNonNull(leastSpecificMethod, "leastSpecificMethod");
-        Objects.requireNonNull(mostSpecificMethod, "mostSpecificMethod");
-        Objects.requireNonNull(accessor, "accessor");
-        this.name = name;
-        this.type = type;
-        this.leastSpecificMethod = leastSpecificMethod;
-        this.mostSpecificMethod = mostSpecificMethod;
-        this.accessor = accessor;
+        this.name = Objects.requireNonNull(name, "name");
+        this.type = Objects.requireNonNull(type, "type");
+        this.leastSpecificMethod = Objects.requireNonNull(leastSpecificMethod, "leastSpecificMethod");
+        this.mostSpecificMethod = Objects.requireNonNull(mostSpecificMethod, "mostSpecificMethod");
+        this.accessor = Objects.requireNonNull(accessor, "accessor");
         this.mutator = Optional.ofNullable(mutator);
     }
 
@@ -88,11 +85,11 @@ public final class Property implements Comparable<Property> {
      *
      * @return The type
      */
-    public CtTypeReference<?> getType() {
+    public TypeMirror getType() {
         return this.type;
     }
 
-    public CtTypeReference<?> getWrapperType() {
+    public TypeMirror getWrapperType() {
         return this.type;
     }
 
@@ -101,7 +98,7 @@ public final class Property implements Comparable<Property> {
      *
      * @return The least specific accessor
      */
-    public CtMethod<?> getLeastSpecificMethod() {
+    public ExecutableElement getLeastSpecificMethod() {
         return this.leastSpecificMethod;
     }
 
@@ -112,8 +109,8 @@ public final class Property implements Comparable<Property> {
      *
      * @return The type
      */
-    public CtTypeReference<?> getLeastSpecificType() {
-        return this.leastSpecificMethod.getType();
+    public TypeMirror getLeastSpecificType() {
+        return this.leastSpecificMethod.getReturnType();
     }
 
     /**
@@ -121,7 +118,7 @@ public final class Property implements Comparable<Property> {
      *
      * @return The least specific accessor
      */
-    public CtMethod<?> getMostSpecificMethod() {
+    public ExecutableElement getMostSpecificMethod() {
         return this.mostSpecificMethod;
     }
 
@@ -130,8 +127,8 @@ public final class Property implements Comparable<Property> {
      *
      * @return The type
      */
-    public CtTypeReference<?> getMostSpecificType() {
-        return this.mostSpecificMethod.getType();
+    public TypeMirror getMostSpecificType() {
+        return this.mostSpecificMethod.getReturnType();
     }
 
     /**
@@ -139,11 +136,11 @@ public final class Property implements Comparable<Property> {
      *
      * @return The accessor
      */
-    public CtMethod<?> getAccessor() {
+    public ExecutableElement getAccessor() {
         return this.accessor;
     }
 
-    public CtMethod<?> getAccessorWrapper() {
+    public ExecutableElement getAccessorWrapper() {
         return this.accessor;
     }
 
@@ -152,7 +149,7 @@ public final class Property implements Comparable<Property> {
      *
      * @return The mutator
      */
-    public Optional<CtMethod<?>> getMutator() {
+    public Optional<ExecutableElement> getMutator() {
         return this.mutator;
     }
 
@@ -162,12 +159,12 @@ public final class Property implements Comparable<Property> {
      *
      * @return True if tis property's type is the least specific
      */
-    public boolean isLeastSpecificType() {
-        return this.type.getQualifiedName().equals(this.leastSpecificMethod.getType().getQualifiedName());
+    public boolean isLeastSpecificType(final Types types) {
+        return types.isSameType(this.type, this.leastSpecificMethod.getReturnType());
     }
 
-    public boolean isMostSpecificType() {
-        return this.type.getQualifiedName().equals(this.mostSpecificMethod.getType().getQualifiedName());
+    public boolean isMostSpecificType(final Types types) {
+        return types.isSameType(this.type, this.mostSpecificMethod.getReturnType());
     }
 
     @Override

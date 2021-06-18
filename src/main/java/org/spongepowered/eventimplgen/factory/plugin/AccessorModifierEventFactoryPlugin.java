@@ -41,6 +41,10 @@ import spoon.reflect.declaration.CtAnnotation;
 import spoon.reflect.declaration.CtMethod;
 import spoon.reflect.declaration.CtType;
 
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
+
 /**
  * An event factory plugin to modify the return type of an accessor
  * by calling one of its methods.
@@ -49,9 +53,9 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
 
     private MethodPair getLinkedField(final Property property) {
 
-        final CtMethod<?> leastSpecificMethod = property.getLeastSpecificMethod();
-        final CtAnnotation<?> transformResult;
-        CtMethod<?> transformWith = null;
+        final ExecutableElement leastSpecificMethod = property.getLeastSpecificMethod();
+        final AnnotationMirror transformResult;
+        ExecutableElement transformWith = null;
         String name = null;
 
         if ((transformResult = EventImplGenTask.getAnnotation(leastSpecificMethod, "org.spongepowered.api.util.annotation.eventgen.TransformResult")) != null) {
@@ -60,8 +64,8 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
             // use covariant types, we can call getMethods on the more specific version,
             // allowing the annotation to be present on a method defined there, as well as in
             // the least specific type.
-            for (final CtMethod<?> method: property.getAccessor().getType().getDeclaration().getMethods()) {
-                final CtAnnotation<?> annotation = EventImplGenTask.getAnnotation(method, "org.spongepowered.api.util.annotation.eventgen"
+            for (final ExecutableElement method: property.getAccessor().getType().getDeclaration().getMethods()) {
+                final AnnotationMirror annotation = EventImplGenTask.getAnnotation(method, "org.spongepowered.api.util.annotation.eventgen"
                         + ".TransformWith");
                 if (annotation != null &&  EventImplGenTask.getValue(annotation, "value").equals(name)) {
                     if (transformWith != null) {
@@ -85,17 +89,17 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
 
     private void generateTransformingAccessor(final ClassWriter cw, final String internalName, final MethodPair pair, final Property property) {
 
-        final CtMethod<?> accessor = property.getAccessor();
+        final ExecutableElement accessor = property.getAccessor();
 
-        final MethodVisitor mv = cw.visitMethod(ACC_PUBLIC, accessor.getSimpleName(), ClassGenerator.getDescriptor(accessor), null, null);
+        final MethodVisitor mv = cw.visitMethod(ACC_PUBLIC, accessor.getSimpleName().toString(), ClassGenerator.getDescriptor(accessor), null, null);
         mv.visitCode();
         mv.visitVarInsn(ALOAD, 0);
         mv.visitFieldInsn(GETFIELD, internalName, property.getName(), ClassGenerator.getTypeDescriptor(property.getLeastSpecificType()));
 
-        final CtMethod<?> transformerMethod = pair.getTransformerMethod();
+        final ExecutableElement transformerMethod = pair.getTransformerMethod();
 
         int opcode = INVOKEVIRTUAL;
-        if (transformerMethod.getDeclaringType().isInterface()) {
+        if (transformerMethod.getEnclosingElement().getKind() == ElementKind.INTERFACE) {
             opcode = INVOKEINTERFACE;
         }
 
@@ -130,8 +134,8 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
 
         private final String name;
 
-        private CtMethod<?> callerMethod;
-        private CtMethod<?> transformerMethod;
+        private ExecutableElement callerMethod;
+        private ExecutableElement transformerMethod;
 
         private Property property;
 
@@ -143,7 +147,7 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
          * @param transformerMethod The transformer method
          * @param property The property
          */
-        public MethodPair(final String name, final CtMethod<?> callerMethod, final CtMethod<?> transformerMethod, final Property property) {
+        public MethodPair(final String name, final ExecutableElement callerMethod, final ExecutableElement transformerMethod, final Property property) {
             this.name = name;
             this.callerMethod = callerMethod;
             this.transformerMethod = transformerMethod;
@@ -154,7 +158,7 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
             return this.name;
         }
 
-        public CtMethod<?> getTransformerMethod() {
+        public ExecutableElement getTransformerMethod() {
             return this.transformerMethod;
         }
 

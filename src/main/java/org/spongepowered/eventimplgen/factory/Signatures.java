@@ -42,6 +42,10 @@ import spoon.support.visitor.ClassTypingContext;
 
 import java.util.List;
 
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
+
 /**
  * Utilities to generate ASM signatures based on Spoon elements.
  */
@@ -105,9 +109,10 @@ public class Signatures {
      * @param interfaces interfaces implemented by the implementation
      * @return the class signature for the implementation class
      */
-    static String ofImplClass(final CtType<?> supertype, final List<CtType<?>> interfaces) {
+    static String ofImplClass(final TypeMirror supertype, final List<TypeMirror> interfaces) {
         final SignatureVisitor visitor = new SignatureWriter();
 
+        // TODO :
         Signatures.visitFormalTypeParameters(visitor, supertype.getFormalCtTypeParameters());
         for (final CtType<?> superinterface : interfaces) {
             // XX: Deduplicate type parameter names
@@ -135,11 +140,11 @@ public class Signatures {
     }
 
     // isConstructor: constructor or factory method
-    private static String getSignature(final CtType<?> event, final List<? extends Property> params, final boolean isConstructor) {
+    private static String getSignature(final Elements elements, final TypeElement event, final List<? extends Property> params, final boolean isConstructor) {
         final SignatureVisitor v = new SignatureWriter();
 
         if (!isConstructor) {
-            Signatures.visitFormalTypeParameters(v, event.getFormalCtTypeParameters());
+            Signatures.visitFormalTypeParameters(v, event.getTypeParameters());
         }
 
         for (final Property property : params) {
@@ -151,7 +156,7 @@ public class Signatures {
         if (isConstructor) {
             rv.visitBaseType('V');
         } else {
-            rv.visitClassType(event.getQualifiedName().replace('.', '/'));
+            rv.visitClassType(elements.getBinaryName(event).toString().replace('.', '/'));
             Signatures.visitTypeParametersFromFormals(rv, event);
             rv.visitEnd();
         }
@@ -181,6 +186,7 @@ public class Signatures {
     }
 
     private static void writePropertyType(final SignatureVisitor visitor, final CtType<?> container, final Property property) {
+
         final CtTypeReference<?> actualType = new ClassTypingContext(container).adaptType(property.getMostSpecificType());
         Signatures.visitComputedType(visitor, actualType);
     }

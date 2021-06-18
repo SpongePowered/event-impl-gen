@@ -25,6 +25,7 @@
 package org.spongepowered.eventimplgen;
 
 import org.gradle.api.file.FileTree;
+import org.spongepowered.api.util.annotation.eventgen.FactoryMethod;
 import org.spongepowered.eventimplgen.eventgencore.AccessorFirstStrategy;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.eventgencore.PropertySearchStrategy;
@@ -42,11 +43,18 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Elements;
+
 public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
 
     private static final PropertySearchStrategy SEARCH_STRATEGY = new AccessorFirstStrategy(true);
-    private final Map<CtType<?>, List<Property>> foundProperties = new TreeMap<>(Comparator.comparing(CtTypeInformation::getQualifiedName));
-    private final List<CtMethod<?>> forwardedMethods = new ArrayList<>();
+    private final Map<TypeElement, List<Property>> foundProperties = new TreeMap<>(Comparator.comparing(CtTypeInformation::getQualifiedName));
+    private final List<ExecutableElement> forwardedMethods = new ArrayList<>();
     private final FileTree source;
     private final Set<String> inclusiveAnnotations;
     private final Set<String> exclusiveAnnotations;
@@ -57,11 +65,11 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
         this.exclusiveAnnotations = exclusiveAnnotations;
     }
 
-    public Map<CtType<?>, List<Property>> getFoundProperties() {
+    public Map<TypeElement, List<Property>> getFoundProperties() {
         return this.foundProperties;
     }
 
-    public List<CtMethod<?>> getForwardedMethods() {
+    public List<ExecutableElement> getForwardedMethods() {
         return this.forwardedMethods;
     }
 
@@ -76,7 +84,7 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
         this.forwardedMethods.addAll(this.findForwardedMethods(event));
     }
 
-    public boolean shouldGenerate(final CtInterface<?> candidate) {
+    public boolean shouldGenerate(final TypeElement candidate) {
         if (EventImplGenTask.containsAnnotation(candidate, this.inclusiveAnnotations)) {
             return true;
         }
@@ -86,11 +94,11 @@ public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
         return candidate.getNestedTypes().isEmpty();
     }
 
-    private List<CtMethod<?>> findForwardedMethods(final CtInterface<?> event) {
-        final List<CtMethod<?>> methods = new ArrayList<>();
-        for (final CtMethod<?> method : event.getMethods()) {
-            if (method.hasModifier(ModifierKind.STATIC)
-                    && EventImplGenTask.getAnnotation(method, "org.spongepowered.api.util.annotation.eventgen.FactoryMethod") != null) {
+    private List<ExecutableElement> findForwardedMethods(final TypeElement event) {
+        final List<ExecutableElement> methods = new ArrayList<>();
+        for (final ExecutableElement method : ElementFilter.methodsIn(event.getEnclosedElements())) {
+            if (method.getModifiers().contains(Modifier.STATIC)
+                && method.getAnnotation(FactoryMethod.class) != null) {
                 methods.add(method);
             }
         }

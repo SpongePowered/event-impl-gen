@@ -1,5 +1,5 @@
 /*
- * This file is part of Event Implementation Generator, licensed under the MIT License (MIT).
+ * This file is part of SpongeAPI, licensed under the MIT License (MIT).
  *
  * Copyright (c) SpongePowered <https://www.spongepowered.org>
  * Copyright (c) contributors
@@ -22,26 +22,24 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.eventimplgen.eventgencore;
+package org.spongepowered.api.util.annotation.eventgen;
 
-import java.util.List;
-
-import javax.lang.model.element.TypeElement;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * Finds all the properties in a class.
+ * Marks the annotated method as a factory method.
+ * A matching method will be generated in the factory class, which forwards
+ * to this method.
+ *
+ * <p>This annotation can be used to make backwards-compatible
+ * changes to an event class. By creating a method matching the old
+ * factory method signature, code expecting the old event signature
+ * will continue to function.</p>
  */
-public interface PropertySearchStrategy {
-
-    /**
-     * Enumerate a list of properties on a class, considering super types
-     * and implemented interfaces.
-     *
-     * <p>The returned list is sorted lexographically by property name</p>
-     *
-     * @param type The class
-     * @return A set of properties
-     */
-    List<Property> findProperties(final TypeElement type);
-
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+public @interface FactoryMethod {
 }
