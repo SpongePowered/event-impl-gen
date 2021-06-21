@@ -22,21 +22,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.eventimplgen.processor;
+package org.spongepowered.eventimplgen.signature;
 
-import dagger.Component;
-import org.spongepowered.eventimplgen.EventInterfaceProcessor;
-import org.spongepowered.eventimplgen.factory.ClassGeneratorProvider;
-import org.spongepowered.eventimplgen.factory.FactoryInterfaceGenerator;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-import javax.inject.Singleton;
-
-@Component(modules = EventImplGenModule.class)
-@Singleton
-public interface EventGenComponent {
-
-  ClassGeneratorProvider classGeneratorProvider();
-  FactoryInterfaceGenerator factoryInterfaceGenerator();
-  EventInterfaceProcessor interfaceProcessor();
-
+@Retention(RetentionPolicy.SOURCE)
+@Target({ElementType.TYPE, ElementType.FIELD, ElementType.CONSTRUCTOR, ElementType.METHOD})
+public @interface AssertSignatureEquals {
+  String value();
 }

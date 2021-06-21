@@ -24,17 +24,9 @@
  */
 package org.spongepowered.eventimplgen;
 
-import org.gradle.api.file.FileTree;
 import org.spongepowered.api.util.annotation.eventgen.FactoryMethod;
-import org.spongepowered.eventimplgen.eventgencore.AccessorFirstStrategy;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.eventgencore.PropertySearchStrategy;
-import spoon.processing.AbstractProcessor;
-import spoon.reflect.declaration.CtInterface;
-import spoon.reflect.declaration.CtMethod;
-import spoon.reflect.declaration.CtType;
-import spoon.reflect.declaration.CtTypeInformation;
-import spoon.reflect.declaration.ModifierKind;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -43,55 +35,37 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
-import javax.lang.model.element.ElementKind;
+import javax.inject.Inject;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 
-public class EventInterfaceProcessor extends AbstractProcessor<CtInterface<?>> {
+public final class EventInterfaceProcessor {
 
-    private static final PropertySearchStrategy SEARCH_STRATEGY = new AccessorFirstStrategy(true);
-    private final Map<TypeElement, List<Property>> foundProperties = new TreeMap<>(Comparator.comparing(CtTypeInformation::getQualifiedName));
-    private final List<ExecutableElement> forwardedMethods = new ArrayList<>();
-    private final FileTree source;
+    private final PropertySearchStrategy strategy;
     private final Set<String> inclusiveAnnotations;
     private final Set<String> exclusiveAnnotations;
 
-    public EventInterfaceProcessor(final FileTree source, final Set<String> inclusiveAnnotations, final Set<String> exclusiveAnnotations) {
-        this.source = source;
+    @Inject
+    public EventInterfaceProcessor(final PropertySearchStrategy strategy, final Elements elements, final Set<String> inclusiveAnnotations, final Set<String> exclusiveAnnotations) {
+        this.strategy = strategy;
         this.inclusiveAnnotations = inclusiveAnnotations;
         this.exclusiveAnnotations = exclusiveAnnotations;
     }
 
-    public Map<TypeElement, List<Property>> getFoundProperties() {
-        return this.foundProperties;
-    }
-
-    public List<ExecutableElement> getForwardedMethods() {
-        return this.forwardedMethods;
-    }
-
-    @Override
-    public boolean isToBeProcessed(final CtInterface<?> candidate) {
-        return this.source.contains(candidate.getPosition().getCompilationUnit().getFile()) && this.shouldGenerate(candidate);
-    }
-
-    @Override
-    public void process(final CtInterface<?> event) {
-        this.foundProperties.put(event, EventInterfaceProcessor.SEARCH_STRATEGY.findProperties(event.getReference()));
-        this.forwardedMethods.addAll(this.findForwardedMethods(event));
+    public void process(final TypeElement event) {
     }
 
     public boolean shouldGenerate(final TypeElement candidate) {
-        if (EventImplGenTask.containsAnnotation(candidate, this.inclusiveAnnotations)) {
+        if (AnnotationUtils.containsAnnotation(candidate, this.inclusiveAnnotations)) {
             return true;
         }
-        if (EventImplGenTask.containsAnnotation(candidate, this.exclusiveAnnotations)) {
+        if (AnnotationUtils.containsAnnotation(candidate, this.exclusiveAnnotations)) {
             return false;
         }
-        return candidate.getNestedTypes().isEmpty();
+        return ElementFilter.typesIn(candidate.getEnclosedElements()).isEmpty();
     }
 
     private List<ExecutableElement> findForwardedMethods(final TypeElement event) {

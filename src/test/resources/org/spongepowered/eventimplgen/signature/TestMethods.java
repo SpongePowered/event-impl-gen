@@ -22,21 +22,32 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.eventimplgen.processor;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+import org.spongepowered.eventimplgen.signature.AssertSignatureEquals;
 
-import dagger.Component;
-import org.spongepowered.eventimplgen.EventInterfaceProcessor;
-import org.spongepowered.eventimplgen.factory.ClassGeneratorProvider;
-import org.spongepowered.eventimplgen.factory.FactoryInterfaceGenerator;
+public abstract class TestMethods {
 
-import javax.inject.Singleton;
+  @AssertSignatureEquals("") // no signature attribute
+  public boolean read(final String a, final boolean y) {
+    return false;
+  }
 
-@Component(modules = EventImplGenModule.class)
-@Singleton
-public interface EventGenComponent {
+  @AssertSignatureEquals("<X:Ljava/lang/Exception;>(TX;Ljava/util/List<+TX;>;)V")
+  public <X extends Exception> void find(final X option, final List<? extends X> haystack) {
+  }
 
-  ClassGeneratorProvider classGeneratorProvider();
-  FactoryInterfaceGenerator factoryInterfaceGenerator();
-  EventInterfaceProcessor interfaceProcessor();
+  @AssertSignatureEquals("<Y:Ljava/io/IOException;>(Ljava/io/BufferedReader;)Ljava/lang/String;^TY;")
+  public <Y extends IOException> String read(final BufferedReader test) throws Y {
+    return "";
+  }
+
+  @AssertSignatureEquals("(Ljava/lang/String;)Ljava/util/Set<Ljava/lang/String;>;")
+  public Set<String> collect(final String x) {
+    return Collections.emptySet();
+  }
 
 }

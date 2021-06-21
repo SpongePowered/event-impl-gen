@@ -24,19 +24,19 @@
  */
 package org.spongepowered.eventimplgen.processor;
 
-import dagger.Component;
-import org.spongepowered.eventimplgen.EventInterfaceProcessor;
-import org.spongepowered.eventimplgen.factory.ClassGeneratorProvider;
-import org.spongepowered.eventimplgen.factory.FactoryInterfaceGenerator;
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import javax.inject.Qualifier;
 
-import javax.inject.Singleton;
-
-@Component(modules = EventImplGenModule.class)
-@Singleton
-public interface EventGenComponent {
-
-  ClassGeneratorProvider classGeneratorProvider();
-  FactoryInterfaceGenerator factoryInterfaceGenerator();
-  EventInterfaceProcessor interfaceProcessor();
-
+/**
+ * Indicates that a {@code Map<String, String>} contains the options provide to an annotation processor.
+ */
+@Qualifier
+@Documented
+@Retention(RetentionPolicy.CLASS)
+@Target({ElementType.FIELD, ElementType.METHOD, ElementType.PARAMETER})
+public @interface ProcessorOptions {
 }

@@ -22,21 +22,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.eventimplgen.processor;
+import org.spongepowered.eventimplgen.signature.AssertSignatureEquals;
+import java.util.Set;
 
-import dagger.Component;
-import org.spongepowered.eventimplgen.EventInterfaceProcessor;
-import org.spongepowered.eventimplgen.factory.ClassGeneratorProvider;
-import org.spongepowered.eventimplgen.factory.FactoryInterfaceGenerator;
-
-import javax.inject.Singleton;
-
-@Component(modules = EventImplGenModule.class)
-@Singleton
-public interface EventGenComponent {
-
-  ClassGeneratorProvider classGeneratorProvider();
-  FactoryInterfaceGenerator factoryInterfaceGenerator();
-  EventInterfaceProcessor interfaceProcessor();
-
-}
+@AssertSignatureEquals("<V:Ljava/lang/Process;>Ljava/lang/Object;Ljava/util/Set<Ljava/lang/String;>;")
+public abstract class TestClass<V extends Process> implements Set<String> {}

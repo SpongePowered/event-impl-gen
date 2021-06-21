@@ -24,6 +24,9 @@
  */
 package org.spongepowered.eventimplgen.eventgencore;
 
+import dagger.assisted.Assisted;
+import dagger.assisted.AssistedFactory;
+import dagger.assisted.AssistedInject;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.ArrayDeque;
@@ -65,13 +68,21 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
     private static final Pattern ACCESSOR_KEEPS = Pattern.compile("^(keeps[A-Z].*)");
     private static final Pattern MUTATOR = Pattern.compile("^set([A-Z].*)");
 
+    private final Elements elements;
     private final Types types;
     private final boolean allowFluentStyle;
 
     private final TypeMirror optionalType;
 
-    public AccessorFirstStrategy(final Types types, final Elements elements, final boolean allowFluentStyle) {
+    @AssistedFactory
+    public interface Factory {
+        AccessorFirstStrategy create(final boolean allowFluentStyle);
+    }
+
+    @AssistedInject
+    public AccessorFirstStrategy(final Types types, final Elements elements, final @Assisted boolean allowFluentStyle) {
         this.types = types;
+        this.elements = elements;
         this.allowFluentStyle = allowFluentStyle;
         this.optionalType = elements.getTypeElement("java.util.Optional").asType();
     }
@@ -209,7 +220,7 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
 
                 final StringBuilder signature = new StringBuilder(method.getSimpleName() + ";");
                 for (final VariableElement parameterType : method.getParameters()) {
-                    signature.append(parameterType.asType().getQualifiedName()).append(";");
+                    signature.append(this.elements.getBinaryName((TypeElement) this.types.asElement(parameterType.asType()))).append(";");
                 }
                 signature.append(method.getReturnType());
 
@@ -233,10 +244,10 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
                 }
             }
             if (ourType.getSuperclass() != null) {
-                queue.push(this.types.asElement(ourType.getSuperclass()));
+                queue.push((TypeElement) this.types.asElement(ourType.getSuperclass()));
             }
             for (final TypeMirror iface : ourType.getInterfaces()) {
-                queue.push(this.types.asElement(iface));
+                queue.push((TypeElement) this.types.asElement(iface));
             }
         }
 

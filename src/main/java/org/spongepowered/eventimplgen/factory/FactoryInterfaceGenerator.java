@@ -35,6 +35,10 @@ import static org.objectweb.asm.Opcodes.INVOKESTATIC;
 import static org.objectweb.asm.Opcodes.NEW;
 import static org.objectweb.asm.Opcodes.V1_8;
 
+import javax.inject.Inject;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
@@ -43,53 +47,55 @@ import org.objectweb.asm.Type;
 import org.spongepowered.eventimplgen.EventImplGenTask;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.eventgencore.PropertySorter;
-import org.spongepowered.eventimplgen.factory.plugin.AccessorModifierEventFactoryPlugin;
 import org.spongepowered.eventimplgen.factory.plugin.EventFactoryPlugin;
-import spoon.reflect.declaration.CtMethod;
-import spoon.reflect.declaration.CtParameter;
-import spoon.reflect.declaration.CtType;
+import org.spongepowered.eventimplgen.signature.Signatures;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class FactoryInterfaceGenerator {
 
-    public static final List<EventFactoryPlugin> PLUGINS = new ArrayList<>();
+    private final Signatures signatures;
+    private final ClassGenerator generator;
+    private final Set<EventFactoryPlugin> plugins;
 
-    static {
-        FactoryInterfaceGenerator.PLUGINS.add(new AccessorModifierEventFactoryPlugin());
+    @Inject
+    FactoryInterfaceGenerator(final Signatures signatures, final Set<EventFactoryPlugin> plugins, final ClassGenerator generator) {
+        this.signatures = signatures;
+        this.generator = generator;
+        this.plugins = plugins;
     }
 
-    public static byte[] createClass(
+    public byte[] createClass(
             final String name,
-            final Map<CtType<?>, List<Property>> foundProperties,
+            final Map<TypeElement, List<Property>> foundProperties,
             final ClassGeneratorProvider provider,
             final PropertySorter sorter,
-            final List<CtMethod<?>> forwardedMethods) {
-        final String internalName = ClassGenerator.getInternalName(name);
+            final List<ExecutableElement> forwardedMethods) {
+        final String internalName = this.generator.getInternalName(name);
 
         final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
         cw.visit(V1_8, ACC_PUBLIC | ACC_SUPER | ACC_FINAL, internalName, null, "java/lang/Object", new String[] {});
 
-        for (final Map.Entry<CtType<?>, List<Property>> event : foundProperties.entrySet()) {
-            FactoryInterfaceGenerator.generateRealImpl(cw,
+        for (final Map.Entry<TypeElement, List<Property>> event : foundProperties.entrySet()) {
+            this.generateRealImpl(cw,
                              event.getKey(),
-                             ClassGenerator.getInternalName(ClassGenerator.getEventName(event.getKey(), provider)),
-                             ClassGenerator.getRequiredProperties(sorter.sortProperties(event.getValue())));
+                             this.generator.getInternalName(ClassGenerator.getEventName(event.getKey(), provider)),
+                             this.generator.getRequiredProperties(sorter.sortProperties(event.getValue())));
         }
 
-        for (final CtMethod<?> forwardedMethod : forwardedMethods) {
-            FactoryInterfaceGenerator.generateForwardingMethod(cw, forwardedMethod);
+        for (final ExecutableElement forwardedMethod : forwardedMethods) {
+            this.generateForwardingMethod(cw, forwardedMethod);
         }
 
         cw.visitEnd();
         return cw.toByteArray();
     }
 
-    private static void generateForwardingMethod(final ClassWriter cw, final CtMethod<?> targetMethod) {
+    private void generateForwardingMethod(final ClassWriter cw, final ExecutableElement targetMethod) {
         final String desc = ClassGenerator.getDescriptor(targetMethod);
-        final MethodVisitor mv = cw.visitMethod(ACC_PUBLIC | ACC_STATIC, targetMethod.getSimpleName(), desc, null, null);
+        final MethodVisitor mv = cw.visitMethod(ACC_PUBLIC | ACC_STATIC, targetMethod.getSimpleName().toString(), desc, null, null);
 
 
         final Label start = new Label();
@@ -98,19 +104,20 @@ public class FactoryInterfaceGenerator {
         mv.visitCode();
         mv.visitLabel(start);
 
-        for (int i = 0, slot = 0; i < targetMethod.getParameters().size(); i++, slot++) {
-            final CtParameter<?> param = targetMethod.getParameters().get(i);
-            final Type type = Type.getType(ClassGenerator.getTypeDescriptor(param.getType()));
+        final List<? extends VariableElement> parameters = targetMethod.getParameters();
+        for (int i = 0, slot = 0; i < parameters.size(); i++, slot++) {
+            final VariableElement param = parameters.get(i);
+            final Type type = Type.getType(ClassGenerator.getTypeDescriptor(param.asType()));
             mv.visitVarInsn(type.getOpcode(Opcodes.ILOAD), i);
 
-            mv.visitLocalVariable(param.getSimpleName(), type.getDescriptor(), null, start, end, slot);
-            mv.visitParameter(param.getSimpleName(), 0);
+            mv.visitLocalVariable(param.getSimpleName().toString(), type.getDescriptor(), null, start, end, slot);
+            mv.visitParameter(param.getSimpleName().toString(), 0);
 
             if (type.getSize() > 1) {
                 slot++; // Skip over unusable following slot
             }
         }
-        mv.visitMethodInsn(INVOKESTATIC, ClassGenerator.getInternalName(targetMethod.getDeclaringType().getQualifiedName()), targetMethod.getSimpleName(), desc, targetMethod.getDeclaringType().isInterface());
+        mv.visitMethodInsn(INVOKESTATIC, this.generator.getInternalName(targetMethod.getEnclosingElement().asType()), targetMethod.getSimpleName().toString(), desc, targetMethod.getEnclosingElement().getKind().isInterface());
         mv.visitInsn(ARETURN);
         mv.visitLabel(end);
 
@@ -118,12 +125,12 @@ public class FactoryInterfaceGenerator {
         mv.visitEnd();
     }
 
-    private static void generateRealImpl(final ClassWriter cw, final CtType<?> event, final String eventName, final List<Property> params) {
+    private void generateRealImpl(final ClassWriter cw, final TypeElement event, final String eventName, final List<Property> params) {
         final MethodVisitor mv = cw.visitMethod(
             ACC_PUBLIC | ACC_STATIC,
             EventImplGenTask.generateMethodName(event),
             FactoryInterfaceGenerator.getDescriptor(event, params),
-            Signatures.ofFactoryMethod(event, params),
+            this.signatures.ofFactoryMethod(event, params),
             null
         );
 
@@ -164,7 +171,7 @@ public class FactoryInterfaceGenerator {
         mv.visitEnd();
     }
 
-    private static String getDescriptor(final CtType<?> event, final List<? extends Property> params) {
+    private static String getDescriptor(final TypeElement event, final List<? extends Property> params) {
         final StringBuilder builder = new StringBuilder();
         builder.append("(");
         for (final Property property : params) {
@@ -172,7 +179,7 @@ public class FactoryInterfaceGenerator {
         }
         builder.append(")");
         if (event != null) {
-            builder.append(ClassGenerator.getTypeDescriptor(event.getReference()));
+            builder.append(ClassGenerator.getTypeDescriptor(event.asType()));
         } else {
             builder.append("V");
         }

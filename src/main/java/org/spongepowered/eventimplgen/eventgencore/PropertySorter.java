@@ -24,7 +24,7 @@
  */
 package org.spongepowered.eventimplgen.eventgencore;
 
-import org.spongepowered.eventimplgen.EventImplGenTask;
+import org.spongepowered.eventimplgen.AnnotationUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -56,9 +56,9 @@ public class PropertySorter {
 
         properties.stream().filter(Property::isMostSpecificType).forEach(property -> {
             propertyMap.put(property.getName(), property);
-            final AnnotationMirror sortPosition = EventImplGenTask.getAnnotation(property.getAccessor(), "org.spongepowered.api.util.annotation.eventgen.AbsoluteSortPosition");
+            final AnnotationMirror sortPosition = AnnotationUtils.getAnnotation(property.getAccessor(), "org.spongepowered.api.util.annotation.eventgen.AbsoluteSortPosition");
             if (sortPosition != null) {
-                finalProperties.add(Math.min(EventImplGenTask.getValue(sortPosition, "value"), finalProperties.size()), property);
+                finalProperties.add(Math.min(AnnotationUtils.getValue(sortPosition, "value"), finalProperties.size()), property);
                 propertyMap.remove(property.getName());
             }
         });

@@ -22,25 +22,23 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.eventimplgen;
+package org.spongepowered.eventimplgen.processor;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import java.util.Map;
+import javax.inject.Inject;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-import org.gradle.api.Project;
-import org.gradle.testfixtures.ProjectBuilder;
-import org.junit.jupiter.api.Test;
+public class EventGenOptions {
+  public static final String DESTINATION_PACKAGE = "eventGenDestinationPackage";
 
-public class SimpleExecutionTest {
+  private final Map<String, String> options;
 
-    @Test
-    void testProject() {
-        final Project project = ProjectBuilder.builder().build();
+  @Inject
+  EventGenOptions(@ProcessorOptions final Map<String, String> options) {
+    this.options = options;
+  }
 
-        project.getPlugins().apply("java-library");
-        project.getPlugins().apply("org.spongepowered.gradle.event-impl-gen");
-
-        // Basic task application
-        assertNotNull(project.getTasks().findByName("genEventImpl"));
-    }
-
+  public @Nullable String destinationPackage() {
+    return this.options.get(DESTINATION_PACKAGE);
+  }
 }

@@ -24,9 +24,11 @@
  */
 package org.spongepowered.eventimplgen.factory;
 
-import java.util.Objects;
-
+import javax.annotation.processing.Messager;
+import javax.inject.Inject;
 import javax.lang.model.element.TypeElement;
+import javax.tools.Diagnostic;
+import org.spongepowered.eventimplgen.processor.EventGenOptions;
 
 /**
  * Creates event implementations by generating the necessary event class
@@ -38,13 +40,12 @@ public class ClassGeneratorProvider {
     public final ClassGenerator builder = new ClassGenerator();
     private final String targetPackage;
 
-    /**
-     * Create a new instance.
-     *
-     * @param targetPackage The target package to place generated event classes in
-     */
-    public ClassGeneratorProvider(final String targetPackage) {
-        Objects.requireNonNull(targetPackage, "targetPackage");
+    @Inject
+    public ClassGeneratorProvider(final EventGenOptions options, final Messager messager) {
+        final String targetPackage = options.destinationPackage();
+        if (targetPackage == null) {
+            messager.printMessage(Diagnostic.Kind.ERROR, "No target package was specified (using " + EventGenOptions.DESTINATION_PACKAGE + " option)");
+        }
         this.targetPackage = targetPackage;
     }
 

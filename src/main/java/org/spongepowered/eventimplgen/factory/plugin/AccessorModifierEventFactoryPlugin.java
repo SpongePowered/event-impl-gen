@@ -31,15 +31,18 @@ import static org.objectweb.asm.Opcodes.INVOKEINTERFACE;
 import static org.objectweb.asm.Opcodes.INVOKEVIRTUAL;
 import static org.objectweb.asm.Opcodes.IRETURN;
 
+import java.util.Objects;
+import javax.inject.Inject;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
-import org.spongepowered.eventimplgen.EventImplGenTask;
+import org.spongepowered.eventimplgen.AnnotationUtils;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.factory.ClassGenerator;
-import spoon.reflect.declaration.CtAnnotation;
-import spoon.reflect.declaration.CtMethod;
-import spoon.reflect.declaration.CtType;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ElementKind;
@@ -51,6 +54,15 @@ import javax.lang.model.element.ExecutableElement;
  */
 public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
 
+    private final Types types;
+    private final Elements elements;
+
+    @Inject
+    AccessorModifierEventFactoryPlugin(final Types types, final Elements elements) {
+        this.types = types;
+        this.elements = elements;
+    }
+
     private MethodPair getLinkedField(final Property property) {
 
         final ExecutableElement leastSpecificMethod = property.getLeastSpecificMethod();
@@ -58,16 +70,16 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
         ExecutableElement transformWith = null;
         String name = null;
 
-        if ((transformResult = EventImplGenTask.getAnnotation(leastSpecificMethod, "org.spongepowered.api.util.annotation.eventgen.TransformResult")) != null) {
-            name = EventImplGenTask.getValue(transformResult, "value");
+        if ((transformResult = AnnotationUtils.getAnnotation(leastSpecificMethod, "org.spongepowered.api.util.annotation.eventgen.TransformResult")) != null) {
+            name = AnnotationUtils.getValue(transformResult, "value");
             // Since we that the modifier method (the one annotated with TransformWith) doesn't
             // use covariant types, we can call getMethods on the more specific version,
             // allowing the annotation to be present on a method defined there, as well as in
             // the least specific type.
-            for (final ExecutableElement method: property.getAccessor().getType().getDeclaration().getMethods()) {
-                final AnnotationMirror annotation = EventImplGenTask.getAnnotation(method, "org.spongepowered.api.util.annotation.eventgen"
+            for (final ExecutableElement method : ElementFilter.methodsIn(this.types.asElement(property.getAccessor().getReturnType()).getEnclosedElements())) {
+                final AnnotationMirror annotation = AnnotationUtils.getAnnotation(method, "org.spongepowered.api.util.annotation.eventgen"
                         + ".TransformWith");
-                if (annotation != null &&  EventImplGenTask.getValue(annotation, "value").equals(name)) {
+                if (annotation != null && Objects.equals(AnnotationUtils.getValue(annotation, "value"), name)) {
                     if (transformWith != null) {
                         throw new RuntimeException("Multiple @TransformResult annotations were found with the name "
                                 + name + ". One of them needs to be changed!");
@@ -103,7 +115,7 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
             opcode = INVOKEINTERFACE;
         }
 
-        mv.visitMethodInsn(opcode, transformerMethod.getDeclaringType().getQualifiedName().replace(".", "/"), transformerMethod.getSimpleName(),
+        mv.visitMethodInsn(opcode, transformerMethod.getEnclosingElement().getQualifiedName().replace(".", "/"), transformerMethod.getSimpleName(),
                 ClassGenerator.getDescriptor(transformerMethod), opcode != INVOKEVIRTUAL);
 
         mv.visitInsn(Type.getType(ClassGenerator.getTypeDescriptor(property.getType())).getOpcode(IRETURN));
@@ -112,7 +124,7 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
     }
 
     @Override
-    public boolean contributeProperty(final CtType<?> eventClass, final String internalName, final ClassWriter classWriter, final Property property) {
+    public boolean contributeProperty(final TypeElement eventClass, final String internalName, final ClassWriter classWriter, final Property property) {
         final MethodPair methodPair = this.getLinkedField(property);
         if (methodPair == null) {
             return false;
@@ -120,7 +132,7 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
 
         ClassGenerator.generateField(classWriter, eventClass, property);
         if (property.getMutator().isPresent()) {
-            ClassGenerator.generateMutator(classWriter, eventClass, internalName, property.getName(), property.getType().getDeclaration(), property);
+            ClassGenerator.generateMutator(classWriter, eventClass, internalName, property.getName(), property.getType(), property);
         }
 
         this.generateTransformingAccessor(classWriter, internalName, methodPair, property);

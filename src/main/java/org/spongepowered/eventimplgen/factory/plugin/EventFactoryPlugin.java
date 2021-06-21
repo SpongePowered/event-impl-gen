@@ -24,9 +24,9 @@
  */
 package org.spongepowered.eventimplgen.factory.plugin;
 
+import javax.lang.model.element.TypeElement;
 import org.objectweb.asm.ClassWriter;
 import org.spongepowered.eventimplgen.eventgencore.Property;
-import spoon.reflect.declaration.CtType;
 
 /**
  * Represents a class which modifies the behavior of an event generator.
@@ -48,6 +48,6 @@ public interface EventFactoryPlugin {
      *
      * @return whether the provided {@link Property} was processed.
      */
-    boolean contributeProperty(CtType<?> eventClass, String internalName, ClassWriter classWriter, Property property);
+    boolean contributeProperty(TypeElement eventClass, String internalName, ClassWriter classWriter, Property property);
 
 }

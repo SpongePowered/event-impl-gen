@@ -24,19 +24,28 @@
  */
 package org.spongepowered.eventimplgen.processor;
 
-import dagger.Component;
-import org.spongepowered.eventimplgen.EventInterfaceProcessor;
-import org.spongepowered.eventimplgen.factory.ClassGeneratorProvider;
-import org.spongepowered.eventimplgen.factory.FactoryInterfaceGenerator;
+import dagger.Binds;
+import dagger.Module;
+import dagger.Provides;
+import dagger.multibindings.IntoSet;
+import org.spongepowered.eventimplgen.eventgencore.AccessorFirstStrategy;
+import org.spongepowered.eventimplgen.eventgencore.PropertySearchStrategy;
+import org.spongepowered.eventimplgen.factory.plugin.AccessorModifierEventFactoryPlugin;
+import org.spongepowered.eventimplgen.factory.plugin.EventFactoryPlugin;
 
-import javax.inject.Singleton;
+/**
+ * Bindings specifically for the event implementation generator.
+ */
+@Module(includes = ProcessorEnvironmentModule.class)
+public interface EventImplGenModule {
 
-@Component(modules = EventImplGenModule.class)
-@Singleton
-public interface EventGenComponent {
+    static @Provides @IntoSet EventFactoryPlugin bindAccessModifierPlugin(final AccessorModifierEventFactoryPlugin strategy) {
+        return strategy;
+    }
 
-  ClassGeneratorProvider classGeneratorProvider();
-  FactoryInterfaceGenerator factoryInterfaceGenerator();
-  EventInterfaceProcessor interfaceProcessor();
+    @Provides
+    static PropertySearchStrategy bindPropertySearchStrategy(final AccessorFirstStrategy.Factory accessorFirst) {
+        return accessorFirst.create(true);
+    }
 
 }
