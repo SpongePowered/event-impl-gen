@@ -22,8 +22,17 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-import org.spongepowered.eventimplgen.signature.AssertSignatureEquals;
-import java.util.Set;
+package org.spongepowered.eventimplgen.processor;
 
-@AssertSignatureEquals("<V:Ljava/lang/Process;>Ljava/lang/Object;Ljava/util/Set<Ljava/lang/String;>;")
-abstract class TestClass<V extends Process> implements Set<String> {}
+import javax.annotation.processing.ProcessingEnvironment;
+
+/**
+ * Multi-release shim for {@code isPreviewEnabled()}
+ */
+final class PreviewFeatureShim {
+
+    static boolean previewFeaturesEnabled(final ProcessingEnvironment environment) {
+        return environment.isPreviewEnabled();
+    }
+
+}

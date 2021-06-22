@@ -33,17 +33,20 @@ import org.spongepowered.eventimplgen.eventgencore.PropertySearchStrategy;
 import org.spongepowered.eventimplgen.factory.plugin.AccessorModifierEventFactoryPlugin;
 import org.spongepowered.eventimplgen.factory.plugin.EventFactoryPlugin;
 
+import javax.inject.Singleton;
+
 /**
  * Bindings specifically for the event implementation generator.
  */
 @Module(includes = ProcessorEnvironmentModule.class)
 public interface EventImplGenModule {
 
-    static @Provides @IntoSet EventFactoryPlugin bindAccessModifierPlugin(final AccessorModifierEventFactoryPlugin strategy) {
-        return strategy;
-    }
+    @Binds
+    @Singleton
+    @IntoSet EventFactoryPlugin bindAccessModifierPlugin(final AccessorModifierEventFactoryPlugin strategy);
 
     @Provides
+    @Singleton
     static PropertySearchStrategy bindPropertySearchStrategy(final AccessorFirstStrategy.Factory accessorFirst) {
         return accessorFirst.create(true);
     }

@@ -24,7 +24,8 @@
  */
 package org.spongepowered.eventimplgen.eventgencore;
 
-import org.spongepowered.eventimplgen.AnnotationUtils;
+import org.spongepowered.api.util.annotation.eventgen.AbsoluteSortPosition;
+import org.spongepowered.eventimplgen.processor.EventGenOptions;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -34,14 +35,22 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
-import javax.lang.model.element.AnnotationMirror;
+import javax.inject.Inject;
+import javax.lang.model.util.Types;
 
 public class PropertySorter {
 
     private final String prefix;
     private final Map<String, String> groupingPrefixes;
+    private final Types types;
 
-    public PropertySorter(final String prefix, final Map<String, String> groupingPrefixes) {
+    @Inject
+    PropertySorter(final Types types, final EventGenOptions options) {
+        this(types, options.sortPriorityPrefix(), options.groupingPrefixes());
+    }
+
+    public PropertySorter(final Types types, final String prefix, final Map<String, String> groupingPrefixes) {
+        this.types = types;
         this.prefix = prefix;
         this.groupingPrefixes = groupingPrefixes;
     }
@@ -54,11 +63,11 @@ public class PropertySorter {
         final List<PrefixPair> pairs = new ArrayList<>();
         final List<Property> primitiveProperties = new ArrayList<>();
 
-        properties.stream().filter(Property::isMostSpecificType).forEach(property -> {
+        properties.stream().filter(prop -> prop.isMostSpecificType(this.types)).forEach(property -> {
             propertyMap.put(property.getName(), property);
-            final AnnotationMirror sortPosition = AnnotationUtils.getAnnotation(property.getAccessor(), "org.spongepowered.api.util.annotation.eventgen.AbsoluteSortPosition");
+            final AbsoluteSortPosition sortPosition = property.getAccessor().getAnnotation(AbsoluteSortPosition.class);
             if (sortPosition != null) {
-                finalProperties.add(Math.min(AnnotationUtils.getValue(sortPosition, "value"), finalProperties.size()), property);
+                finalProperties.add(Math.min(sortPosition.value(), finalProperties.size()), property);
                 propertyMap.remove(property.getName());
             }
         });

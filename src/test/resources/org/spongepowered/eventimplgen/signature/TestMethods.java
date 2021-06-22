@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.Set;
 import org.spongepowered.eventimplgen.signature.AssertSignatureEquals;
 
-public abstract class TestMethods {
+abstract class TestMethods {
 
   @AssertSignatureEquals("") // no signature attribute
   public boolean read(final String a, final boolean y) {

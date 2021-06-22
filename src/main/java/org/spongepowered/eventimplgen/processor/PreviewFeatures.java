@@ -22,8 +22,21 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-import org.spongepowered.eventimplgen.signature.AssertSignatureEquals;
-import java.util.Set;
+package org.spongepowered.eventimplgen.processor;
 
-@AssertSignatureEquals("<V:Ljava/lang/Process;>Ljava/lang/Object;Ljava/util/Set<Ljava/lang/String;>;")
-abstract class TestClass<V extends Process> implements Set<String> {}
+import java.lang.annotation.Documented;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+
+import javax.inject.Qualifier;
+
+/**
+ * Indicates that a {@code boolean} value represents whether preview features
+ * are enabled in the current compilation environment.
+ */
+@Documented
+@Retention(RetentionPolicy.RUNTIME)
+@Qualifier
+public @interface PreviewFeatures {
+
+}

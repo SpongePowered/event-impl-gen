@@ -24,22 +24,40 @@
  */
 package org.spongepowered.eventimplgen.processor;
 
+import com.google.auto.service.AutoService;
+import org.spongepowered.api.util.annotation.eventgen.FactoryMethod;
+import org.spongepowered.api.util.annotation.eventgen.GenerateFactoryMethod;
+import org.spongepowered.eventimplgen.eventgencore.PropertySearchStrategy;
 
-import org.spongepowered.eventimplgen.EventInterfaceProcessor;
-import org.spongepowered.eventimplgen.eventgencore.Property;
-import org.spongepowered.eventimplgen.eventgencore.PropertySorter;
-
-import java.util.Collections;
+import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
+import javax.annotation.processing.SupportedOptions;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.util.ElementFilter;
+import javax.tools.Diagnostic;
 
+@AutoService(Processor.class)
+@SupportedOptions({
+    EventGenOptions.GENERATED_EVENT_FACTORY,
+    EventGenOptions.SORT_PRIORITY_PREFIX,
+    EventGenOptions.GROUPING_PREFIXES,
+    EventGenOptions.INCLUSIVE_ANNOTATIONS,
+    EventGenOptions.EXCLUSIVE_ANNOTATIONS
+})
 public class EventImplGenProcessor extends AbstractProcessor {
 
     private EventGenComponent component;
@@ -54,22 +72,59 @@ public class EventImplGenProcessor extends AbstractProcessor {
     }
 
     @Override
+    public Set<String> getSupportedAnnotationTypes() {
+        return this.component.options().inclusiveAnnotations();
+    }
+
+    @Override
+    public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.latestSupported(); // todo: limit to a max tested version
+    }
+
+    @Override
     public boolean process(final Set<? extends TypeElement> annotations, final RoundEnvironment roundEnv) {
-        final EventInterfaceProcessor processor = new EventInterfaceProcessor(getSource(), this.inclusiveAnnotations, this.exclusiveAnnotations);
-        final Map<TypeElement, List<Property>> foundProperties = processor.getFoundProperties();
-        final List<ExecutableElement> forwardedMethods = processor.getForwardedMethods();
-        this.foundProperties.put(event, this.strategy.findProperties(event));
-        this.forwardedMethods.addAll(this.findForwardedMethods(event));
+        final EventGenerationFilter filter = this.component.filter();
+        final EventImplWriter writer = this.component.writer();
+        final PropertySearchStrategy strategy = this.component.strategy();
 
-        this.sorter = new PropertySorter(this.sortPriorityPrefix, this.groupingPrefixes);
+        final Queue<Element> elements = new ArrayDeque<>(roundEnv.getElementsAnnotatedWith(GenerateFactoryMethod.class));
+        Element active;
+        while ((active = elements.poll()) != null) {
+            if (active.getKind() == ElementKind.PACKAGE) {
+                elements.addAll(active.getEnclosedElements());
+            } else if (active.getKind().isInterface()) {
+                final TypeElement event = (TypeElement) active;
+               if (filter.test(event)) {
+                   writer.propertyFound(event, strategy.findProperties(event));
+                   writer.forwardedMethods(this.findForwardedMethods(event));
+               }
+            } else {
+                this.processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "This element was annotated but it is not a package or interface!", active);
+            }
+        }
 
-        dumpClasses(foundProperties, forwardedMethods);
-
+        // If this is the last round, then let's do the actual generation
         if (roundEnv.processingOver() && !roundEnv.errorRaised()) {
-
+            try {
+                writer.dumpClasses();
+            } catch (final IOException ex) {
+                this.processingEnv.getMessager().printMessage(Diagnostic.Kind.WARNING, "Failed to write class information due to an exception: " + ex.getMessage());
+                ex.printStackTrace();
+            }
         }
 
         // Never claim annotations -- that way we don't block other processors from visiting them if they want to
         return false;
+    }
+
+    private List<ExecutableElement> findForwardedMethods(final TypeElement event) {
+        final List<ExecutableElement> methods = new ArrayList<>();
+        for (final ExecutableElement method : ElementFilter.methodsIn(event.getEnclosedElements())) {
+            if (method.getModifiers().contains(Modifier.STATIC)
+                && method.getAnnotation(FactoryMethod.class) != null) {
+                methods.add(method);
+            }
+        }
+        return methods;
     }
 }

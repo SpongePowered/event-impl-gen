@@ -1,25 +1,48 @@
+/*
+ * This file is part of Event Implementation Generator, licensed under the MIT License (MIT).
+ *
+ * Copyright (c) SpongePowered <https://www.spongepowered.org>
+ * Copyright (c) contributors
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 package org.spongepowered.eventimplgen.processor;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.api.util.annotation.eventgen.ImplementedBy;
 import org.spongepowered.eventimplgen.AnnotationUtils;
 import org.spongepowered.eventimplgen.eventgencore.Property;
+import org.spongepowered.eventimplgen.eventgencore.PropertySorter;
 import org.spongepowered.eventimplgen.factory.ClassGenerator;
-import org.spongepowered.eventimplgen.factory.ClassGeneratorProvider;
 import org.spongepowered.eventimplgen.factory.FactoryInterfaceGenerator;
 import org.spongepowered.eventimplgen.factory.NullPolicy;
+import org.spongepowered.eventimplgen.factory.plugin.EventFactoryPlugin;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.TreeMap;
 
 import javax.annotation.processing.Filer;
@@ -28,26 +51,49 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
-import javax.lang.model.util.Types;
 
+/**
+ * A consumer of computed event information, that will generate individual
+ * implementation classes as well as the overall factory on request.
+ */
 public class EventImplWriter implements PropertyConsumer {
 
     private final Filer filer;
+    private final Elements elements;
     private final Map<TypeElement, List<Property>> foundProperties;
     private final List<ExecutableElement> forwardedMethods = new ArrayList<>();
+    private final PropertySorter sorter;
+    private final Set<EventFactoryPlugin> plugins;
+    private final String outputFactory;
+    private final FactoryInterfaceGenerator factoryGenerator;
+    private final ClassGenerator generator;
 
     @Inject
-    EventImplWriter(final Filer filer, final Elements elements) {
+    EventImplWriter(
+        final Filer filer,
+        final Elements elements,
+        final PropertySorter sorter,
+        final Set<EventFactoryPlugin> plugins,
+        final EventGenOptions options,
+        final FactoryInterfaceGenerator factoryGenerator,
+        final ClassGenerator generator
+    ) {
         this.filer = filer;
+        this.elements = elements;
+        this.sorter = sorter;
+        this.plugins = plugins;
         this.foundProperties = new TreeMap<>(Comparator.comparing(e -> elements.getBinaryName(e).toString()));
+        this.outputFactory = options.generatedEventFactory();
+        this.factoryGenerator = factoryGenerator;
+        this.generator = generator;
     }
 
     @Override
-    public void propertyFound(
-        final TypeElement event, final List<Property> property
-    ) {
+    public void propertyFound(final TypeElement event, final List<Property> property) {
         this.foundProperties.put(event, property);
     }
 
@@ -56,11 +102,8 @@ public class EventImplWriter implements PropertyConsumer {
         this.forwardedMethods.addAll(elements);
     }
 
-    private void dumpClasses() throws IOException {
-        final String packageName = this.outputFactory.substring(0, this.outputFactory.lastIndexOf('.'));
-        final ClassGeneratorProvider provider = new ClassGeneratorProvider(packageName);
-
-        byte[] clazz = FactoryInterfaceGenerator.createClass(this.outputFactory, this.foundProperties, provider, this.sorter, this.forwardedMethods);
+    public void dumpClasses() throws IOException {
+        byte[] clazz = this.factoryGenerator.createClass(this.outputFactory, this.foundProperties, this.sorter, this.forwardedMethods);
         final int forwardedSize = this.forwardedMethods.size();
         final Element[] originatingElements = new Element[forwardedSize + this.foundProperties.size()];
         System.arraycopy(this.forwardedMethods.toArray(new ExecutableElement[0]), 0, originatingElements, 0, forwardedSize);
@@ -68,29 +111,26 @@ public class EventImplWriter implements PropertyConsumer {
         try (final OutputStream os = this.filer.createClassFile(this.outputFactory, originatingElements).openOutputStream()) {
             os.write(clazz);
         }
-        addClass(destinationDir, this.outputFactory, clazz);
 
-        final ClassGenerator generator = new ClassGenerator();
-        generator.setNullPolicy(NullPolicy.NON_NULL_BY_DEFAULT);
+        this.generator.setNullPolicy(NullPolicy.NON_NULL_BY_DEFAULT);
 
-        for (final TypeElement event : foundProperties.keySet()) {
-            final String name = ClassGenerator.getEventName(event, provider);
-            clazz = generator.createClass(event, name, this.getBaseClass(event),
-                foundProperties.get(event), this.sorter, FactoryInterfaceGenerator.PLUGINS
+        for (final TypeElement event : this.foundProperties.keySet()) {
+            final String name = this.generator.qualifiedName(event);
+            final @Nullable DeclaredType baseClass = this.getBaseClass(event);
+            if (baseClass == null) {
+                continue; // an error occurred, don't generate
+            }
+            clazz = this.generator.createClass(event, name, baseClass,
+                this.foundProperties.get(event), this.sorter, this.plugins
             );
 
-            try (final OutputStream os = filer.createClassFile(name, event).openOutputStream()) {
+            try (final OutputStream os = this.filer.createClassFile(name, event).openOutputStream()) {
                 os.write(clazz);
             }
         }
     }
 
-    private void addClass(final Path destinationDir, final String name, final byte[] clazz) throws IOException {
-        final Path classFile = destinationDir.resolve(name.replace('.', File.separatorChar) + ".class");
-        Files.write(classFile, clazz, StandardOpenOption.CREATE_NEW);
-    }
-
-    private TypeMirror getBaseClass(final TypeElement event, final Types types) {
+    private @Nullable DeclaredType getBaseClass(final TypeElement event) {
         AnnotationMirror implementedBy = null;
         int max = Integer.MIN_VALUE;
 
@@ -108,7 +148,10 @@ public class EventImplWriter implements PropertyConsumer {
             }
 
             for (final TypeMirror implInterface : scannedType.getInterfaces()) {
-                final Element element = types.asElement(implInterface);
+                if (implInterface.getKind() != TypeKind.DECLARED) {
+                    continue;
+                }
+                final Element element = ((DeclaredType) implInterface).asElement();
                 if (element == null || !element.getKind().isInterface()) {
                     // todo: error
                     continue;
@@ -118,8 +161,12 @@ public class EventImplWriter implements PropertyConsumer {
         }
 
         if (implementedBy != null) {
-            return AnnotationUtils.getValue(implementedBy, "value");
+            final TypeMirror type = AnnotationUtils.getValue(implementedBy, "value");
+            if (type.getKind() == TypeKind.ERROR) {
+                return null;
+            }
+            return ((DeclaredType) type);
         }
-        return this.elements.getTypeElement("java.lang.Object").asType();
+        return (DeclaredType) this.elements.getTypeElement("java.lang.Object").asType();
     }
 }

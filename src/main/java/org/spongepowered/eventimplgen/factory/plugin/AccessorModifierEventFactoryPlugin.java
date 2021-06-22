@@ -37,12 +37,12 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
-import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
 import org.spongepowered.eventimplgen.AnnotationUtils;
 import org.spongepowered.eventimplgen.eventgencore.Property;
-import org.spongepowered.eventimplgen.factory.ClassGenerator;
+import org.spongepowered.eventimplgen.factory.EventImplClassWriter;
+import org.spongepowered.eventimplgen.signature.Descriptors;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ElementKind;
@@ -55,12 +55,12 @@ import javax.lang.model.element.ExecutableElement;
 public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
 
     private final Types types;
-    private final Elements elements;
+    private final Descriptors descriptors;
 
     @Inject
-    AccessorModifierEventFactoryPlugin(final Types types, final Elements elements) {
+    AccessorModifierEventFactoryPlugin(final Types types, final Descriptors descriptors) {
         this.types = types;
-        this.elements = elements;
+        this.descriptors = descriptors;
     }
 
     private MethodPair getLinkedField(final Property property) {
@@ -99,14 +99,14 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
         return null;
     }
 
-    private void generateTransformingAccessor(final ClassWriter cw, final String internalName, final MethodPair pair, final Property property) {
+    private void generateTransformingAccessor(final EventImplClassWriter cw, final String internalName, final MethodPair pair, final Property property) {
 
         final ExecutableElement accessor = property.getAccessor();
 
-        final MethodVisitor mv = cw.visitMethod(ACC_PUBLIC, accessor.getSimpleName().toString(), ClassGenerator.getDescriptor(accessor), null, null);
+        final MethodVisitor mv = cw.visitMethod(ACC_PUBLIC, accessor.getSimpleName().toString(), this.descriptors.getDescriptor(accessor), null, null);
         mv.visitCode();
         mv.visitVarInsn(ALOAD, 0);
-        mv.visitFieldInsn(GETFIELD, internalName, property.getName(), ClassGenerator.getTypeDescriptor(property.getLeastSpecificType()));
+        mv.visitFieldInsn(GETFIELD, internalName, property.getName(), this.descriptors.getTypeDescriptor(property.getLeastSpecificType()));
 
         final ExecutableElement transformerMethod = pair.getTransformerMethod();
 
@@ -115,24 +115,29 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
             opcode = INVOKEINTERFACE;
         }
 
-        mv.visitMethodInsn(opcode, transformerMethod.getEnclosingElement().getQualifiedName().replace(".", "/"), transformerMethod.getSimpleName(),
-                ClassGenerator.getDescriptor(transformerMethod), opcode != INVOKEVIRTUAL);
+        mv.visitMethodInsn(
+            opcode,
+            this.descriptors.getInternalName(transformerMethod.getEnclosingElement().asType()),
+            transformerMethod.getSimpleName().toString(),
+            this.descriptors.getDescriptor(transformerMethod),
+            opcode != INVOKEVIRTUAL
+        );
 
-        mv.visitInsn(Type.getType(ClassGenerator.getTypeDescriptor(property.getType())).getOpcode(IRETURN));
+        mv.visitInsn(Type.getType(this.descriptors.getTypeDescriptor(property.getType())).getOpcode(IRETURN));
         mv.visitMaxs(0, 0);
         mv.visitEnd();
     }
 
     @Override
-    public boolean contributeProperty(final TypeElement eventClass, final String internalName, final ClassWriter classWriter, final Property property) {
+    public boolean contributeProperty(final TypeElement eventClass, final String internalName, final EventImplClassWriter classWriter, final Property property) {
         final MethodPair methodPair = this.getLinkedField(property);
         if (methodPair == null) {
             return false;
         }
 
-        ClassGenerator.generateField(classWriter, eventClass, property);
+        classWriter.generateField(eventClass, property);
         if (property.getMutator().isPresent()) {
-            ClassGenerator.generateMutator(classWriter, eventClass, internalName, property.getName(), property.getType(), property);
+            classWriter.generateMutator(eventClass, internalName, property.getName(), property.getType(), property);
         }
 
         this.generateTransformingAccessor(classWriter, internalName, methodPair, property);

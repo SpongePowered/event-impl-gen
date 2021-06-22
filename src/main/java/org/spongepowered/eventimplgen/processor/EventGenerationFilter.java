@@ -22,43 +22,30 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.eventimplgen;
+package org.spongepowered.eventimplgen.processor;
 
-import org.spongepowered.api.util.annotation.eventgen.FactoryMethod;
-import org.spongepowered.eventimplgen.eventgencore.Property;
-import org.spongepowered.eventimplgen.eventgencore.PropertySearchStrategy;
+import org.spongepowered.eventimplgen.AnnotationUtils;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
+import java.util.function.Predicate;
 
 import javax.inject.Inject;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.ElementFilter;
-import javax.lang.model.util.Elements;
 
-public final class EventInterfaceProcessor {
+public final class EventGenerationFilter implements Predicate<TypeElement> {
 
-    private final PropertySearchStrategy strategy;
     private final Set<String> inclusiveAnnotations;
     private final Set<String> exclusiveAnnotations;
 
     @Inject
-    public EventInterfaceProcessor(final PropertySearchStrategy strategy, final Elements elements, final Set<String> inclusiveAnnotations, final Set<String> exclusiveAnnotations) {
-        this.strategy = strategy;
-        this.inclusiveAnnotations = inclusiveAnnotations;
-        this.exclusiveAnnotations = exclusiveAnnotations;
+    EventGenerationFilter(final EventGenOptions options) {
+        this.inclusiveAnnotations = options.inclusiveAnnotations();
+        this.exclusiveAnnotations = options.exclusiveAnnotations();
     }
 
-    public void process(final TypeElement event) {
-    }
-
-    public boolean shouldGenerate(final TypeElement candidate) {
+    @Override
+    public boolean test(final TypeElement candidate) {
         if (AnnotationUtils.containsAnnotation(candidate, this.inclusiveAnnotations)) {
             return true;
         }
@@ -66,16 +53,5 @@ public final class EventInterfaceProcessor {
             return false;
         }
         return ElementFilter.typesIn(candidate.getEnclosedElements()).isEmpty();
-    }
-
-    private List<ExecutableElement> findForwardedMethods(final TypeElement event) {
-        final List<ExecutableElement> methods = new ArrayList<>();
-        for (final ExecutableElement method : ElementFilter.methodsIn(event.getEnclosedElements())) {
-            if (method.getModifiers().contains(Modifier.STATIC)
-                && method.getAnnotation(FactoryMethod.class) != null) {
-                methods.add(method);
-            }
-        }
-        return methods;
     }
 }

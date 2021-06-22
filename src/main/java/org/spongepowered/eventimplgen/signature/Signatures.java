@@ -73,7 +73,7 @@ public class Signatures {
     public @Nullable String ofField(final TypeElement container, final Property field) {
         final TypeMirror fieldType = this.types.asMemberOf((DeclaredType) container.asType(), this.types.asElement(field.getType()));
         final List<? extends TypeMirror> parameters = fieldType.getKind() == TypeKind.DECLARED ? ((DeclaredType) fieldType).getTypeArguments() : Collections.emptyList();
-        if (parameters.isEmpty() || fieldType.getKind().isPrimitive() && !(fieldType.getKind() == TypeKind.ARRAY
+        if ((parameters.isEmpty() || fieldType.getKind().isPrimitive()) && !(fieldType.getKind() == TypeKind.ARRAY
                 || fieldType.getKind() == TypeKind.TYPEVAR)) {
             return null;
         }

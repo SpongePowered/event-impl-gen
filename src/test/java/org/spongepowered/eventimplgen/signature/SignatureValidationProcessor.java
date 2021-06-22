@@ -24,7 +24,11 @@
  */
 package org.spongepowered.eventimplgen.signature;
 
+import org.assertj.core.api.SoftAssertions;
+import org.objectweb.asm.signature.SignatureWriter;
+
 import java.util.Set;
+
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
@@ -32,30 +36,29 @@ import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
-import org.assertj.core.api.SoftAssertions;
-import org.objectweb.asm.signature.SignatureWriter;
 
 @SupportedAnnotationTypes("org.spongepowered.eventimplgen.signature.AssertSignatureEquals")
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 public class SignatureValidationProcessor extends AbstractProcessor {
-  private final SoftAssertions soft;
 
-  public SignatureValidationProcessor(final SoftAssertions soft) {
-    this.soft = soft;
-  }
+    private final SoftAssertions soft;
 
-  @Override
-  public boolean process(final Set<? extends TypeElement> annotations, final RoundEnvironment roundEnv) {
-    final TypeToSignatureWriter writer = new TypeToSignatureWriter(this.processingEnv.getElementUtils());
-    for (final Element element : roundEnv.getElementsAnnotatedWith(AssertSignatureEquals.class)) {
-      final String expectedSignature = element.getAnnotation(AssertSignatureEquals.class).value();
-      final String producedSignature = element.asType().accept(writer, new SignatureWriter()).toString();
-
-      this.soft.assertThat(producedSignature)
-        .withFailMessage(() -> "Signature mismatch for " + element)
-        .isEqualTo(expectedSignature);
+    public SignatureValidationProcessor(final SoftAssertions soft) {
+        this.soft = soft;
     }
 
-    return false;
-  }
+    @Override
+    public boolean process(final Set<? extends TypeElement> annotations, final RoundEnvironment roundEnv) {
+        final TypeToSignatureWriter writer = new TypeToSignatureWriter(this.processingEnv.getElementUtils());
+        for (final Element element : roundEnv.getElementsAnnotatedWith(AssertSignatureEquals.class)) {
+            final String expectedSignature = element.getAnnotation(AssertSignatureEquals.class).value();
+            final String producedSignature = element.asType().accept(writer, new SignatureWriter()).toString();
+
+            this.soft.assertThat(producedSignature)
+                .describedAs("Signature of %s %s", element.getKind(), element)
+                .isEqualTo(expectedSignature);
+        }
+
+        return false;
+    }
 }

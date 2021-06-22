@@ -24,7 +24,6 @@
  */
 package org.spongepowered.eventimplgen.factory;
 
-import static org.objectweb.asm.Opcodes.ACC_PRIVATE;
 import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
 import static org.objectweb.asm.Opcodes.ACC_SUPER;
 import static org.objectweb.asm.Opcodes.ALOAD;
@@ -34,82 +33,88 @@ import static org.objectweb.asm.Opcodes.ATHROW;
 import static org.objectweb.asm.Opcodes.CHECKCAST;
 import static org.objectweb.asm.Opcodes.DUP;
 import static org.objectweb.asm.Opcodes.GETFIELD;
-import static org.objectweb.asm.Opcodes.IFNE;
 import static org.objectweb.asm.Opcodes.IFNONNULL;
-import static org.objectweb.asm.Opcodes.IFNULL;
-import static org.objectweb.asm.Opcodes.ILOAD;
-import static org.objectweb.asm.Opcodes.INSTANCEOF;
 import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
-import static org.objectweb.asm.Opcodes.INVOKESTATIC;
 import static org.objectweb.asm.Opcodes.INVOKEVIRTUAL;
 import static org.objectweb.asm.Opcodes.IRETURN;
 import static org.objectweb.asm.Opcodes.ISUB;
 import static org.objectweb.asm.Opcodes.NEW;
 import static org.objectweb.asm.Opcodes.PUTFIELD;
 import static org.objectweb.asm.Opcodes.RETURN;
-import static org.objectweb.asm.Opcodes.V1_8;
-import static org.spongepowered.eventimplgen.AnnotationUtils.getValue;
 
-import javax.inject.Inject;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.Modifier;
-import javax.lang.model.util.ElementFilter;
-import javax.lang.model.util.Elements;
-import javax.lang.model.util.Types;
-
-import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.spongepowered.api.util.annotation.eventgen.PropertySettings;
+import org.spongepowered.api.util.annotation.eventgen.UseField;
 import org.spongepowered.eventimplgen.AnnotationUtils;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.eventgencore.PropertySorter;
 import org.spongepowered.eventimplgen.factory.plugin.EventFactoryPlugin;
+import org.spongepowered.eventimplgen.processor.PreviewFeatures;
+import org.spongepowered.eventimplgen.signature.Descriptors;
 import org.spongepowered.eventimplgen.signature.Signatures;
-import org.spongepowered.eventimplgen.signature.TypeToDescriptorWriter;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import javax.inject.Inject;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
-import javax.lang.model.type.TypeVariable;
+import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 
 /**
- * Generates the bytecode for classes needed by {@link ClassGeneratorProvider}.
+ * Generates the bytecode for classes needed by {@link ClassNameProvider}.
  */
 public class ClassGenerator {
 
     private final Types types;
     private final Elements elements;
     private final Signatures signatures;
-    private final TypeToDescriptorWriter descriptorWriter;
+    private final Descriptors descriptors;
     private NullPolicy nullPolicy = NullPolicy.DISABLE_PRECONDITIONS;
-    private SourceVersion targetVersion = SourceVersion.RELEASE_8;
+    private final SourceVersion targetVersion;
+    private final boolean previewEnabled;
+    private final ClassNameProvider classNameProvider;
+    private final EventImplClassWriter.Factory classWriterFactory;
 
     @Inject
-    ClassGenerator(final Types types, final Elements elements, final Signatures signatures, final TypeToDescriptorWriter descriptorWriter) {
+    ClassGenerator(
+        final ClassNameProvider classNameProvider,
+        final Types types,
+        final Elements elements,
+        final Signatures signatures,
+        final Descriptors descriptors,
+        final EventImplClassWriter.Factory classWriterFactory,
+        final SourceVersion targetVersion,
+        @PreviewFeatures final boolean previewEnabled
+    ) {
+        this.classNameProvider = classNameProvider;
         this.types = types;
         this.elements = elements;
         this.signatures = signatures;
-        this.descriptorWriter = descriptorWriter;
+        this.descriptors = descriptors;
+        this.classWriterFactory = classWriterFactory;
+        this.targetVersion = targetVersion;
+        this.previewEnabled = previewEnabled;
     }
 
     private static PropertySettings getPropertySettings(final Property property) {
@@ -124,7 +129,7 @@ public class ClassGenerator {
         return property.getAccessor().getAnnotation(PropertySettings.class);
     }
 
-    private static boolean isRequired(final Property property) {
+    static boolean isRequired(final Property property) {
         final PropertySettings settings = ClassGenerator.getPropertySettings(property);
         if (settings == null) {
             return !property.getMostSpecificMethod().isDefault();
@@ -133,7 +138,7 @@ public class ClassGenerator {
         }
     }
 
-    private static boolean generateMethods(final Property property) {
+    static boolean generateMethods(final Property property) {
         final PropertySettings settings = ClassGenerator.getPropertySettings(property);
         if (settings != null) {
             return settings.generateMethods();
@@ -210,16 +215,12 @@ public class ClassGenerator {
         this.nullPolicy = Objects.requireNonNull(nullPolicy, "nullPolicy");
     }
 
-    public void setTargetCompatibility(final SourceVersion version) {
-        this.targetVersion = Objects.requireNonNull(version, "version");
-    }
-
     private boolean hasNullable(final ExecutableElement method) {
-        return ClassGenerator.hasAnnotationOnSelfOrReturnType(method, name -> name.equals("Nullable"));
+        return ClassGenerator.hasAnnotationOnSelfOrReturnType(method, name -> name.contentEquals("Nullable"));
     }
 
     private boolean hasNonNull(final ExecutableElement method) {
-        return ClassGenerator.hasAnnotationOnSelfOrReturnType(method, name -> name.equals("NotNull") || name.equals("Nonnull"));
+        return ClassGenerator.hasAnnotationOnSelfOrReturnType(method, name -> name.contentEquals("NotNull") || name.contentEquals("Nonnull"));
     }
 
     private static boolean hasAnnotationOnSelfOrReturnType(final ExecutableElement method, final Predicate<Name> annotationTest) {
@@ -246,87 +247,20 @@ public class ClassGenerator {
         return false;
     }
 
-    public void generateField(final ClassVisitor classWriter, final TypeElement container, final Property property) {
-        if (!ClassGenerator.isRequired(property) && !ClassGenerator.generateMethods(property)) {
-            // If the field will be unused, don't generate it at all
-            return;
-        }
-
-        final FieldVisitor fv = classWriter.visitField(ACC_PRIVATE, property.getName(), ClassGenerator.getTypeDescriptor(property.getType()),
-                                                       this.signatures.ofField(container, property), null);
-        fv.visitEnd();
-    }
-
-    public static String getDescriptor(final ExecutableElement method) {
-        return ClassGenerator.getDescriptor(method, true);
-    }
-
-    public static String getDescriptor(final ExecutableElement method, final boolean includeReturnType) {
-        final StringBuilder builder = new StringBuilder();
-        builder.append("(");
-        for (final VariableElement type : method.getParameters()) {
-            builder.append(ClassGenerator.getTypeDescriptor(type.asType()));
-        }
-        builder.append(")");
-        if (includeReturnType) {
-            builder.append(ClassGenerator.getTypeDescriptor(method.getReturnType()));
-        } else {
-            builder.append("V");
-        }
-        return builder.toString();
-    }
-
-    public static TypeMirror[] getParameterTypes(final ExecutableElement method) {
-        final List<TypeMirror> types = new ArrayList<>();
-        for (final VariableElement parameter: method.getParameters()) {
-            types.add(parameter.asType());
-        }
-        return types.toArray(new TypeMirror[0]);
-    }
-
-    public static String getTypeDescriptor(TypeMirror type) {
-        // For descriptors, we want the actual type
-        if (type.getKind() == TypeKind.TYPEVAR) {
-            type = ((TypeVariable) type).getUpperBound();
-        }
-
-        // TODO: use a visitor here
-        switch (type.getKind()) {
-            case BOOLEAN: return "Z";
-            case CHAR: return "C";
-            case BYTE: return "B";
-            case SHORT: return "S";
-            case INT: return "I";
-            case LONG: return "J";
-            case FLOAT: return "F";
-            case DOUBLE: return "D";
-            case VOID: return "V";
-            case NONE: return "Ljava/lang/Object;";
-            case ARRAY:
-                return "[" + ClassGenerator.getTypeDescriptor(((ArrayType) type).getComponentType());
-            case DECLARED: // object
-                final String name = ((TypeElement) ((DeclaredType) type).asElement()).getQualifiedName().toString();
-                return "L" + name.replace(".", "/") + ";";
-            default:
-                // log error
-                return "";
-        }
-    }
-
-    private boolean contributeField(final ClassWriter classWriter, final TypeElement event, final DeclaredType parentType, final Property property) {
+    public boolean contributeField(final EventImplClassWriter classWriter, final TypeElement event, final DeclaredType parentType, final Property property) {
         if (property.isLeastSpecificType(this.types)) {
             final VariableElement field = this.getField(parentType, property.getName());
-            if (field == null || AnnotationUtils.getAnnotation(field, "org.spongepowered.api.util.annotation.eventgen.UseField") == null) {
-                this.generateField(classWriter, event, property);
+            if (field == null || field.getAnnotation(UseField.class) == null) {
+                classWriter.generateField(event, property);
                 return true;
             } else if (field.getModifiers().contains(Modifier.PRIVATE)) {
-                throw new RuntimeException("You've annotated the field " + property.getName() + " with @SetField, " // todo: use messager instead
-                        + "but it's private. This just won't work.");
+                throw new RuntimeException("You've annotated the field " + property.getName() + " with @UseField, " // todo: use messager instead
+                    + "but it's private. This just won't work.");
                 // return false;
             } else if (!this.types.isSubtype(field.asType(), property.getType())) {
                 throw new RuntimeException(String.format("In event %s with parent %s - you've specified field '%s' of type %s"
                         + " but the property has the expected type of %s", this.elements.getBinaryName((TypeElement) property.getAccessor().getEnclosingElement()),
-                  parentType, field.getSimpleName(), field.asType(), property.getType()));
+                    parentType, field.getSimpleName(), field.asType(), property.getType()));
                 // return false;
             }
         }
@@ -343,16 +277,8 @@ public class ClassGenerator {
             final String internalName,
             final DeclaredType parentType,
             final List<Property> properties) {
-        final List<? extends Property> requiredProperties = this.getRequiredProperties(properties);
-
-        final StringBuilder builder = new StringBuilder();
-        builder.append("(");
-        for (final Property property : requiredProperties) {
-            builder.append(ClassGenerator.getTypeDescriptor(property.getType()));
-        }
-        builder.append(")V");
-
-        final String methodDesc = builder.toString();
+        final List<Property> requiredProperties = this.getRequiredProperties(properties);
+        final String methodDesc = this.descriptors.getDescriptor(requiredProperties, this.types.getNoType(TypeKind.VOID));
 
         final MethodVisitor mv = classWriter.visitMethod(
                 0,
@@ -371,13 +297,13 @@ public class ClassGenerator {
 
         // super()
         mv.visitVarInsn(ALOAD, 0);
-        mv.visitMethodInsn(INVOKESPECIAL, this.getInternalName(parentType), "<init>", "()V", false);
+        mv.visitMethodInsn(INVOKESPECIAL, this.descriptors.getInternalName(parentType), "<init>", "()V", false);
 
         // 0 is 'this', parameters start at 1
         for (int i = 0, paramIndex = 1; i < requiredProperties.size(); i++, paramIndex++) {
             final Property property = requiredProperties.get(i);
 
-            final Type type = Type.getType(ClassGenerator.getTypeDescriptor(property.getType()));
+            final Type type = Type.getType(this.descriptors.getTypeDescriptor(property.getType()));
             final int loadOpcode = type.getOpcode(Opcodes.ILOAD);
 
             final boolean isPrimitive = property.getType().getKind().isPrimitive();
@@ -413,10 +339,10 @@ public class ClassGenerator {
 
             // this.field = newValue
 
-            final String desc = ClassGenerator.getTypeDescriptor(property.getLeastSpecificType());
+            final String desc = this.descriptors.getTypeDescriptor(property.getLeastSpecificType());
 
             if (hasUseField) {
-                mv.visitFieldInsn(PUTFIELD, this.getInternalName(parentType), property.getName(), desc);
+                mv.visitFieldInsn(PUTFIELD, this.descriptors.getInternalName(parentType), property.getName(), desc);
             } else {
                 mv.visitFieldInsn(PUTFIELD, internalName, property.getName(), desc);
             }
@@ -430,7 +356,7 @@ public class ClassGenerator {
         // super.init();
         if (this.hasDeclaredMethod(parentType, "init")) {
             mv.visitVarInsn(ALOAD, 0);
-            mv.visitMethodInsn(INVOKESPECIAL, this.getInternalName(parentType), "init", "()V", false);
+            mv.visitMethodInsn(INVOKESPECIAL, this.descriptors.getInternalName(parentType), "init", "()V", false);
         }
 
         mv.visitInsn(RETURN);
@@ -448,112 +374,25 @@ public class ClassGenerator {
         final MethodVisitor mv = cw.visitMethod(
             ACC_PUBLIC,
             accessor.getSimpleName().toString(),
-            ClassGenerator.getDescriptor(accessor),
+            this.descriptors.getDescriptor(accessor),
             this.signatures.ofMethod(eventClass, accessor),
             null
         );
         mv.visitCode();
         mv.visitVarInsn(ALOAD, 0);
-        mv.visitFieldInsn(GETFIELD, internalName, property.getName(), ClassGenerator.getTypeDescriptor(property.getLeastSpecificType()));
+        mv.visitFieldInsn(GETFIELD, internalName, property.getName(), this.descriptors.getTypeDescriptor(property.getLeastSpecificType()));
 
         if (!property.isLeastSpecificType(this.types)) {
-            mv.visitTypeInsn(CHECKCAST, this.getInternalName(property.getType()));
+            mv.visitTypeInsn(CHECKCAST, this.descriptors.getInternalName(property.getType()));
         }
-        mv.visitInsn(Type.getType(ClassGenerator.getTypeDescriptor(property.getType())).getOpcode(IRETURN));
+        mv.visitInsn(Type.getType(this.descriptors.getTypeDescriptor(property.getType())).getOpcode(IRETURN));
         mv.visitMaxs(0, 0);
         mv.visitEnd();
     }
 
-    /**
-     * Generates a standard mutator method.
-     *
-     * <p>This method assumes that a standard field has been generated for the
-     * provided {@link Property}</p>
-     *
-     * @param cw The {@link ClassWriter} to generate the mutator in
-     * @param type The {@link Class} of the event that's having an
-     *        implementation generated
-     * @param internalName The internal name (slashes instead of periods in the
-     *        package) of the new class being generated
-     * @param fieldName The name of the field to mutate
-     * @param fieldType The type of the field to mutate
-     * @param property The {@link Property} containing the mutator method to
-     *        generate for
-     */
-    public void generateMutator(
-            final ClassVisitor cw,
-            final TypeElement type,
-            final String internalName,
-            final String fieldName,
-            final TypeMirror fieldType,
-            final Property property) {
-        final ExecutableElement mutator = property.getMutator().get();
-
-        final MethodVisitor mv = cw.visitMethod(
-            ACC_PUBLIC,
-            mutator.getSimpleName().toString(),
-            ClassGenerator.getDescriptor(mutator),
-            this.signatures.ofMethod(type, mutator),
-            null
-        );
-        mv.visitParameter(fieldName, 0);
-
-        mv.visitCode();
-        mv.visitVarInsn(ALOAD, 0);
-        mv.visitVarInsn(Type.getType(ClassGenerator.getTypeDescriptor(property.getType())).getOpcode(ILOAD), 1);
-
-        if (this.types.isSameType(this.types.erasure(property.getAccessor().asType()), this.elements.getTypeElement(Optional.class.getName()).asType())) {
-            mv.visitMethodInsn(INVOKESTATIC, "java/util/Optional", "ofNullable",
-                               "(Ljava/lang/Object;)Ljava/util/Optional;", false);
-        }
-
-        if (!property.getType().getKind().isPrimitive() && !this.types.isSameType(property.getMostSpecificType(), property.getLeastSpecificType())) {
-            final TypeMirror mostSpecificReturn = property.getMostSpecificType();
-            //CtMethod<?> specific =  type.getMethod(property.getAccessor().getSimpleName(), getParameterTypes(property.getAccessor()));
-
-            final Label afterException = new Label();
-            mv.visitInsn(DUP);
-            mv.visitJumpInsn(IFNULL, afterException);
-            mv.visitInsn(DUP);
-            mv.visitTypeInsn(INSTANCEOF, this.getInternalName(mostSpecificReturn));
-
-            mv.visitJumpInsn(IFNE, afterException);
-
-            mv.visitTypeInsn(NEW, "java/lang/RuntimeException");
-            mv.visitInsn(DUP);
-
-            mv.visitTypeInsn(NEW, "java/lang/StringBuilder");
-            mv.visitInsn(DUP);
-            mv.visitMethodInsn(INVOKESPECIAL, "java/lang/StringBuilder", "<init>", "()V", false);
-
-            mv.visitLdcInsn("You've attempted to call the method '" + mutator.getSimpleName() + "' with an object of type ");
-            mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "append", "(Ljava/lang/Object;)Ljava/lang/StringBuilder;", false);
-
-            mv.visitVarInsn(Type.getType(ClassGenerator.getTypeDescriptor(property.getType())).getOpcode(ILOAD), 1);
-            mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Object", "getClass", "()Ljava/lang/Class;", false);
-            mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Class", "getName", "()Ljava/lang/String;", false);
-            mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "append", "(Ljava/lang/Object;)Ljava/lang/StringBuilder;", false);
-
-            mv.visitLdcInsn(", instead of " + mostSpecificReturn.getSimpleName() + ". Though you may have been listening for a supertype of this "
-                                    + "event, it's actually a " + type.getQualifiedName() + ". You need to ensure that the type of the event is what you think"
-                                    + " it is, before calling the method (e.g TileEntityChangeEvent#setNewData");
-            mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "append", "(Ljava/lang/Object;)Ljava/lang/StringBuilder;", false);
-            mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "toString", "()Ljava/lang/String;", false);
-
-            mv.visitMethodInsn(INVOKESPECIAL, "java/lang/RuntimeException", "<init>", "(Ljava/lang/String;)V", false);
-            mv.visitInsn(ATHROW);
-
-            mv.visitLabel(afterException);
-        }
-
-        mv.visitFieldInsn(PUTFIELD, internalName, property.getName(), ClassGenerator.getTypeDescriptor(property.getLeastSpecificType()));
-        mv.visitInsn(RETURN);
-        mv.visitMaxs(0, 0);
-        mv.visitEnd();
-    }
 
     private void generateAccessorsAndMutator(
-            final ClassWriter cw,
+            final EventImplClassWriter cw,
             final TypeElement type,
             final TypeMirror parentType,
             final String internalName,
@@ -563,7 +402,7 @@ public class ClassGenerator {
 
             final Optional<ExecutableElement> mutatorOptional = property.getMutator();
             if (mutatorOptional.isPresent()) {
-                this.generateMutator(cw, type, internalName, property.getName(), property.getType(), property);
+                cw.generateMutator(type, internalName, property.getName(), property.getType(), property);
             }
         }
     }
@@ -608,13 +447,13 @@ public class ClassGenerator {
 
             toStringMv.visitVarInsn(ALOAD, 0);
             if (overrideToString) {
-                toStringMv.visitFieldInsn(GETFIELD, internalName, property.getName(), ClassGenerator.getTypeDescriptor(property.getLeastSpecificType()));
+                toStringMv.visitFieldInsn(GETFIELD, internalName, property.getName(), this.descriptors.getTypeDescriptor(property.getLeastSpecificType()));
             } else {
                 toStringMv.visitMethodInsn(INVOKESPECIAL, internalName, property.getAccessor().getSimpleName().toString(),
-                    ClassGenerator.getDescriptor(property.getAccessor()), false);
+                    this.descriptors.getDescriptor(property.getAccessor()), false);
             }
 
-            final String desc = property.getType().getKind().isPrimitive() ? ClassGenerator.getTypeDescriptor(property.getType()) : "Ljava/lang/Object;";
+            final String desc = property.getType().getKind().isPrimitive() ? this.descriptors.getTypeDescriptor(property.getType()) : "Ljava/lang/Object;";
 
             toStringMv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "append",
                                        "(" + desc + ")Ljava/lang/StringBuilder;", false);
@@ -650,14 +489,6 @@ public class ClassGenerator {
         mv.visitEnd();
     }
 
-    public String getInternalName(final TypeMirror name) {
-        return name.replace('.', '/');
-    }
-
-    public String getInternalName(final String name) {
-        return name.replace('.', '/');
-    }
-
     /**
      * Create the event class.
      *
@@ -667,27 +498,27 @@ public class ClassGenerator {
      * @return The class' contents, to be loaded via a {@link ClassLoader}
      */
     public byte[] createClass(
-            final TypeElement type,
-            final String name,
-            final DeclaredType parentType,
-            final List<Property> properties,
-            final PropertySorter sorter,
-            final List<? extends EventFactoryPlugin> plugins) {
+        final TypeElement type,
+        final String name,
+        final DeclaredType parentType,
+        final List<Property> properties,
+        final PropertySorter sorter,
+        final Set<? extends EventFactoryPlugin> plugins
+    ) {
         Objects.requireNonNull(type, "type");
         Objects.requireNonNull(name, "name");
         Objects.requireNonNull(parentType, "parentType");
 
-        final String internalName = this.getInternalName(name);
+        final String internalName = this.descriptors.getInternalName(name);
 
-        final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
+        final EventImplClassWriter cw = this.classWriterFactory.create(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
         cw.visit(
-            V1_8,
+            ClassGenerator.bytecodeVersion(this.targetVersion, this.previewEnabled),
             ACC_SUPER,
             internalName,
             this.signatures.ofImplClass(parentType, Collections.singletonList(type.asType())),
-            this.getInternalName(parentType),
-            new String[] {this.getInternalName(type.asType())}
-
+            this.descriptors.getInternalName(parentType),
+            new String[] {this.descriptors.getInternalName(type.asType())}
         );
 
 
@@ -714,13 +545,14 @@ public class ClassGenerator {
     }
 
     private void generateWithPlugins(
-            final ClassWriter cw,
-            final TypeElement eventClass,
-            final DeclaredType parentType,
-            final String internalName,
-            final List<? extends Property> properties,
-            final MethodVisitor toStringMv,
-            final List<? extends EventFactoryPlugin> plugins) {
+        final EventImplClassWriter cw,
+        final TypeElement eventClass,
+        final DeclaredType parentType,
+        final String internalName,
+        final List<? extends Property> properties,
+        final MethodVisitor toStringMv,
+        final Set<? extends EventFactoryPlugin> plugins
+    ) {
 
         for (final Property property : properties) {
             boolean processed = false;
@@ -741,7 +573,15 @@ public class ClassGenerator {
         }
     }
 
-    public static String getEventName(final TypeElement event, final ClassGeneratorProvider classGeneratorProvider) {
-        return classGeneratorProvider.getClassName(event, "Impl");
+    public String qualifiedName(final TypeElement event) {
+        return this.classNameProvider.getClassName(event, "Impl");
+    }
+
+    private static int bytecodeVersion(final SourceVersion sourceVersion, final boolean previewEnabled) {
+        if (sourceVersion == SourceVersion.RELEASE_1) {
+            return Opcodes.V1_1; // last version where minor version is used
+        } else {
+            return (Opcodes.V1_2 + sourceVersion.ordinal() - SourceVersion.RELEASE_2.ordinal()) | (previewEnabled ? Opcodes.V_PREVIEW : 0);
+        }
     }
 }

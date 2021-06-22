@@ -25,9 +25,7 @@
 package org.spongepowered.eventimplgen.processor;
 
 import dagger.Component;
-import org.spongepowered.eventimplgen.EventInterfaceProcessor;
-import org.spongepowered.eventimplgen.factory.ClassGeneratorProvider;
-import org.spongepowered.eventimplgen.factory.FactoryInterfaceGenerator;
+import org.spongepowered.eventimplgen.eventgencore.PropertySearchStrategy;
 
 import javax.inject.Singleton;
 
@@ -35,8 +33,9 @@ import javax.inject.Singleton;
 @Singleton
 public interface EventGenComponent {
 
-  ClassGeneratorProvider classGeneratorProvider();
-  FactoryInterfaceGenerator factoryInterfaceGenerator();
-  EventInterfaceProcessor interfaceProcessor();
+  PropertySearchStrategy strategy();
+  @Singleton EventGenOptions options();
+  @Singleton EventGenerationFilter filter();
+  @Singleton EventImplWriter writer(); // must be preserved between rounds
 
 }

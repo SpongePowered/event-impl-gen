@@ -32,7 +32,7 @@ import java.lang.annotation.Target;
 import javax.inject.Qualifier;
 
 /**
- * Indicates that a {@code Map<String, String>} contains the options provide to an annotation processor.
+ * Indicates that a {@code Map<String, String>} contains the options provided to an annotation processor.
  */
 @Qualifier
 @Documented

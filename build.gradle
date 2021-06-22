@@ -21,6 +21,10 @@ allprojects {
         compileOnlyApi "com.google.errorprone:error_prone_annotations:$errorproneVersion"
     }
 
+    tasks.withType(JavaCompile).configureEach {
+        options.errorprone.disableWarningsInGeneratedCode = true
+    }
+
     spongeConvention {
         repository("event-impl-gen") {
             ci = true
@@ -49,6 +53,14 @@ allprojects {
 indra {
     javaVersions {
         testWith(8, 11, 16)
+    }
+}
+
+sourceSets {
+    main {
+        multirelease {
+            alternateVersions 13
+        }
     }
 }
 

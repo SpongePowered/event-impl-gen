@@ -28,12 +28,11 @@ import dagger.Module;
 import dagger.Provides;
 
 import java.util.Locale;
-
 import java.util.Map;
+
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
-import javax.inject.Qualifier;
 import javax.inject.Singleton;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.util.Elements;
@@ -41,6 +40,7 @@ import javax.lang.model.util.Types;
 
 @Module
 public class ProcessorEnvironmentModule {
+
     private final ProcessingEnvironment environment;
 
     public ProcessorEnvironmentModule(final ProcessingEnvironment environment) {
@@ -75,6 +75,12 @@ public class ProcessorEnvironmentModule {
     @Provides
     SourceVersion provideSourceVersion(final ProcessingEnvironment environment) {
         return environment.getSourceVersion();
+    }
+
+    @Provides
+    @PreviewFeatures
+    boolean providePreviewFeatures(final ProcessingEnvironment environment) {
+        return PreviewFeatureShim.previewFeaturesEnabled(environment);
     }
 
     @Provides

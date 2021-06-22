@@ -24,29 +24,21 @@
  */
 package org.spongepowered.eventimplgen.factory;
 
-import javax.annotation.processing.Messager;
 import javax.inject.Inject;
 import javax.lang.model.element.TypeElement;
-import javax.tools.Diagnostic;
 import org.spongepowered.eventimplgen.processor.EventGenOptions;
 
 /**
- * Creates event implementations by generating the necessary event class
- * and event factory at runtime.
+ * Provide class names for event interface generation.
  */
-public class ClassGeneratorProvider {
+public class ClassNameProvider {
 
-    //private final GeneratorUtils.LocalClassLoader classLoader = new GeneratorUtils.LocalClassLoader(ClassGeneratorProvider.class.getClassLoader());
-    public final ClassGenerator builder = new ClassGenerator();
     private final String targetPackage;
 
     @Inject
-    public ClassGeneratorProvider(final EventGenOptions options, final Messager messager) {
-        final String targetPackage = options.destinationPackage();
-        if (targetPackage == null) {
-            messager.printMessage(Diagnostic.Kind.ERROR, "No target package was specified (using " + EventGenOptions.DESTINATION_PACKAGE + " option)");
-        }
-        this.targetPackage = targetPackage;
+    public ClassNameProvider(final EventGenOptions options) {
+        final String outputFactory = options.generatedEventFactory();
+        this.targetPackage = outputFactory.substring(0, outputFactory.lastIndexOf('.'));
     }
 
     /**
@@ -56,7 +48,7 @@ public class ClassGeneratorProvider {
      * @param classifier The classifier
      * @return Canonical name
      */
-    protected String getClassName(TypeElement clazz, final String classifier) {
+    public String getClassName(TypeElement clazz, final String classifier) {
         String name = clazz.getSimpleName().toString();
         while (clazz.getEnclosingElement() != null && clazz.getEnclosingElement() instanceof TypeElement) {
             clazz = (TypeElement) clazz.getEnclosingElement();
@@ -65,20 +57,4 @@ public class ClassGeneratorProvider {
         return this.targetPackage + "." + name + "$" + classifier;
     }
 
-    /*public Class<?> createEventImpl(final Class<?> type, Class<?> parentType, List<? extends EventFactoryPlugin> plugins) {
-        String eventName = getClassName(type, "Impl");
-        return this.classLoader.defineClass(eventName, this.builder.createClass(type, eventName, parentType, plugins));
-    }*/
-
-    /*@Override
-    public <T> T createFactoryInterfaceImpl(Class<T> clazz) {
-        String name = getClassName(clazz, "Impl");
-        Class<T> implClass = (Class<T>) this.classLoader.defineClass(name, FactoryInterfaceGenerator.createClass(clazz, name, this));
-
-        try {
-            return implClass.newInstance();
-        } catch (InstantiationException | IllegalAccessException e) {
-            throw new RuntimeException("Failed to create event factory interface impl", e);
-        }
-    }*/
 }
