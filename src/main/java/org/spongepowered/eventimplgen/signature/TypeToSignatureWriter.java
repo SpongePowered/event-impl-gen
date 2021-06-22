@@ -24,10 +24,14 @@
  */
 package org.spongepowered.eventimplgen.signature;
 
+import org.objectweb.asm.signature.SignatureVisitor;
+
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ErrorType;
@@ -39,142 +43,194 @@ import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
+import javax.lang.model.type.TypeVisitor;
 import javax.lang.model.type.UnionType;
 import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.AbstractTypeVisitor8;
 import javax.lang.model.util.Elements;
-import org.objectweb.asm.signature.SignatureVisitor;
-import org.objectweb.asm.signature.SignatureWriter;
 
 /**
  * A type visitor to convert a {@link javax.lang.model.type.TypeMirror} into a bytecode signature.
+ *
+ * <p>State management in signatures is a bit odd. The only element that we know
+ * can't be included as a root element is the executable type. Everything else
+ * should be designed to be as position-independent as possible. This does mean
+ * that for some cases like formal parameters, alternative handling must be
+ * performed.</p>
  */
 @Singleton
-public class TypeToSignatureWriter extends AbstractTypeVisitor8<SignatureWriter, SignatureWriter> {
-  private final Elements elements;
+class TypeToSignatureWriter extends AbstractTypeVisitor8<SignatureVisitor, SignatureVisitor> {
 
-  @Inject
-  TypeToSignatureWriter(final Elements elements) {
-    this.elements = elements;
-  }
+    private final Elements elements;
 
-  @Override
-  public SignatureWriter visitIntersection(final IntersectionType t, final SignatureWriter writer) {
-    for (final TypeMirror type : t.getBounds()) {
-      if (type.getKind() != TypeKind.DECLARED) {
-        // todo warn
-        continue;
-      }
-
-      final ElementKind elementKind = ((DeclaredType) type).asElement().getKind();
-      if (elementKind.isClass()) {
-        writer.visitClassBound();
-      } else if (elementKind.isInterface()) {
-        writer.visitInterfaceBound();
-      }
-      type.accept(this, writer);
-    }
-    return writer;
-  }
-
-  @Override
-  public SignatureWriter visitPrimitive(final PrimitiveType t, final SignatureWriter writer) {
-    writer.visitBaseType(TypeToDescriptorWriter.descriptor(t));
-    return writer;
-  }
-
-  @Override
-  public SignatureWriter visitArray(final ArrayType t, final SignatureWriter writer) {
-    writer.visitArrayType();
-    t.getComponentType().accept(this, writer);
-    return writer;
-  }
-
-  @Override
-  public SignatureWriter visitDeclared(final DeclaredType t, final SignatureWriter writer) {
-    if (t.getEnclosingType().getKind() != TypeKind.NONE) {
-      t.getEnclosingType().accept(this, writer);
-      writer.visitInnerClassType(t.asElement().getSimpleName().toString());
-    } else {
-      writer.visitClassType(this.elements.getBinaryName((TypeElement) t.asElement()).toString()); // qualified name
+    @Inject
+    TypeToSignatureWriter(final Elements elements) {
+        this.elements = elements;
     }
 
-    // todo: aaa
-
-    for (final TypeMirror arg : t.getTypeArguments()) {
-      arg.accept(this, writer);
+    @SuppressWarnings("unchecked")
+    public <R extends SignatureVisitor> TypeVisitor<R, R> as() {
+        return (TypeVisitor<R, R>) this;
     }
 
-    writer.visitEnd();
-    return writer;
-  }
+    @Override
+    public SignatureVisitor visitIntersection(final IntersectionType t, final SignatureVisitor writer) {
+        for (final TypeMirror type : t.getBounds()) {
+            if (type.getKind() != TypeKind.DECLARED) {
+                final SignatureVisitor v = writer.visitInterfaceBound();
+                v.visitClassType("!NOT_DECLARED!");
+                v.visitEnd();
+                continue;
+            }
 
-  @Override
-  public SignatureWriter visitTypeVariable(final TypeVariable t, final SignatureWriter writer) {
-    writer.visitTypeVariable(t.asElement().getSimpleName().toString()); // todo: i don't think we need anything more?
-    return writer;
-  }
-
-  @Override
-  public SignatureWriter visitWildcard(final WildcardType t, final SignatureWriter writer) {
-    if (t.getExtendsBound() != null) {
-      writer.visitTypeArgument(SignatureVisitor.EXTENDS);
-      t.getExtendsBound().accept(this, writer);
-    } else if (t.getSuperBound() != null) {
-      writer.visitTypeArgument(SignatureVisitor.SUPER);
-      t.getSuperBound().accept(this, writer);
-    } else {
-      writer.visitTypeArgument();
-    }
-    return writer;
-  }
-
-  @Override
-  public SignatureWriter visitExecutable(final ExecutableType t, final SignatureWriter writer) {
-    for (final TypeVariable variable : t.getTypeVariables()) {
-      variable.accept(this, writer);
+            final ElementKind elementKind = ((DeclaredType) type).asElement().getKind();
+            final SignatureVisitor boundVisitor;
+            if (elementKind.isClass()) {
+                boundVisitor = writer.visitClassBound();
+            } else if (elementKind.isInterface()) {
+                boundVisitor = writer.visitInterfaceBound();
+            } else {
+                return writer;
+            }
+            type.accept(this, boundVisitor);
+        }
+        return writer;
     }
 
-    // Parameters
-    writer.visitParameterType();
-
-    // Return type
-    writer.visitReturnType();
-    t.getReturnType().accept(this, writer);
-
-    // Exception type
-    for (final TypeMirror exceptionType : t.getThrownTypes()) {
-      writer.visitExceptionType();
-      exceptionType.accept(this, writer);
+    @Override
+    public SignatureVisitor visitPrimitive(final PrimitiveType t, final SignatureVisitor writer) {
+        writer.visitBaseType(TypeToDescriptorWriter.descriptor(t));
+        return writer;
     }
-    return writer;
-  }
 
-  @Override
-  public SignatureWriter visitNoType(final NoType t, final SignatureWriter writer) {
-    if (t.getKind() == TypeKind.VOID) {
-      writer.visitBaseType('V');
+    @Override
+    public SignatureVisitor visitArray(final ArrayType t, final SignatureVisitor writer) {
+        t.getComponentType().accept(this, writer.visitArrayType());
+        return writer;
     }
-    return writer;
-  }
 
-  @Override
-  public SignatureWriter visitUnion(final UnionType t, final SignatureWriter writer) {
-    // todo: throw exception?
-    return writer;
-  }
+    // declared type as an element in a TypeSignature
+    @Override
+    public SignatureVisitor visitDeclared(final DeclaredType t, final SignatureVisitor writer) {
+        final TypeKind enclosing = t.getEnclosingType().getKind();
+        if (enclosing == TypeKind.DECLARED) {
+            t.getEnclosingType().accept(this, writer);
+            writer.visitInnerClassType(t.asElement().getSimpleName().toString());
+        } else {
+            writer.visitClassType(this.elements.getBinaryName((TypeElement) t.asElement()).toString().replace('.', '/'));
+        }
 
+        for (final TypeMirror arg : t.getTypeArguments()) {
+            if (arg.getKind() == TypeKind.WILDCARD) {
+                arg.accept(this, writer);
+            } else {
+                arg.accept(this, writer.visitTypeArgument(SignatureVisitor.INSTANCEOF));
+            }
+        }
 
-  @Override
-  public SignatureWriter visitNull(final NullType t, final SignatureWriter writer) {
-    // todo: throw exception?
-    return writer;
-  }
+        writer.visitEnd();
+        return writer;
+    }
 
-  @Override
-  public SignatureWriter visitError(final ErrorType t, final SignatureWriter writer) {
-    // todo: throw exception?
-    return writer;
-  }
+    public SignatureVisitor visitDeclaredAsClassSignature(final DeclaredType t, final SignatureVisitor writer) {
+        final TypeElement type = (TypeElement) t.asElement();
+        for (final TypeParameterElement param : type.getTypeParameters()) {
+            this.writeFormalTypeParameter(((TypeVariable) param.asType()), writer);
+        }
+
+        type.getSuperclass().accept(this, writer.visitSuperclass());
+
+        for (final TypeMirror itf : type.getInterfaces()) {
+            itf.accept(this, writer.visitInterface());
+        }
+
+        return writer;
+    }
+
+    @Override
+    public SignatureVisitor visitTypeVariable(final TypeVariable t, final SignatureVisitor writer) {
+        writer.visitTypeVariable(t.asElement().getSimpleName().toString());
+        return writer;
+    }
+
+    @Override
+    public SignatureVisitor visitWildcard(final WildcardType t, final SignatureVisitor writer) {
+        if (t.getExtendsBound() != null) {
+            t.getExtendsBound().accept(this, writer.visitTypeArgument(SignatureVisitor.EXTENDS));
+        } else if (t.getSuperBound() != null) {
+            t.getSuperBound().accept(this, writer.visitTypeArgument(SignatureVisitor.SUPER));
+        } else {
+            writer.visitTypeArgument();
+        }
+        return writer;
+    }
+
+    @Override
+    public SignatureVisitor visitExecutable(final ExecutableType t, final SignatureVisitor writer) {
+        for (final TypeVariable variable : t.getTypeVariables()) {
+            this.writeFormalTypeParameter(variable, writer);
+        }
+
+        // Parameters
+        for (final TypeMirror parameter : t.getParameterTypes()) {
+            parameter.accept(this, writer.visitParameterType());
+        }
+
+        // Return type
+        t.getReturnType().accept(this, writer.visitReturnType());
+
+        // Exception type
+        for (final TypeMirror exceptionType : t.getThrownTypes()) {
+            exceptionType.accept(this, writer.visitExceptionType());
+        }
+        return writer;
+    }
+
+    void writeFormalTypeParameter(final TypeVariable variable, final SignatureVisitor writer) {
+        writer.visitFormalTypeParameter(variable.asElement().getSimpleName().toString());
+        final TypeMirror upperBound = variable.getUpperBound();
+        if (upperBound.getKind() == TypeKind.INTERSECTION) { // declared or intersection
+            upperBound.accept(this, writer);
+        } else if (upperBound.getKind() == TypeKind.DECLARED) {
+            final Element boundElement = ((DeclaredType) upperBound).asElement();
+            final SignatureVisitor boundVisitor;
+            if (boundElement.getKind().isClass()) {
+                boundVisitor = writer.visitClassBound();
+            } else if (boundElement.getKind().isInterface()) {
+                boundVisitor = writer.visitInterfaceBound();
+            } else {
+                return;
+            }
+
+            upperBound.accept(this, boundVisitor);
+        }
+    }
+
+    @Override
+    public SignatureVisitor visitNoType(final NoType t, final SignatureVisitor writer) {
+        if (t.getKind() == TypeKind.VOID) {
+            writer.visitBaseType('V');
+        }
+        return writer;
+    }
+
+    @Override
+    public SignatureVisitor visitUnion(final UnionType t, final SignatureVisitor writer) {
+        // todo: warn?
+        return writer;
+    }
+
+    @Override
+    public SignatureVisitor visitNull(final NullType t, final SignatureVisitor writer) {
+        // todo: throw exception?
+        return writer;
+    }
+
+    @Override
+    public SignatureVisitor visitError(final ErrorType t, final SignatureVisitor writer) {
+        writer.visitClassType("!ERROR!");
+        writer.visitEnd();
+        return writer;
+    }
 
 }

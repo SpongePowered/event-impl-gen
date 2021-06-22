@@ -31,22 +31,24 @@ import static org.objectweb.asm.Opcodes.INVOKEINTERFACE;
 import static org.objectweb.asm.Opcodes.INVOKEVIRTUAL;
 import static org.objectweb.asm.Opcodes.IRETURN;
 
-import java.util.Objects;
-import javax.inject.Inject;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.util.ElementFilter;
-import javax.lang.model.util.Elements;
-import javax.lang.model.util.Types;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
-import org.spongepowered.eventimplgen.AnnotationUtils;
+import org.spongepowered.api.util.annotation.eventgen.TransformResult;
+import org.spongepowered.api.util.annotation.eventgen.TransformWith;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.factory.EventImplClassWriter;
 import org.spongepowered.eventimplgen.signature.Descriptors;
 
-import javax.lang.model.element.AnnotationMirror;
+import java.util.Objects;
+
+import javax.annotation.processing.Messager;
+import javax.inject.Inject;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Types;
+import javax.tools.Diagnostic;
 
 /**
  * An event factory plugin to modify the return type of an accessor
@@ -56,40 +58,43 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
 
     private final Types types;
     private final Descriptors descriptors;
+    private final Messager messager;
 
     @Inject
-    AccessorModifierEventFactoryPlugin(final Types types, final Descriptors descriptors) {
+    AccessorModifierEventFactoryPlugin(final Types types, final Descriptors descriptors, final Messager messager) {
         this.types = types;
         this.descriptors = descriptors;
+        this.messager = messager;
     }
 
     private MethodPair getLinkedField(final Property property) {
 
         final ExecutableElement leastSpecificMethod = property.getLeastSpecificMethod();
-        final AnnotationMirror transformResult;
+        final TransformResult transformResult;
         ExecutableElement transformWith = null;
         String name = null;
 
-        if ((transformResult = AnnotationUtils.getAnnotation(leastSpecificMethod, "org.spongepowered.api.util.annotation.eventgen.TransformResult")) != null) {
-            name = AnnotationUtils.getValue(transformResult, "value");
+        if ((transformResult = leastSpecificMethod.getAnnotation(TransformResult.class)) != null) {
+            name = transformResult.value();
             // Since we that the modifier method (the one annotated with TransformWith) doesn't
             // use covariant types, we can call getMethods on the more specific version,
             // allowing the annotation to be present on a method defined there, as well as in
             // the least specific type.
             for (final ExecutableElement method : ElementFilter.methodsIn(this.types.asElement(property.getAccessor().getReturnType()).getEnclosedElements())) {
-                final AnnotationMirror annotation = AnnotationUtils.getAnnotation(method, "org.spongepowered.api.util.annotation.eventgen"
-                        + ".TransformWith");
-                if (annotation != null && Objects.equals(AnnotationUtils.getValue(annotation, "value"), name)) {
+                final TransformWith annotation = method.getAnnotation(TransformWith.class);
+                if (annotation != null && Objects.equals(annotation.value(), name)) {
                     if (transformWith != null) {
-                        throw new RuntimeException("Multiple @TransformResult annotations were found with the name "
-                                + name + ". One of them needs to be changed!");
+                        this.messager.printMessage(Diagnostic.Kind.ERROR, "Multiple @TransformResult annotations were found with the name "
+                                + name + ". One of them needs to be changed!", method);
+                        return MethodPair.FAILED;
                     }
                     transformWith = method;
                 }
             }
             if (transformWith == null) {
-                throw new RuntimeException("Unable to locate a matching @TransformWith annotation with the name "
-                        + name + " for the method" + property.getAccessor());
+                this.messager.printMessage(Diagnostic.Kind.ERROR, "Unable to locate a matching @TransformWith annotation with the name "
+                        + name + " for this method", property.getAccessor());
+                return MethodPair.FAILED;
             }
         }
 
@@ -129,32 +134,36 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
     }
 
     @Override
-    public boolean contributeProperty(final TypeElement eventClass, final String internalName, final EventImplClassWriter classWriter, final Property property) {
+    public Result contributeProperty(final TypeElement eventClass, final String internalName, final EventImplClassWriter classWriter, final Property property) {
         final MethodPair methodPair = this.getLinkedField(property);
         if (methodPair == null) {
-            return false;
+            return Result.IGNORE;
+        } else if (methodPair == MethodPair.FAILED) {
+            return Result.FAILURE;
         }
 
         classWriter.generateField(eventClass, property);
         if (property.getMutator().isPresent()) {
-            classWriter.generateMutator(eventClass, internalName, property.getName(), property.getType(), property);
+            classWriter.generateMutator(eventClass, internalName, property.getName(), property);
         }
 
         this.generateTransformingAccessor(classWriter, internalName, methodPair, property);
 
-        return true;
+        return Result.SUCCESSS;
     }
 
 
 
-    private static final class MethodPair {
+    static final class MethodPair {
+
+        static final MethodPair FAILED = new MethodPair("error", null, null, null);
 
         private final String name;
 
         private ExecutableElement callerMethod;
-        private ExecutableElement transformerMethod;
+        private final ExecutableElement transformerMethod;
 
-        private Property property;
+        private final Property property;
 
         /**
          * Creates a new {@link MethodPair}.

@@ -65,6 +65,7 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import javax.annotation.processing.Messager;
 import javax.inject.Inject;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.AnnotationMirror;
@@ -80,6 +81,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
+import javax.tools.Diagnostic;
 
 /**
  * Generates the bytecode for classes needed by {@link ClassNameProvider}.
@@ -90,11 +92,13 @@ public class ClassGenerator {
     private final Elements elements;
     private final Signatures signatures;
     private final Descriptors descriptors;
-    private NullPolicy nullPolicy = NullPolicy.DISABLE_PRECONDITIONS;
+    private final Messager messager;
     private final SourceVersion targetVersion;
     private final boolean previewEnabled;
     private final ClassNameProvider classNameProvider;
     private final EventImplClassWriter.Factory classWriterFactory;
+
+    private NullPolicy nullPolicy = NullPolicy.DISABLE_PRECONDITIONS;
 
     @Inject
     ClassGenerator(
@@ -103,6 +107,7 @@ public class ClassGenerator {
         final Elements elements,
         final Signatures signatures,
         final Descriptors descriptors,
+        final Messager messager,
         final EventImplClassWriter.Factory classWriterFactory,
         final SourceVersion targetVersion,
         @PreviewFeatures final boolean previewEnabled
@@ -112,6 +117,7 @@ public class ClassGenerator {
         this.elements = elements;
         this.signatures = signatures;
         this.descriptors = descriptors;
+        this.messager = messager;
         this.classWriterFactory = classWriterFactory;
         this.targetVersion = targetVersion;
         this.previewEnabled = previewEnabled;
@@ -254,14 +260,14 @@ public class ClassGenerator {
                 classWriter.generateField(event, property);
                 return true;
             } else if (field.getModifiers().contains(Modifier.PRIVATE)) {
-                throw new RuntimeException("You've annotated the field " + property.getName() + " with @UseField, " // todo: use messager instead
-                    + "but it's private. This just won't work.");
-                // return false;
+                this.messager.printMessage(Diagnostic.Kind.ERROR, "You've annotated the field " + property.getName() + " with @UseField, "
+                    + "but it's private. This just won't work.", field);
+                return false;
             } else if (!this.types.isSubtype(field.asType(), property.getType())) {
-                throw new RuntimeException(String.format("In event %s with parent %s - you've specified field '%s' of type %s"
+                this.messager.printMessage(Diagnostic.Kind.ERROR, String.format("In event %s with parent %s - you've specified field '%s' of type %s"
                         + " but the property has the expected type of %s", this.elements.getBinaryName((TypeElement) property.getAccessor().getEnclosingElement()),
-                    parentType, field.getSimpleName(), field.asType(), property.getType()));
-                // return false;
+                    parentType, field.getSimpleName(), field.asType(), property.getType()), field);
+                return false;
             }
         }
         return true;
@@ -392,17 +398,18 @@ public class ClassGenerator {
 
 
     private void generateAccessorsAndMutator(
-            final EventImplClassWriter cw,
-            final TypeElement type,
-            final TypeMirror parentType,
-            final String internalName,
-            final Property property) {
+        final EventImplClassWriter cw,
+        final TypeElement type,
+        final TypeMirror parentType,
+        final String internalName,
+        final Property property
+    ) {
         if (ClassGenerator.generateMethods(property)) {
             this.generateAccessor(cw, type, internalName, property);
 
             final Optional<ExecutableElement> mutatorOptional = property.getMutator();
             if (mutatorOptional.isPresent()) {
-                cw.generateMutator(type, internalName, property.getName(), property.getType(), property);
+                cw.generateMutator(type, internalName, property.getName(), property);
             }
         }
     }
@@ -495,7 +502,7 @@ public class ClassGenerator {
      * @param type The type
      * @param name The canonical of the generated class
      * @param parentType The parent type
-     * @return The class' contents, to be loaded via a {@link ClassLoader}
+     * @return The class' contents, or {@code null} if an error was reported while generating the class
      */
     public byte[] createClass(
         final TypeElement type,
@@ -534,7 +541,9 @@ public class ClassGenerator {
         // "ClassName{param1=value1, param2=value2, ...}"
 
         // Create the accessors and mutators, and fill out the toString method
-        this.generateWithPlugins(cw, type, parentType, internalName, properties, toStringMv, plugins);
+        if (!this.generateWithPlugins(cw, type, parentType, internalName, properties, toStringMv, plugins)) {
+            return null;
+        }
 
         // Now build the toString
         this.finalizeToString(toStringMv);
@@ -544,7 +553,7 @@ public class ClassGenerator {
         return cw.toByteArray();
     }
 
-    private void generateWithPlugins(
+    private boolean generateWithPlugins(
         final EventImplClassWriter cw,
         final TypeElement eventClass,
         final DeclaredType parentType,
@@ -553,12 +562,15 @@ public class ClassGenerator {
         final MethodVisitor toStringMv,
         final Set<? extends EventFactoryPlugin> plugins
     ) {
+        boolean success = true;
 
         for (final Property property : properties) {
             boolean processed = false;
 
             for (final EventFactoryPlugin plugin : plugins) {
-                processed = plugin.contributeProperty(eventClass, internalName, cw, property);
+                final EventFactoryPlugin.Result result = plugin.contributeProperty(eventClass, internalName, cw, property);
+                processed = result != EventFactoryPlugin.Result.IGNORE;
+                success &= result != EventFactoryPlugin.Result.FAILURE;
                 if (processed) {
                     break;
                 }
@@ -571,6 +583,7 @@ public class ClassGenerator {
                 this.generateAccessorsAndMutator(cw, eventClass, parentType, internalName, property);
             }
         }
+        return success;
     }
 
     public String qualifiedName(final TypeElement event) {

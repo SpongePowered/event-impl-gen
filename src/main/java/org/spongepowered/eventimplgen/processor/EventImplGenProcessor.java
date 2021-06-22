@@ -50,6 +50,9 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.ElementFilter;
 import javax.tools.Diagnostic;
 
+/**
+ * The entry point for the generator, starting as an AP.
+ */
 @AutoService(Processor.class)
 @SupportedOptions({
     EventGenOptions.GENERATED_EVENT_FACTORY,

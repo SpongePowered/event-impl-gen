@@ -24,6 +24,8 @@
  */
 package org.spongepowered.eventimplgen;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 import java.lang.annotation.Annotation;
 import java.util.Map;
 import java.util.Set;
@@ -33,8 +35,6 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
-
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class AnnotationUtils {
 

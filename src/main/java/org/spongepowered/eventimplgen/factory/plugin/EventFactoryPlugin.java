@@ -24,10 +24,11 @@
  */
 package org.spongepowered.eventimplgen.factory.plugin;
 
-import javax.lang.model.element.TypeElement;
 import org.objectweb.asm.ClassWriter;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.factory.EventImplClassWriter;
+
+import javax.lang.model.element.TypeElement;
 
 /**
  * Represents a class which modifies the behavior of an event generator.
@@ -49,6 +50,26 @@ public interface EventFactoryPlugin {
      *
      * @return whether the provided {@link Property} was processed.
      */
-    boolean contributeProperty(TypeElement eventClass, String internalName, EventImplClassWriter classWriter, Property property);
+    Result contributeProperty(TypeElement eventClass, String internalName, EventImplClassWriter classWriter, Property property);
+
+    enum Result {
+        /**
+         * Claim the property, having successfully processed it.
+         */
+        SUCCESSS,
+        /**
+         * Indicate that this plugin does not claim the provided property.
+         */
+        IGNORE,
+        /**
+         * Indicate that an error occurred while processing this property.
+         *
+         * <p>This should be accompanied by a logged error message.</p>
+         *
+         * <p>By returning this value, final writing of a class file will be
+         * suppressed but other properties in the class may be processed.</p>
+         */
+        FAILURE;
+    }
 
 }

@@ -117,7 +117,6 @@ public class EventImplClassWriter extends ClassWriter {
      * @param internalName The internal name (slashes instead of periods in the
      *        package) of the new class being generated
      * @param fieldName The name of the field to mutate
-     * @param fieldType The type of the field to mutate
      * @param property The {@link Property} containing the mutator method to
      *        generate for
      */
@@ -125,7 +124,6 @@ public class EventImplClassWriter extends ClassWriter {
         final TypeElement type,
         final String internalName,
         final String fieldName,
-        final TypeMirror fieldType,
         final Property property
     ) {
         final ExecutableElement mutator = property.getMutator().get();

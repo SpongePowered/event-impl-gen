@@ -26,6 +26,7 @@ package org.spongepowered.eventimplgen.signature;
 
 import org.assertj.core.api.SoftAssertions;
 import org.objectweb.asm.signature.SignatureWriter;
+import org.objectweb.asm.util.CheckSignatureAdapter;
 
 import java.util.Set;
 
@@ -36,6 +37,9 @@ import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 
 @SupportedAnnotationTypes("org.spongepowered.eventimplgen.signature.AssertSignatureEquals")
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
@@ -52,7 +56,22 @@ public class SignatureValidationProcessor extends AbstractProcessor {
         final TypeToSignatureWriter writer = new TypeToSignatureWriter(this.processingEnv.getElementUtils());
         for (final Element element : roundEnv.getElementsAnnotatedWith(AssertSignatureEquals.class)) {
             final String expectedSignature = element.getAnnotation(AssertSignatureEquals.class).value();
-            final String producedSignature = element.asType().accept(writer, new SignatureWriter()).toString();
+            final TypeMirror type = element.asType();
+            final String producedSignature;
+            if (this.processingEnv.getTypeUtils().isSameType(this.processingEnv.getTypeUtils().erasure(type), type)) {
+                producedSignature = "";
+            } else if (element.getKind().isInterface() || element.getKind().isClass()) {
+                final SignatureWriter sigWriter = new SignatureWriter();
+                writer.visitDeclaredAsClassSignature((DeclaredType) type, new CheckSignatureAdapter(CheckSignatureAdapter.CLASS_SIGNATURE, sigWriter));
+                producedSignature = sigWriter.toString();
+            } else {
+                final SignatureWriter sigWriter = new SignatureWriter();
+                element.asType().accept(
+                    writer,
+                    new CheckSignatureAdapter(element.getKind().isField() ? CheckSignatureAdapter.TYPE_SIGNATURE : CheckSignatureAdapter.METHOD_SIGNATURE, sigWriter)
+                );
+                producedSignature = sigWriter.toString();
+            }
 
             this.soft.assertThat(producedSignature)
                 .describedAs("Signature of %s %s", element.getKind(), element)

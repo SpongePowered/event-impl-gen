@@ -35,13 +35,6 @@ import static org.objectweb.asm.Opcodes.INVOKESTATIC;
 import static org.objectweb.asm.Opcodes.NEW;
 import static org.objectweb.asm.Opcodes.V1_8;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
-
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
@@ -55,6 +48,13 @@ import org.spongepowered.eventimplgen.signature.Signatures;
 
 import java.util.List;
 import java.util.Map;
+
+import javax.inject.Inject;
+import javax.inject.Singleton;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 
 @Singleton
 public class FactoryInterfaceGenerator {

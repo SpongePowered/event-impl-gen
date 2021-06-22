@@ -22,22 +22,24 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.eventimplgen.processor;
+import org.spongepowered.eventimplgen.signature.AssertSignatureEquals;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Consumer;
 
-import javax.inject.Qualifier;
+class TestFields<X extends Iterable<?> & Comparable<?>> {
 
-/**
- * Indicates that a {@code Map<String, String>} contains the options provided to an annotation processor.
- */
-@Qualifier
-@Documented
-@Retention(RetentionPolicy.CLASS)
-@Target({ElementType.FIELD, ElementType.METHOD, ElementType.PARAMETER})
-public @interface ProcessorOptions {
+    @AssertSignatureEquals("Ljava/util/Set<Ljava/lang/String;>;")
+    public Set<String> names;
+
+    @AssertSignatureEquals("Ljava/util/Map<Ljava/lang/Integer;TX;>;")
+    private Map<Integer, X> values;
+
+    @AssertSignatureEquals("Ljava/util/function/Consumer<+Ljava/lang/Iterable<+Ljava/lang/Number;>;>;")
+    private Consumer<? extends Iterable<? extends Number>> elements;
+
+    @AssertSignatureEquals("")
+    StringBuilder test;
 }

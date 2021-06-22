@@ -49,112 +49,114 @@ import javax.lang.model.util.Types;
  */
 @Singleton
 public class TypeToDescriptorWriter extends AbstractTypeVisitor8<StringBuilder, StringBuilder> {
-  private final Types types;
-  private final Elements elements;
 
-  @Inject
-  TypeToDescriptorWriter(final Types types, final Elements elements) {
-    this.types = types;
-    this.elements = elements;
-  }
+    private final Types types;
+    private final Elements elements;
 
-  static char descriptor(final PrimitiveType primitive) {
-    switch (primitive.getKind()) {
-      case BOOLEAN:
-        return 'Z';
-      case BYTE:
-        return 'B';
-      case SHORT:
-        return  'S';
-      case INT:
-        return 'I';
-      case LONG:
-        return 'J';
-      case CHAR:
-        return 'C';
-      case FLOAT:
-        return 'F';
-      case DOUBLE:
-        return 'D';
-      default:
-        throw new IllegalArgumentException("Unknown primitive type kind " + primitive.getKind());
+    @Inject
+    TypeToDescriptorWriter(final Types types, final Elements elements) {
+        this.types = types;
+        this.elements = elements;
     }
-  }
 
-  @Override
-  public StringBuilder visitIntersection(final IntersectionType t, final StringBuilder builder) {
-    return this.types.erasure(t).accept(this, builder); // todo: is this right?
-  }
-
-  @Override
-  public StringBuilder visitPrimitive(final PrimitiveType t, final StringBuilder builder) {
-    return builder.append(TypeToDescriptorWriter.descriptor(t));
-  }
-
-  @Override
-  public StringBuilder visitArray(final ArrayType t, final StringBuilder builder) {
-    builder.append('[');
-    return t.getComponentType().accept(this, builder);
-  }
-
-  @Override
-  public StringBuilder visitDeclared(final DeclaredType t, final StringBuilder builder) {
-    return builder.append('L')
-      .append(this.elements.getBinaryName((TypeElement) t.asElement()))
-      .append(';');
-  }
-
-  @Override
-  public StringBuilder visitTypeVariable(final TypeVariable t, final StringBuilder builder) {
-    return t.getUpperBound().accept(this, builder);
-  }
-
-  @Override
-  public StringBuilder visitWildcard(final WildcardType t, final StringBuilder builder) {
-    if (t.getExtendsBound() != null) { // upper bound declared
-      t.getExtendsBound().accept(this, builder);
-    } else { // no (or only lower) bound, j/l/Object
-      this.elements.getTypeElement("java.lang.Object").asType().accept(this, builder);
+    static char descriptor(final PrimitiveType primitive) {
+        switch (primitive.getKind()) {
+            case BOOLEAN:
+                return 'Z';
+            case BYTE:
+                return 'B';
+            case SHORT:
+                return 'S';
+            case INT:
+                return 'I';
+            case LONG:
+                return 'J';
+            case CHAR:
+                return 'C';
+            case FLOAT:
+                return 'F';
+            case DOUBLE:
+                return 'D';
+            default:
+                throw new IllegalArgumentException("Unknown primitive type kind " + primitive.getKind());
+        }
     }
-    return builder;
-  }
 
-  @Override
-  public StringBuilder visitExecutable(final ExecutableType t, final StringBuilder builder) {
-    builder.append('(');
-    for (final TypeMirror param : t.getParameterTypes()) {
-      param.accept(this, builder);
+    @Override
+    public StringBuilder visitIntersection(final IntersectionType t, final StringBuilder builder) {
+        return this.types.erasure(t).accept(this, builder); // todo: is this right?
     }
-    builder.append(')');
-    return t.getReturnType().accept(this, builder);
-  }
 
-  @Override
-  public StringBuilder visitNoType(final NoType t, final StringBuilder builder) {
-    if (t.getKind() == TypeKind.VOID) {
-      return builder.append('V');
-    } else {
-      return builder;
+    @Override
+    public StringBuilder visitPrimitive(final PrimitiveType t, final StringBuilder builder) {
+        return builder.append(TypeToDescriptorWriter.descriptor(t));
     }
-  }
 
-  // Skipped types
+    @Override
+    public StringBuilder visitArray(final ArrayType t, final StringBuilder builder) {
+        builder.append('[');
+        return t.getComponentType().accept(this, builder);
+    }
 
-  @Override
-  public StringBuilder visitError(final ErrorType t, final StringBuilder builder) {
-    // ignore
-    return builder;
-  }
+    @Override
+    public StringBuilder visitDeclared(final DeclaredType t, final StringBuilder builder) {
+        return builder.append('L')
+            .append(this.elements.getBinaryName((TypeElement) t.asElement()))
+            .append(';');
+    }
 
-  @Override
-  public StringBuilder visitNull(final NullType t, final StringBuilder builder) {
-    // todo: not representable in a descriptor?
-    return builder;
-  }
+    @Override
+    public StringBuilder visitTypeVariable(final TypeVariable t, final StringBuilder builder) {
+        return t.getUpperBound().accept(this, builder);
+    }
 
-  @Override
-  public StringBuilder visitUnion(final UnionType t, final StringBuilder builder) {
-    // not representable in descriptors (only usable in catch statements))
-    return null;
-  }
+    @Override
+    public StringBuilder visitWildcard(final WildcardType t, final StringBuilder builder) {
+        if (t.getExtendsBound() != null) { // upper bound declared
+            t.getExtendsBound().accept(this, builder);
+        } else { // no (or only lower) bound, j/l/Object
+            this.elements.getTypeElement("java.lang.Object").asType().accept(this, builder);
+        }
+        return builder;
+    }
+
+    @Override
+    public StringBuilder visitExecutable(final ExecutableType t, final StringBuilder builder) {
+        builder.append('(');
+        for (final TypeMirror param : t.getParameterTypes()) {
+            param.accept(this, builder);
+        }
+        builder.append(')');
+        return t.getReturnType().accept(this, builder);
+    }
+
+    @Override
+    public StringBuilder visitNoType(final NoType t, final StringBuilder builder) {
+        if (t.getKind() == TypeKind.VOID) {
+            return builder.append('V');
+        } else {
+            return builder;
+        }
+    }
+
+    // Skipped types
+
+    @Override
+    public StringBuilder visitError(final ErrorType t, final StringBuilder builder) {
+        // ignore
+        builder.append("L!ERROR!;");
+        return builder;
+    }
+
+    @Override
+    public StringBuilder visitNull(final NullType t, final StringBuilder builder) {
+        // todo: not representable in a descriptor?
+        return builder;
+    }
+
+    @Override
+    public StringBuilder visitUnion(final UnionType t, final StringBuilder builder) {
+        // not representable in descriptors (only usable in catch statements))
+        return null;
+    }
 }

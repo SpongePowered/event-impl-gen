@@ -24,9 +24,10 @@
  */
 package org.spongepowered.eventimplgen.factory;
 
+import org.spongepowered.eventimplgen.processor.EventGenOptions;
+
 import javax.inject.Inject;
 import javax.lang.model.element.TypeElement;
-import org.spongepowered.eventimplgen.processor.EventGenOptions;
 
 /**
  * Provide class names for event interface generation.

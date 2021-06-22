@@ -24,6 +24,10 @@
  */
 package org.spongepowered.eventimplgen.processor;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.spongepowered.api.util.annotation.eventgen.GenerateFactoryMethod;
+import org.spongepowered.api.util.annotation.eventgen.NoFactoryMethod;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -36,10 +40,6 @@ import javax.annotation.processing.Messager;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.tools.Diagnostic;
-
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.spongepowered.api.util.annotation.eventgen.GenerateFactoryMethod;
-import org.spongepowered.api.util.annotation.eventgen.NoFactoryMethod;
 
 @Singleton
 public class EventGenOptions {
@@ -69,7 +69,7 @@ public class EventGenOptions {
   }
 
   public @Nullable String sortPriorityPrefix() {
-    return this.options.get(EventGenOptions.SORT_PRIORITY_PREFIX);
+    return this.options.getOrDefault(EventGenOptions.SORT_PRIORITY_PREFIX, "original");
   }
 
   public Map<String, String> groupingPrefixes() {
