@@ -47,6 +47,7 @@ import java.util.TreeMap;
 
 import javax.annotation.processing.Filer;
 import javax.inject.Inject;
+import javax.inject.Singleton;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
@@ -60,17 +61,23 @@ import javax.lang.model.util.Elements;
  * A consumer of computed event information, that will generate individual
  * implementation classes as well as the overall factory on request.
  */
+@Singleton
 public class EventImplWriter implements PropertyConsumer {
 
     private final Filer filer;
     private final Elements elements;
-    private final Map<TypeElement, List<Property>> foundProperties;
-    private final List<ExecutableElement> forwardedMethods = new ArrayList<>();
     private final PropertySorter sorter;
     private final Set<EventFactoryPlugin> plugins;
     private final String outputFactory;
     private final FactoryInterfaceGenerator factoryGenerator;
     private final ClassGenerator generator;
+
+    // Cleared on write at the end of each round
+    private final Map<TypeElement, List<Property>> roundFoundProperties;
+
+    // All found properties, for generating the factory at the end
+    private final Map<TypeElement, List<Property>> allFoundProperties;
+    private final List<ExecutableElement> forwardedMethods = new ArrayList<>();
 
     @Inject
     EventImplWriter(
@@ -86,7 +93,8 @@ public class EventImplWriter implements PropertyConsumer {
         this.elements = elements;
         this.sorter = sorter;
         this.plugins = plugins;
-        this.foundProperties = new TreeMap<>(Comparator.comparing(e -> elements.getBinaryName(e).toString()));
+        this.roundFoundProperties = new TreeMap<>(Comparator.comparing(e -> elements.getBinaryName(e).toString()));
+        this.allFoundProperties = new TreeMap<>(Comparator.comparing(e -> elements.getBinaryName(e).toString()));
         this.outputFactory = options.generatedEventFactory();
         this.factoryGenerator = factoryGenerator;
         this.generator = generator;
@@ -94,7 +102,7 @@ public class EventImplWriter implements PropertyConsumer {
 
     @Override
     public void propertyFound(final TypeElement event, final List<Property> property) {
-        this.foundProperties.put(event, property);
+        this.roundFoundProperties.put(event, property);
     }
 
     @Override
@@ -102,31 +110,38 @@ public class EventImplWriter implements PropertyConsumer {
         this.forwardedMethods.addAll(elements);
     }
 
-    public void dumpClasses() throws IOException {
-        byte[] clazz = this.factoryGenerator.createClass(this.outputFactory, this.foundProperties, this.sorter, this.forwardedMethods);
-        final int forwardedSize = this.forwardedMethods.size();
-        final Element[] originatingElements = new Element[forwardedSize + this.foundProperties.size()];
-        System.arraycopy(this.forwardedMethods.toArray(new ExecutableElement[0]), 0, originatingElements, 0, forwardedSize);
-        System.arraycopy(this.foundProperties.keySet().toArray(new TypeElement[0]), 0, originatingElements, forwardedSize, this.foundProperties.size());
-        try (final OutputStream os = this.filer.createClassFile(this.outputFactory, originatingElements).openOutputStream()) {
-            os.write(clazz);
-        }
-
+    public void dumpRound() throws IOException {
         this.generator.setNullPolicy(NullPolicy.NON_NULL_BY_DEFAULT);
-
-        for (final TypeElement event : this.foundProperties.keySet()) {
+        byte[] clazz;
+        for (final TypeElement event : this.roundFoundProperties.keySet()) {
             final String name = this.generator.qualifiedName(event);
             final @Nullable DeclaredType baseClass = this.getBaseClass(event);
             if (baseClass == null) {
                 continue; // an error occurred, don't generate
             }
             clazz = this.generator.createClass(event, name, baseClass,
-                this.foundProperties.get(event), this.sorter, this.plugins
+                this.roundFoundProperties.get(event), this.sorter, this.plugins
             );
 
             try (final OutputStream os = this.filer.createClassFile(name, event).openOutputStream()) {
                 os.write(clazz);
             }
+        }
+
+        this.allFoundProperties.putAll(this.roundFoundProperties);
+        this.roundFoundProperties.clear();
+    }
+
+    public void dumpFinal() throws IOException {
+        this.dumpRound();
+        final byte[] clazz = this.factoryGenerator.createClass(this.outputFactory, this.allFoundProperties, this.sorter, this.forwardedMethods);
+        final int forwardedSize = this.forwardedMethods.size();
+        final Element[] originatingElements = new Element[forwardedSize + this.allFoundProperties.size()];
+        System.arraycopy(this.forwardedMethods.toArray(new ExecutableElement[0]), 0, originatingElements, 0, forwardedSize);
+        System.arraycopy(this.allFoundProperties.keySet().toArray(new TypeElement[0]), 0, originatingElements, forwardedSize, this.allFoundProperties.size());
+
+        try (final OutputStream os = this.filer.createClassFile(this.outputFactory, originatingElements).openOutputStream()) {
+            os.write(clazz);
         }
     }
 

@@ -101,7 +101,7 @@ public class TypeToDescriptorWriter extends AbstractTypeVisitor8<StringBuilder, 
     @Override
     public StringBuilder visitDeclared(final DeclaredType t, final StringBuilder builder) {
         return builder.append('L')
-            .append(this.elements.getBinaryName((TypeElement) t.asElement()))
+            .append(this.elements.getBinaryName((TypeElement) t.asElement()).toString().replace('.', '/'))
             .append(';');
     }
 

@@ -521,7 +521,7 @@ public class ClassGenerator {
         final EventImplClassWriter cw = this.classWriterFactory.create(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
         cw.visit(
             ClassGenerator.bytecodeVersion(this.targetVersion, this.previewEnabled),
-            ACC_SUPER,
+            ACC_SUPER | ACC_PUBLIC,
             internalName,
             this.signatures.ofImplClass(parentType, Collections.singletonList(type.asType())),
             this.descriptors.getInternalName(parentType),

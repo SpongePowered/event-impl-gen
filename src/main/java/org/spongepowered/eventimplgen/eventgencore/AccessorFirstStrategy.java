@@ -28,6 +28,7 @@ import dagger.assisted.Assisted;
 import dagger.assisted.AssistedFactory;
 import dagger.assisted.AssistedInject;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.spongepowered.eventimplgen.signature.Descriptors;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -68,6 +69,7 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
     private static final Pattern ACCESSOR_KEEPS = Pattern.compile("^(keeps[A-Z].*)");
     private static final Pattern MUTATOR = Pattern.compile("^set([A-Z].*)");
 
+    private final Descriptors descriptors;
     private final Elements elements;
     private final Types types;
     private final boolean allowFluentStyle;
@@ -80,9 +82,10 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
     }
 
     @AssistedInject
-    public AccessorFirstStrategy(final Types types, final Elements elements, final @Assisted boolean allowFluentStyle) {
+    public AccessorFirstStrategy(final Types types, final Elements elements, final Descriptors descriptors, @Assisted final boolean allowFluentStyle) {
         this.types = types;
         this.elements = elements;
+        this.descriptors = descriptors;
         this.allowFluentStyle = allowFluentStyle;
         this.optionalType = elements.getTypeElement("java.util.Optional").asType();
     }
@@ -219,10 +222,7 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
                 String name;
 
                 final StringBuilder signature = new StringBuilder(method.getSimpleName() + ";");
-                for (final VariableElement parameterType : method.getParameters()) {
-                    signature.append(this.elements.getBinaryName((TypeElement) this.types.asElement(parameterType.asType()))).append(";");
-                }
-                signature.append(method.getReturnType());
+                signature.append(this.descriptors.getDescriptor(method));
 
                 final ExecutableElement leastSpecificMethod;
                 if ((name = this.getAccessorName(method)) != null && !signatures.contains(signature.toString())
@@ -243,7 +243,7 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
                     mutators.computeIfAbsent(name, $ -> new HashSet<>()).add(method);
                 }
             }
-            if (ourType.getSuperclass() != null) {
+            if (ourType.getSuperclass().getKind() != TypeKind.NONE) {
                 queue.push((TypeElement) this.types.asElement(ourType.getSuperclass()));
             }
             for (final TypeMirror iface : ourType.getInterfaces()) {

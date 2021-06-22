@@ -54,4 +54,8 @@ public final class EventGenerationFilter implements Predicate<TypeElement> {
         }
         return ElementFilter.typesIn(candidate.getEnclosedElements()).isEmpty();
     }
+
+    Set<String> inclusiveAnnotations() {
+        return this.inclusiveAnnotations;
+    }
 }

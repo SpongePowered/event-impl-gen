@@ -24,11 +24,18 @@
  */
 package org.spongepowered.api.util.annotation.eventgen;
 
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
 /**
  * Explicitly disables generation of an event factory method for an event class.
  *
  * <p>By default, an event which contains subinterfaces will not have
  * an event factory method generated.</p>
  */
+@Retention(RetentionPolicy.SOURCE)
+@Target({ElementType.TYPE, ElementType.PACKAGE})
 public @interface NoFactoryMethod {
 }

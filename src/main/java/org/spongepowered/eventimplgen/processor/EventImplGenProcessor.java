@@ -26,12 +26,12 @@ package org.spongepowered.eventimplgen.processor;
 
 import com.google.auto.service.AutoService;
 import org.spongepowered.api.util.annotation.eventgen.FactoryMethod;
-import org.spongepowered.api.util.annotation.eventgen.GenerateFactoryMethod;
 import org.spongepowered.eventimplgen.eventgencore.PropertySearchStrategy;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
@@ -90,30 +90,54 @@ public class EventImplGenProcessor extends AbstractProcessor {
         final EventImplWriter writer = this.component.writer();
         final PropertySearchStrategy strategy = this.component.strategy();
 
-        final Queue<Element> elements = new ArrayDeque<>(roundEnv.getElementsAnnotatedWith(GenerateFactoryMethod.class));
+        boolean failed = false;
+        final Queue<Element> elements = new ArrayDeque<>();
+        for (final String inclusiveAnnotation : filter.inclusiveAnnotations()) {
+            final TypeElement element = this.processingEnv.getElementUtils().getTypeElement(inclusiveAnnotation);
+            if (element == null) {
+                this.processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Unable to resolve an annotation for specified inclusive annotation " + inclusiveAnnotation);
+                failed = true;
+            } else {
+                elements.addAll(roundEnv.getElementsAnnotatedWith(element));
+            }
+        }
+
+        if (failed) {
+            return false;
+        }
+
+        final Set<Element> seen = new HashSet<>();
         Element active;
         while ((active = elements.poll()) != null) {
+            if (!seen.add(active)) {
+                continue;
+            }
+
             if (active.getKind() == ElementKind.PACKAGE) {
                 elements.addAll(active.getEnclosedElements());
             } else if (active.getKind().isInterface()) {
                 final TypeElement event = (TypeElement) active;
-               if (filter.test(event)) {
+                this.processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, "Testing for events " + event.getSimpleName());
+                if (filter.test(event)) {
+                   this.processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, "Generating for event " + event.getSimpleName());
                    writer.propertyFound(event, strategy.findProperties(event));
                    writer.forwardedMethods(this.findForwardedMethods(event));
                }
             } else {
-                this.processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "This element was annotated but it is not a package or interface!", active);
+                this.processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "This element (" + active.getKind() + " " + active.getSimpleName() + ")  was annotated but it is not a package or interface!", active);
             }
         }
 
-        // If this is the last round, then let's do the actual generation
-        if (roundEnv.processingOver() && !roundEnv.errorRaised()) {
-            try {
-                writer.dumpClasses();
-            } catch (final IOException ex) {
-                this.processingEnv.getMessager().printMessage(Diagnostic.Kind.WARNING, "Failed to write class information due to an exception: " + ex.getMessage());
-                ex.printStackTrace();
+        try {
+            writer.dumpRound();
+            // If this is the last round, then let's do the actual generation
+            if (roundEnv.processingOver() && !roundEnv.errorRaised()) {
+                writer.dumpFinal();
             }
+        } catch (final IOException ex) {
+            this.processingEnv.getMessager()
+                .printMessage(Diagnostic.Kind.WARNING, "Failed to write class information due to an exception: " + ex.getMessage());
+            ex.printStackTrace();
         }
 
         // Never claim annotations -- that way we don't block other processors from visiting them if they want to

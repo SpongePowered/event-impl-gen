@@ -22,23 +22,22 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.api.util.annotation.eventgen;
+package test.event.lifecycle;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Inherited;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import test.event.Event;
 
-/**
- * Explicitly enables generation of an event factory method for an event class.
- *
- * <p>By default, an event which contains subinterfaces will not have
- * an event factory method generated.</p>
- */
-@Inherited
-@Retention(RetentionPolicy.SOURCE)
-@Target({ElementType.TYPE, ElementType.PACKAGE})
-public @interface GenerateFactoryMethod {
+public interface NestedTest extends Event {
+
+    int count();
+
+    void setCount(final int count);
+
+    interface Pre extends NestedTest {
+
+    }
+
+    interface Post extends NestedTest {
+
+    }
 
 }

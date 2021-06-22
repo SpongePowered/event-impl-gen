@@ -49,11 +49,13 @@ import javax.lang.model.util.Types;
 @Singleton
 public class Signatures {
     private final Types types;
+    private final Descriptors descriptors;
     private final TypeToSignatureWriter sig;
 
     @Inject
-    Signatures(final Types types, final TypeToSignatureWriter sig) {
+    Signatures(final Types types, final Descriptors descriptors, final TypeToSignatureWriter sig) {
         this.types = types;
+        this.descriptors = descriptors;
         this.sig = sig;
     }
 
@@ -72,7 +74,7 @@ public class Signatures {
      * @return the signature
      */
     public @Nullable String ofField(final TypeElement container, final Property field) {
-        final TypeMirror fieldType = this.types.asMemberOf((DeclaredType) container.asType(), this.types.asElement(field.getType()));
+        final TypeMirror fieldType = field.getType().getKind() == TypeKind.DECLARED ? this.types.asMemberOf((DeclaredType) container.asType(), this.types.asElement(field.getType())) : field.getType();
         final List<? extends TypeMirror> parameters = fieldType.getKind() == TypeKind.DECLARED ? ((DeclaredType) fieldType).getTypeArguments() : Collections.emptyList();
         if ((parameters.isEmpty() || fieldType.getKind().isPrimitive()) && !(fieldType.getKind() == TypeKind.ARRAY
                 || fieldType.getKind() == TypeKind.TYPEVAR)) {
@@ -113,20 +115,15 @@ public class Signatures {
         }
 
         final SignatureVisitor stV = visitor.visitSuperclass();
-        final boolean doVisitEnd = !supertype.getKind().isPrimitive();
-        this.types.erasure(supertype).accept(this.sig, visitor);
+        stV.visitClassType(this.descriptors.getInternalName(this.types.erasure(supertype)));
         this.visitTypeParametersFromFormals(visitor, supertype);
-        if (doVisitEnd) {
-            stV.visitEnd();
-        }
+        stV.visitEnd();
 
         for (final TypeMirror itf : interfaces) {
             final SignatureVisitor itfVisitor = visitor.visitInterface();
-            this.types.erasure(itf).accept(this.sig, visitor);
+            stV.visitClassType(this.descriptors.getInternalName(this.types.erasure(itf)));
             this.visitTypeParametersFromFormals(visitor, itf);
-            if (itf.getKind() == TypeKind.DECLARED) {
-                itfVisitor.visitEnd();
-            }
+            itfVisitor.visitEnd();
         }
 
         return visitor.toString();
