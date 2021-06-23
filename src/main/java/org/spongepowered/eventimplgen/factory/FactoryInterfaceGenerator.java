@@ -24,27 +24,14 @@
  */
 package org.spongepowered.eventimplgen.factory;
 
-import static org.objectweb.asm.Opcodes.ACC_FINAL;
-import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
-import static org.objectweb.asm.Opcodes.ACC_STATIC;
-import static org.objectweb.asm.Opcodes.ACC_SUPER;
-import static org.objectweb.asm.Opcodes.ARETURN;
-import static org.objectweb.asm.Opcodes.DUP;
-import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
-import static org.objectweb.asm.Opcodes.INVOKESTATIC;
-import static org.objectweb.asm.Opcodes.NEW;
-import static org.objectweb.asm.Opcodes.V1_8;
-
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.Label;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
+import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.JavaFile;
+import com.squareup.javapoet.MethodSpec;
+import com.squareup.javapoet.TypeName;
+import com.squareup.javapoet.TypeSpec;
+import com.squareup.javapoet.TypeVariableName;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.eventgencore.PropertySorter;
-import org.spongepowered.eventimplgen.signature.Descriptors;
-import org.spongepowered.eventimplgen.signature.Signatures;
 
 import java.util.List;
 import java.util.Map;
@@ -53,128 +40,106 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeVariable;
 
 @Singleton
 public class FactoryInterfaceGenerator {
 
-    private final Signatures signatures;
     private final ClassGenerator generator;
-    private final Descriptors descriptors;
 
     @Inject
-    FactoryInterfaceGenerator(final Signatures signatures, final ClassGenerator generator, final Descriptors descriptors) {
-        this.signatures = signatures;
+    FactoryInterfaceGenerator(final ClassGenerator generator) {
         this.generator = generator;
-        this.descriptors = descriptors;
     }
 
-    public byte[] createClass(
+    public JavaFile createClass(
             final String name,
             final Map<TypeElement, List<Property>> foundProperties,
             final PropertySorter sorter,
             final List<ExecutableElement> forwardedMethods) {
-        final String internalName = this.descriptors.getInternalName(name);
-
-        final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
-        cw.visit(V1_8, ACC_PUBLIC | ACC_SUPER | ACC_FINAL, internalName, null, "java/lang/Object", new String[] {});
+        final ClassName clazz = ClassName.bestGuess(name);
+        final TypeSpec.Builder factoryClass = TypeSpec.classBuilder(clazz.topLevelClassName())
+            .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+            .addMethod(MethodSpec.constructorBuilder()
+                .addModifiers(Modifier.PRIVATE)
+                .build());
 
         for (final Map.Entry<TypeElement, List<Property>> event : foundProperties.entrySet()) {
-            this.generateRealImpl(cw,
-                             event.getKey(),
-                             this.descriptors.getInternalName(this.generator.qualifiedName(event.getKey())),
-                             this.generator.getRequiredProperties(sorter.sortProperties(event.getValue())));
+            factoryClass.addOriginatingElement(event.getKey());
+            factoryClass.addMethod(this.generateRealImpl(
+                 event.getKey(),
+                 this.generator.qualifiedName(event.getKey()),
+                 this.generator.getRequiredProperties(sorter.sortProperties(event.getValue()))
+            ));
         }
 
         for (final ExecutableElement forwardedMethod : forwardedMethods) {
-            this.generateForwardingMethod(cw, forwardedMethod);
+            factoryClass.addOriginatingElement(forwardedMethod);
+            factoryClass.addMethod(this.generateForwardingMethod(forwardedMethod));
         }
 
-        cw.visitEnd();
-        return cw.toByteArray();
+        return JavaFile.builder(clazz.packageName(), factoryClass.build()).build();
     }
 
-    private void generateForwardingMethod(final ClassWriter cw, final ExecutableElement targetMethod) {
-        final String desc = this.descriptors.getDescriptor(targetMethod);
-        final MethodVisitor mv = cw.visitMethod(ACC_PUBLIC | ACC_STATIC, targetMethod.getSimpleName().toString(), desc, null, null);
+    private MethodSpec generateForwardingMethod(final ExecutableElement targetMethod) {
+        final MethodSpec.Builder spec = MethodSpec.methodBuilder(targetMethod.getSimpleName().toString())
+            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+            .returns(TypeName.get(targetMethod.getReturnType()));
 
+        for (final TypeParameterElement param : targetMethod.getTypeParameters()) {
+            spec.addTypeVariable(TypeVariableName.get((TypeVariable) param.asType()));
+        }
 
-        final Label start = new Label();
-        final Label end = new Label();
-
-        mv.visitCode();
-        mv.visitLabel(start);
-
-        final List<? extends VariableElement> parameters = targetMethod.getParameters();
-        for (int i = 0, slot = 0; i < parameters.size(); i++, slot++) {
-            final VariableElement param = parameters.get(i);
-            final Type type = Type.getType(this.descriptors.getTypeDescriptor(param.asType()));
-            mv.visitVarInsn(type.getOpcode(Opcodes.ILOAD), i);
-
-            mv.visitLocalVariable(param.getSimpleName().toString(), type.getDescriptor(), null, start, end, slot);
-            mv.visitParameter(param.getSimpleName().toString(), 0);
-
-            if (type.getSize() > 1) {
-                slot++; // Skip over unusable following slot
+        final StringBuilder params = new StringBuilder();
+        for (final VariableElement parameter : targetMethod.getParameters()) {
+            spec.addParameter(TypeName.get(parameter.asType()), parameter.getSimpleName().toString(), Modifier.FINAL);
+            if (params.length() > 0) {
+                params.append(", ");
             }
+            params.append(parameter.getSimpleName().toString());
         }
-        mv.visitMethodInsn(INVOKESTATIC, this.descriptors.getInternalName(targetMethod.getEnclosingElement().asType()), targetMethod.getSimpleName().toString(), desc, targetMethod.getEnclosingElement().getKind().isInterface());
-        mv.visitInsn(ARETURN);
-        mv.visitLabel(end);
 
-        mv.visitMaxs(0, 0);
-        mv.visitEnd();
+        spec.addCode("return $T.$L($L);", TypeName.get(targetMethod.getEnclosingElement().asType()), targetMethod.getSimpleName().toString(), params.toString());
+
+        return spec.build();
     }
 
-    private void generateRealImpl(final ClassWriter cw, final TypeElement event, final String eventName, final List<Property> params) {
-        final MethodVisitor mv = cw.visitMethod(
-            ACC_PUBLIC | ACC_STATIC,
-            FactoryInterfaceGenerator.generateMethodName(event),
-            this.getDescriptor(event, params),
-            this.signatures.ofFactoryMethod(event, params),
-            null
-        );
+    private MethodSpec generateRealImpl(final TypeElement event, final String eventName, final List<Property> params) {
+        final MethodSpec.Builder spec = MethodSpec.methodBuilder(FactoryInterfaceGenerator.generateMethodName(event))
+            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+            .returns(TypeName.get(event.asType()));
 
-        final Label start = new Label();
-        final Label end = new Label();
+        for (final TypeParameterElement param : event.getTypeParameters()) {
+            spec.addTypeVariable(TypeVariableName.get((TypeVariable) param.asType()));
+        }
 
-        mv.visitCode();
-
-        mv.visitLabel(start);
-
-        mv.visitTypeInsn(NEW, eventName);
-        mv.visitInsn(DUP);
-
-        final int[] slots = new int[params.size()];
-
-        for (int i = 0, slot = 0; i < params.size(); i++, slot++) {
-            final Property param = params.get(i);
-            slots[i] = slot;
-            final Type type = Type.getType(this.descriptors.getTypeDescriptor(param.getType()));
-            mv.visitVarInsn(type.getOpcode(Opcodes.ILOAD), slot); // Parameters start at slot 0 for static methods
-
-            if (type.getSize() > 1) {
-                slot++; // Skip over unusable following slot
+        final StringBuilder paramNames = new StringBuilder();
+        for (final Property property : params) {
+            spec.addParameter(TypeName.get(property.getType()), property.getName(), Modifier.FINAL);
+            if (paramNames.length() > 0) {
+                paramNames.append(", ");
             }
-        }
-        mv.visitMethodInsn(INVOKESPECIAL, eventName, "<init>", this.getDescriptor(null, params), false);
-
-        mv.visitInsn(ARETURN);
-        mv.visitLabel(end);
-
-        for (int i = 0; i < params.size(); i++) {
-            final Property property = params.get(i);
-            mv.visitLocalVariable(property.getName(), this.descriptors.getTypeDescriptor(property.getType()), null, start, end, slots[i]);
-            mv.visitParameter(property.getName(), ACC_FINAL);
+            paramNames.append(property.getName());
         }
 
-        mv.visitMaxs(0, 0);
-        mv.visitEnd();
-    }
+        final String pkgName;
+        final String simpleName;
+        final int lastDot = eventName.lastIndexOf('.');
+        if (lastDot > -1) {
+            pkgName = eventName.substring(0, lastDot);
+            simpleName = eventName.substring(lastDot + 1);
+        } else {
+            pkgName = "";
+            simpleName = eventName;
+        }
+        final TypeName implType = ClassName.get(pkgName, simpleName);
+        spec.addCode("return new $T($L);", implType, paramNames.toString());
 
-    private String getDescriptor(final @Nullable TypeElement event, final List<Property> params) {
-        return this.descriptors.getDescriptor(params, event == null ? null : event.asType());
+        return spec.build();
     }
 
     public static String generateMethodName(TypeElement event) {

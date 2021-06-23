@@ -24,6 +24,7 @@
  */
 package org.spongepowered.eventimplgen.processor;
 
+import com.squareup.javapoet.JavaFile;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.api.util.annotation.eventgen.ImplementedBy;
 import org.spongepowered.eventimplgen.AnnotationUtils;
@@ -150,15 +151,8 @@ public class EventImplWriter implements PropertyConsumer {
         if (this.failed) {
             return;
         }
-        final byte[] clazz = this.factoryGenerator.createClass(this.outputFactory, this.allFoundProperties, this.sorter, this.forwardedMethods);
-        final int forwardedSize = this.forwardedMethods.size();
-        final Element[] originatingElements = new Element[forwardedSize + this.allFoundProperties.size()];
-        System.arraycopy(this.forwardedMethods.toArray(new ExecutableElement[0]), 0, originatingElements, 0, forwardedSize);
-        System.arraycopy(this.allFoundProperties.keySet().toArray(new TypeElement[0]), 0, originatingElements, forwardedSize, this.allFoundProperties.size());
-
-        try (final OutputStream os = this.filer.createClassFile(this.outputFactory, originatingElements).openOutputStream()) {
-            os.write(clazz);
-        }
+        final JavaFile clazz = this.factoryGenerator.createClass(this.outputFactory, this.allFoundProperties, this.sorter, this.forwardedMethods);
+        clazz.writeTo(this.filer);
     }
 
     private @Nullable DeclaredType getBaseClass(final TypeElement event) {
