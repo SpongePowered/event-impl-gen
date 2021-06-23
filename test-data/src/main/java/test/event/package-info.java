@@ -22,18 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+@GenerateFactoryMethod
 package test.event;
 
 import org.spongepowered.api.util.annotation.eventgen.GenerateFactoryMethod;
-
-/**
- * Base interface for events
- */
-@GenerateFactoryMethod
-public interface Event {
-
-    boolean cancelled();
-
-    void setCancelled(final boolean cancelled);
-
-}

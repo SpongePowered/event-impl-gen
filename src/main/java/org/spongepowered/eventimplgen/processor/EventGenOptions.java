@@ -43,8 +43,8 @@ import javax.tools.Diagnostic;
 
 @Singleton
 public class EventGenOptions {
-  private static final Pattern COMMA_SPLIT = Pattern.compile(",", Pattern.LITERAL);
-  private static final Pattern COLON_SPLIT = Pattern.compile(":", Pattern.LITERAL);
+  static final Pattern COMMA_SPLIT = Pattern.compile(",", Pattern.LITERAL);
+  static final Pattern COLON_SPLIT = Pattern.compile(":", Pattern.LITERAL);
 
   public static final String GENERATED_EVENT_FACTORY = "eventGenFactory";
 
@@ -54,6 +54,9 @@ public class EventGenOptions {
   // these two take fully qualified names to annotations that should include or exclude a certain element from implementation generation
   public static final String INCLUSIVE_ANNOTATIONS = "inclusiveAnnotations"; // default: GenerateFactoryMethod
   public static final String EXCLUSIVE_ANNOTATIONS = "exclusiveAnnotations"; // default: NoFactoryMethod
+
+  private boolean validated;
+  private boolean valid = true;
 
   private final Messager messager;
   private final Map<String, String> options;
@@ -125,11 +128,18 @@ public class EventGenOptions {
    * @return whether all options are valid
    */
   public boolean validate() {
-    if (!this.options.containsKey(EventGenOptions.GENERATED_EVENT_FACTORY)) {
-      this.messager.printMessage(Diagnostic.Kind.ERROR, "[event-impl-gen]: The " + EventGenOptions.GENERATED_EVENT_FACTORY + " option must be specified to generate a factory.");
-      return false;
+    if (this.validated) {
+      return this.valid;
     }
 
-    return true;
+    boolean valid = true;
+    if (!this.options.containsKey(EventGenOptions.GENERATED_EVENT_FACTORY)) {
+      this.messager.printMessage(Diagnostic.Kind.ERROR, "[event-impl-gen]: The " + EventGenOptions.GENERATED_EVENT_FACTORY + " option must be specified to generate a factory.");
+      valid = false;
+    }
+
+    this.valid = valid;
+    this.validated = true;
+    return valid;
   }
 }

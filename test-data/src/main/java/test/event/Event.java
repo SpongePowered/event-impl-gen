@@ -22,40 +22,22 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.eventimplgen;
+package test.event;
 
-import org.assertj.core.api.Assertions;
-import org.junit.jupiter.api.Test;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.util.CheckClassAdapter;
+import org.spongepowered.api.util.annotation.eventgen.GenerateFactoryMethod;
 
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
+/**
+ * Base interface for events
+ */
+@GenerateFactoryMethod
+public interface Event {
 
-import test.event.Event;
-import test.event.TestEventFactory;
-
-public class TestDataTest {
-
-    @Test
-    void testCreateEvent() throws IOException {
-        // Validate the generated class
-        final ClassReader reader = new ClassReader(this.getClass().getResourceAsStream("/test/event/TestEventFactory.class"));
-
-        final StringWriter output = new StringWriter();
-        try (final PrintWriter printer = new PrintWriter(output)) {
-            CheckClassAdapter.verify(reader, false, printer);
-        }
-
-        final Event event = TestEventFactory.createEvent(true);
-        event.setCancelled(true);
-
-        System.out.println(event);
-
-        Assertions.assertThat(output.toString())
-            .withFailMessage(output::toString)
-            .isEmpty();
+    default String version() {
+        return "dingbats";
     }
+
+    boolean cancelled();
+
+    void setCancelled(final boolean cancelled);
 
 }

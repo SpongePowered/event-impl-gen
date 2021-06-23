@@ -30,9 +30,11 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 import javax.inject.Inject;
+import javax.inject.Singleton;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.ElementFilter;
 
+@Singleton
 public final class EventGenerationFilter implements Predicate<TypeElement> {
 
     private final Set<String> inclusiveAnnotations;

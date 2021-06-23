@@ -71,12 +71,6 @@ sourceSets {
             alternateVersions 13
         }
     }
-
-    testData
-}
-
-compileTestDataJava {
-    options.compilerArgs << '-AeventGenFactory=test.event.TestEventFactory'
 }
 
 // Project dependencies
@@ -92,12 +86,7 @@ dependencies {
 
     compileOnlyApi "org.checkerframework:checker-qual:${checkerQualVersion}"
 
-    // Source set to test e-i-g
-    testDataAnnotationProcessor project
-    testDataCompileOnly project(":event-impl-gen-annotations")
-
     // Tests
-    testImplementation sourceSets.testData.output
     testImplementation "org.assertj:assertj-core:3.20.1"
     testImplementation "org.jooq:joor-java-8:0.9.13"
     testImplementation "org.ow2.asm:asm-util:9.1" // for CheckSignatureAdapter
@@ -110,7 +99,7 @@ idea.project.settings {
     compiler {
         javac {
             moduleJavacAdditionalOptions = [
-                'event-impl-gen.testData' : '-AeventGenFactory=test.event.TestEventFactory'
+                'event-impl-gen.event-impl-gen-test-data.main' : '-AeventGenFactory=test.event.TestEventFactory'
             ]
         }
     }

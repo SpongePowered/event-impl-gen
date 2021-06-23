@@ -25,7 +25,6 @@
 package org.spongepowered.eventimplgen.processor;
 
 import dagger.Component;
-import org.spongepowered.eventimplgen.eventgencore.PropertySearchStrategy;
 
 import javax.inject.Singleton;
 
@@ -33,9 +32,8 @@ import javax.inject.Singleton;
 @Singleton
 public interface EventGenComponent {
 
-  PropertySearchStrategy strategy();
-  @Singleton EventGenOptions options();
-  @Singleton EventGenerationFilter filter();
-  @Singleton EventImplWriter writer(); // must be preserved between rounds
+  EventGenOptions options();
+  EventScanner scanner();
+  EventImplWriter writer(); // must be preserved between rounds
 
 }

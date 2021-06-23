@@ -25,15 +25,8 @@
 package org.spongepowered.eventimplgen.processor;
 
 import com.google.auto.service.AutoService;
-import org.spongepowered.api.util.annotation.eventgen.FactoryMethod;
-import org.spongepowered.eventimplgen.eventgencore.PropertySearchStrategy;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Queue;
 import java.util.Set;
 
 import javax.annotation.processing.AbstractProcessor;
@@ -42,12 +35,7 @@ import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedOptions;
 import javax.lang.model.SourceVersion;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.util.ElementFilter;
 import javax.tools.Diagnostic;
 
 /**
@@ -86,54 +74,21 @@ public class EventImplGenProcessor extends AbstractProcessor {
 
     @Override
     public boolean process(final Set<? extends TypeElement> annotations, final RoundEnvironment roundEnv) {
-        final EventGenerationFilter filter = this.component.filter();
-        final EventImplWriter writer = this.component.writer();
-        final PropertySearchStrategy strategy = this.component.strategy();
-
-        boolean failed = false;
-        final Queue<Element> elements = new ArrayDeque<>();
-        for (final String inclusiveAnnotation : filter.inclusiveAnnotations()) {
-            final TypeElement element = this.processingEnv.getElementUtils().getTypeElement(inclusiveAnnotation);
-            if (element == null) {
-                this.processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Unable to resolve an annotation for specified inclusive annotation " + inclusiveAnnotation);
-                failed = true;
-            } else {
-                elements.addAll(roundEnv.getElementsAnnotatedWith(element));
-            }
-        }
-
-        if (failed) {
+        if (!this.component.options().validate()) {
             return false;
         }
 
-        final Set<Element> seen = new HashSet<>();
-        Element active;
-        while ((active = elements.poll()) != null) {
-            if (!seen.add(active)) {
-                continue;
-            }
+        final EventScanner scanner = this.component.scanner();
+        final EventImplWriter writer = this.component.writer();
 
-            if (active.getKind() == ElementKind.PACKAGE) {
-                elements.addAll(active.getEnclosedElements());
-                // add all subpackages
-            } else if (active.getKind().isInterface()) {
-                final TypeElement event = (TypeElement) active;
-                this.processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, "Testing for events " + event.getSimpleName());
-                elements.addAll(ElementFilter.typesIn(event.getEnclosedElements()));
-                if (filter.test(event)) {
-                   this.processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, "Generating for event " + event.getSimpleName());
-                   writer.propertyFound(event, strategy.findProperties(event));
-                   writer.forwardedMethods(this.findForwardedMethods(event));
-               }
-            } else {
-                this.processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "This element (" + active.getKind() + " " + active.getSimpleName() + ")  was annotated but it is not a package or interface!", active);
-            }
+        if (!scanner.scanRound(roundEnv, writer)) {
+            writer.skipRound();
         }
 
         try {
             writer.dumpRound();
             // If this is the last round, then let's do the actual generation
-            if (roundEnv.processingOver() && !roundEnv.errorRaised()) {
+            if (roundEnv.processingOver()) {
                 writer.dumpFinal();
             }
         } catch (final IOException ex) {
@@ -146,14 +101,4 @@ public class EventImplGenProcessor extends AbstractProcessor {
         return false;
     }
 
-    private List<ExecutableElement> findForwardedMethods(final TypeElement event) {
-        final List<ExecutableElement> methods = new ArrayList<>();
-        for (final ExecutableElement method : ElementFilter.methodsIn(event.getEnclosedElements())) {
-            if (method.getModifiers().contains(Modifier.STATIC)
-                && method.getAnnotation(FactoryMethod.class) != null) {
-                methods.add(method);
-            }
-        }
-        return methods;
-    }
 }

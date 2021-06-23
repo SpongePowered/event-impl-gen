@@ -111,6 +111,14 @@ public class EventImplWriter implements PropertyConsumer {
         this.forwardedMethods.addAll(elements);
     }
 
+    /**
+     * Called when a round fails. We don't generate factory methods
+     * or impl classes unless the appropriate information is available.
+     */
+    void skipRound() {
+        this.roundFoundProperties.clear();
+    }
+
     public void dumpRound() throws IOException {
         this.generator.setNullPolicy(NullPolicy.NON_NULL_BY_DEFAULT);
         byte[] clazz;

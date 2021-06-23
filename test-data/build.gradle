@@ -1,0 +1,14 @@
+dependencies {
+    annotationProcessor project(":")
+    compileOnlyApi project(":event-impl-gen-annotations")
+}
+
+tasks {
+    compileJava {
+        options.compilerArgs << '-AeventGenFactory=test.event.TestEventFactory'
+    }
+
+   /*withType(org.gradle.api.publish.maven.tasks.AbstractPublishToMaven).configureEach { // todo
+        enabled = false
+    }*/
+}
