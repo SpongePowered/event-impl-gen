@@ -1,11 +1,8 @@
-import org.jetbrains.gradle.ext.ActionDelegationConfig
-
 plugins {
     id "org.spongepowered.gradle.sponge.dev" version "1.1.1" apply false
     id "net.kyori.indra.publishing.sonatype" version "2.0.5"
     id "org.cadixdev.licenser" version "0.6.1" apply false
     id "net.ltgt.errorprone" version "2.0.1"
-    id "org.jetbrains.gradle.plugin.idea-ext" version "1.0"
     id "com.diffplug.eclipse.apt" version "3.30.0"
 }
 
@@ -93,20 +90,4 @@ dependencies {
     testImplementation "org.ow2.asm:asm-util:9.1" // for CheckSignatureAdapter
     testImplementation "org.junit.jupiter:junit-jupiter-api:5.7.2"
     testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:5.7.2"
-}
-
-// IDE AP Configuration
-idea.project.settings {
-    compiler {
-        javac {
-            moduleJavacAdditionalOptions = [
-                'event-impl-gen.event-impl-gen-test-data.main' : '-AeventGenFactory=test.event.TestEventFactory'
-            ]
-        }
-    }
-
-    delegateActions {
-        delegateBuildRunToGradle = false
-        testRunner = ActionDelegationConfig.TestRunner.PLATFORM
-    }
 }
