@@ -38,6 +38,13 @@ public interface PropertyConsumer {
 
     void propertyFound(final TypeElement event, final List<Property> property);
 
+    /**
+     * Add all detected forwarded methods. These methods must be public and static.
+     *
+     * <p>May be called with an empty list.</p>
+     *
+     * @param elements methods detected
+     */
     void forwardedMethods(final List<? extends ExecutableElement> elements);
 
 }

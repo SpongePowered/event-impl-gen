@@ -47,7 +47,8 @@ import javax.tools.Diagnostic;
     EventGenOptions.SORT_PRIORITY_PREFIX,
     EventGenOptions.GROUPING_PREFIXES,
     EventGenOptions.INCLUSIVE_ANNOTATIONS,
-    EventGenOptions.EXCLUSIVE_ANNOTATIONS
+    EventGenOptions.EXCLUSIVE_ANNOTATIONS,
+    EventGenOptions.DEBUG
 })
 public class EventImplGenProcessor extends AbstractProcessor {
 

@@ -295,7 +295,7 @@ public class ClassGenerator {
                 null);
 
         // Parameter names
-        for (final Property property : properties) {
+        for (final Property property : requiredProperties) {
             mv.visitParameter(property.getName(), 0);
         }
 

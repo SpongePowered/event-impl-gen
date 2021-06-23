@@ -72,9 +72,9 @@ sourceSets {
 
 // Project dependencies
 dependencies {
-    implementation "org.ow2.asm:asm:9.1"
+    api "org.ow2.asm:asm:9.1"
     implementation project(":event-impl-gen-annotations")
-    implementation "com.squareup:javapoet:1.13.0"
+    api "com.squareup:javapoet:1.13.0"
 
     implementation "com.google.dagger:dagger:$daggerVersion"
     annotationProcessor "com.google.dagger:dagger-compiler:$daggerVersion"

@@ -55,6 +55,8 @@ public class EventGenOptions {
   public static final String INCLUSIVE_ANNOTATIONS = "inclusiveAnnotations"; // default: GenerateFactoryMethod
   public static final String EXCLUSIVE_ANNOTATIONS = "exclusiveAnnotations"; // default: NoFactoryMethod
 
+  public static final String DEBUG = "eventGenDebug"; // default: false, whether to print debug logging
+
   private boolean validated;
   private boolean valid = true;
 
@@ -108,6 +110,10 @@ public class EventGenOptions {
 
   public Set<String> exclusiveAnnotations() {
     return this.commaSeparatedSet(EventGenOptions.EXCLUSIVE_ANNOTATIONS, NoFactoryMethod.class.getCanonicalName());
+  }
+
+  public boolean debug() {
+    return Boolean.parseBoolean(this.options.getOrDefault(EventGenOptions.DEBUG, "false"));
   }
 
   private Set<String> commaSeparatedSet(final String key, final String defaultValue) {

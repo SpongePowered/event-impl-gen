@@ -49,24 +49,36 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.PackageElement;
+import javax.lang.model.element.QualifiedNameable;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 
 public class EventScanner {
 
     private final Set<String> inclusiveAnnotations;
     private final Set<String> exclusiveAnnotations;
+    private final boolean debugMode;
+    private final Types types;
     private final Elements elements;
     private final Messager messager;
     private final PropertySearchStrategy strategy;
     private final RootNode packages = new RootNode();
 
     @Inject
-    EventScanner(final EventGenOptions options, final Elements elemests, final Messager messager, final PropertySearchStrategy strategy) {
+    EventScanner(
+        final EventGenOptions options,
+        final Types types,
+        final Elements elemests,
+        final Messager messager,
+        final PropertySearchStrategy strategy
+    ) {
         this.inclusiveAnnotations = options.inclusiveAnnotations();
         this.exclusiveAnnotations = options.exclusiveAnnotations();
+        this.debugMode = options.debug();
+        this.types = types;
         this.elements = elemests;
         this.messager = messager;
         this.strategy = strategy;
@@ -110,6 +122,9 @@ public class EventScanner {
             if (!seen.add(active)) {
                 continue;
             }
+            if (this.debugMode) {
+                this.messager.printMessage(Diagnostic.Kind.NOTE, "Testing for events " + (active instanceof QualifiedNameable ? ((QualifiedNameable) active).getQualifiedName() : active.getSimpleName()));
+            }
 
             if (active.getKind() == ElementKind.PACKAGE) {
                 // add classes to consider
@@ -127,11 +142,12 @@ public class EventScanner {
                     .forEach(elements::add);
             } else if (active.getKind().isInterface()) {
                 final TypeElement event = (TypeElement) active;
-                this.messager.printMessage(Diagnostic.Kind.NOTE, "Testing for events " + event.getSimpleName());
                 if (!this.hasExclusiveAnnotation(event)) {
                     elements.addAll(ElementFilter.typesIn(event.getEnclosedElements()));
                     if (!this.isNonTransitivelyExcluded(event)) {
-                        this.messager.printMessage(Diagnostic.Kind.NOTE, "Generating for event " + event.getSimpleName());
+                        if (this.debugMode) {
+                            this.messager.printMessage(Diagnostic.Kind.NOTE, "Generating for event " + event.getSimpleName());
+                        }
                         consumer.propertyFound(event, this.strategy.findProperties(event));
                         consumer.forwardedMethods(this.findForwardedMethods(event));
                     }
@@ -157,9 +173,20 @@ public class EventScanner {
     private List<ExecutableElement> findForwardedMethods(final TypeElement event) {
         final List<ExecutableElement> methods = new ArrayList<>();
         for (final ExecutableElement method : ElementFilter.methodsIn(event.getEnclosedElements())) {
-            if (method.getModifiers().contains(Modifier.STATIC)
-                && method.getAnnotation(FactoryMethod.class) != null) {
-                methods.add(method);
+            if (method.getAnnotation(FactoryMethod.class) != null) {
+                boolean failed = false;
+                if (!method.getModifiers().contains(Modifier.STATIC) || method.getModifiers().contains(Modifier.PRIVATE)) {
+                    this.messager.printMessage(Diagnostic.Kind.ERROR, "Methods annotated with @FactoryMethod must be public and static", method);
+                    failed = true;
+                }
+                if (!this.types.isAssignable(method.getReturnType(), event.asType())) {
+                    this.messager.printMessage(Diagnostic.Kind.ERROR, "Methods annotated by @FactoryMethod must return their owning type.", method);
+                    failed = true;
+                }
+
+                if (failed) {
+                    methods.add(method);
+                }
             }
         }
         return methods;
