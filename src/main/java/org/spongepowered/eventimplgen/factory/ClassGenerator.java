@@ -42,6 +42,7 @@ import static org.objectweb.asm.Opcodes.NEW;
 import static org.objectweb.asm.Opcodes.PUTFIELD;
 import static org.objectweb.asm.Opcodes.RETURN;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
@@ -504,7 +505,7 @@ public class ClassGenerator {
      * @param parentType The parent type
      * @return The class' contents, or {@code null} if an error was reported while generating the class
      */
-    public byte[] createClass(
+    public byte@Nullable [] createClass(
         final TypeElement type,
         final String name,
         final DeclaredType parentType,

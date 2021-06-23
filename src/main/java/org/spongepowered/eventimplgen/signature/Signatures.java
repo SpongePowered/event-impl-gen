@@ -74,7 +74,7 @@ public class Signatures {
      * @return the signature
      */
     public @Nullable String ofField(final TypeElement container, final Property field) {
-        final TypeMirror fieldType = field.getType().getKind() == TypeKind.DECLARED ? this.types.asMemberOf((DeclaredType) container.asType(), this.types.asElement(field.getType())) : field.getType();
+        final TypeMirror fieldType = field.getType(); // field.getType().getKind() == TypeKind.DECLARED ? this.types.asMemberOf((DeclaredType) container.asType(), this.types.asElement(field.getType())) : field.getType();
         final List<? extends TypeMirror> parameters = fieldType.getKind() == TypeKind.DECLARED ? ((DeclaredType) fieldType).getTypeArguments() : Collections.emptyList();
         if ((parameters.isEmpty() || fieldType.getKind().isPrimitive()) && !(fieldType.getKind() == TypeKind.ARRAY
                 || fieldType.getKind() == TypeKind.TYPEVAR)) {
@@ -161,7 +161,7 @@ public class Signatures {
         for (final Property property : params) {
             final SignatureVisitor pv = v.visitParameterType();
             // final TypeMirror actualType = this.types.asMemberOf((DeclaredType) event.asType(), this.types.asElement(property.getMostSpecificType()));
-            property.getType().accept(this.sig, v);
+            property.getType().accept(this.sig, pv);
         }
 
         v.visitReturnType();
@@ -174,87 +174,4 @@ public class Signatures {
         return v.toString();
     }
 
-    /*
-    private void visitFormalTypeParameters(final SignatureVisitor visitor, final List<? extends TypeParameterElement> parameters) {
-        for (final CtTypeParameter param : parameters) {
-            visitor.visitFormalTypeParameter(param.getSimpleName());
-            final boolean doVisitEnd = this.visitBaseType(visitor, param.getSuperclass());
-            if (!param.getSuperclass().getActualTypeArguments().isEmpty()) {
-                this.visitTypeParameters(visitor, param.getSuperclass().getActualTypeArguments());
-            }
-            if (doVisitEnd) {
-                visitor.visitEnd();
-            }
-        }
-
-    }
-
-    private void writePropertyType(final SignatureVisitor visitor, final TypeElement container, final Property property) {
-        final TypeMirror actualType = this.types.asMemberOf((DeclaredType) container.asType(), this.types.asElement(property.getMostSpecificType()));
-        this.visitComputedType(visitor, actualType);
-    }
-
-    private void visitComputedType(final SignatureVisitor visitor, final TypeMirror actualType) {
-        final boolean doVisitEnd = this.visitBaseType(visitor, actualType);
-        final List<? extends TypeMirror> typeArguments = actualType.getActualTypeArguments();
-        if (!typeArguments.isEmpty()) {
-            this.visitTypeParameters(visitor, typeArguments);
-        }
-        if (doVisitEnd) {
-            visitor.visitEnd();
-        }
-    }
-
-    /**
-     * Visit a single type, without its parameters.
-     *
-     * @param pv the visitor to write to
-     * @param type the type to write to the signature
-     * @return whether visitEnd should be called after
-     *
-    private boolean visitBaseType(final SignatureVisitor pv, final TypeMirror type) {
-        if (type.isPrimitive()) {
-            pv.visitBaseType(ClassGenerator.getTypeDescriptor(type).charAt(0));
-            return false;
-        } else if (type instanceof CtArrayTypeReference) {
-            final SignatureVisitor ar = pv.visitArrayType();
-            Signatures.visitBaseType(ar, ((CtArrayTypeReference<?>) type).getComponentType());
-            return true;
-        } else if (type instanceof CtTypeParameterReference) {
-            if (type instanceof CtWildcardReference) {
-                CtTypeReference<?> bound = ((CtTypeParameterReference) type).getBoundingType();
-                if (bound == null) {
-                    bound = type.getFactory().Type().OBJECT;
-                }
-                this.visitBaseType(pv, bound);
-                return true;
-            } else {
-                pv.visitTypeVariable(type.getSimpleName());
-                return false;
-            }
-        } else {
-            pv.visitClassType(type.getQualifiedName().replace('.', '/'));
-            return true;
-        }
-    }
-
-    private void visitTypeParameters(final SignatureVisitor baseVisitor, final List<? extends TypeMirror> types) {
-        for (final TypeMirror type : types) {
-            final SignatureVisitor inner;
-            if (type.getKind() == TypeKind.WILDCARD) {
-                inner = baseVisitor.visitTypeArgument(((WildcardType) type).getSuperBound() == null ? SignatureVisitor.EXTENDS : SignatureVisitor.SUPER);
-            } else {
-                inner = baseVisitor.visitTypeArgument(SignatureVisitor.INSTANCEOF);
-            }
-
-            final boolean doVisitEnd = this.visitBaseType(inner, type);
-
-            if (!(type.getKind() == TypeKind.TYPEVAR && ((TypeVariable) type).getUpperBound() != null)) {
-                this.visitTypeParameters(inner, type.getActualTypeArguments());
-            }
-            if (doVisitEnd) {
-                inner.visitEnd();
-            }
-        }
-    }*/
 }

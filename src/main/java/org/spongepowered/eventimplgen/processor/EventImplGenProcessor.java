@@ -115,9 +115,11 @@ public class EventImplGenProcessor extends AbstractProcessor {
 
             if (active.getKind() == ElementKind.PACKAGE) {
                 elements.addAll(active.getEnclosedElements());
+                // add all subpackages
             } else if (active.getKind().isInterface()) {
                 final TypeElement event = (TypeElement) active;
                 this.processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, "Testing for events " + event.getSimpleName());
+                elements.addAll(ElementFilter.typesIn(event.getEnclosedElements()));
                 if (filter.test(event)) {
                    this.processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, "Generating for event " + event.getSimpleName());
                    writer.propertyFound(event, strategy.findProperties(event));
@@ -136,7 +138,7 @@ public class EventImplGenProcessor extends AbstractProcessor {
             }
         } catch (final IOException ex) {
             this.processingEnv.getMessager()
-                .printMessage(Diagnostic.Kind.WARNING, "Failed to write class information due to an exception: " + ex.getMessage());
+                .printMessage(Diagnostic.Kind.ERROR, "Failed to write class information due to an exception: " + ex.getMessage());
             ex.printStackTrace();
         }
 

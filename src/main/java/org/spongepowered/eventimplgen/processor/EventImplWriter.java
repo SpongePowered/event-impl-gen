@@ -78,6 +78,7 @@ public class EventImplWriter implements PropertyConsumer {
     // All found properties, for generating the factory at the end
     private final Map<TypeElement, List<Property>> allFoundProperties;
     private final List<ExecutableElement> forwardedMethods = new ArrayList<>();
+    private boolean failed = false;
 
     @Inject
     EventImplWriter(
@@ -123,8 +124,12 @@ public class EventImplWriter implements PropertyConsumer {
                 this.roundFoundProperties.get(event), this.sorter, this.plugins
             );
 
-            try (final OutputStream os = this.filer.createClassFile(name, event).openOutputStream()) {
-                os.write(clazz);
+            if (clazz != null) {
+                try (final OutputStream os = this.filer.createClassFile(name, event).openOutputStream()) {
+                    os.write(clazz);
+                }
+            } else {
+                this.failed = true;
             }
         }
 
@@ -134,6 +139,9 @@ public class EventImplWriter implements PropertyConsumer {
 
     public void dumpFinal() throws IOException {
         this.dumpRound();
+        if (this.failed) {
+            return;
+        }
         final byte[] clazz = this.factoryGenerator.createClass(this.outputFactory, this.allFoundProperties, this.sorter, this.forwardedMethods);
         final int forwardedSize = this.forwardedMethods.size();
         final Element[] originatingElements = new Element[forwardedSize + this.allFoundProperties.size()];

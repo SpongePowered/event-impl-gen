@@ -6,6 +6,7 @@ plugins {
     id "org.cadixdev.licenser" version "0.6.1" apply false
     id "net.ltgt.errorprone" version "2.0.1"
     id "org.jetbrains.gradle.plugin.idea-ext" version "1.0"
+    id "com.diffplug.eclipse.apt" version "3.30.0"
 }
 
 // Default tasks
@@ -18,10 +19,15 @@ allprojects {
     apply plugin: "org.spongepowered.gradle.sponge.dev"
     apply plugin: "net.kyori.indra.publishing"
     apply plugin: "net.ltgt.errorprone"
+    apply plugin: "com.diffplug.eclipse.apt"
 
     dependencies {
         errorprone "com.google.errorprone:error_prone_core:$errorproneVersion"
         compileOnlyApi "com.google.errorprone:error_prone_annotations:$errorproneVersion"
+    }
+
+    eclipse {
+        synchronizationTasks eclipseJdtApt, eclipseJdt, eclipseFactorypath
     }
 
     tasks.withType(JavaCompile).configureEach {
