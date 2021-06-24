@@ -24,7 +24,6 @@
  */
 package org.spongepowered.eventimplgen.processor;
 
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.api.util.annotation.eventgen.GenerateFactoryMethod;
 import org.spongepowered.api.util.annotation.eventgen.NoFactoryMethod;

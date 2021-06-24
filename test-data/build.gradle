@@ -12,7 +12,11 @@ dependencies {
 }
 
 compileJava {
-    options.compilerArgs << '-AeventGenFactory=test.event.TestEventFactory'
+    // options.compilerArgs << '-AeventGenFactory=test.event.TestEventFactory'
+    
+    aptOptions {
+        processorArgs = ['eventGenFactory': 'test.event.TestEventFactory']
+    }
 }
 
 tasks.withType(AbstractPublishToMaven).configureEach {

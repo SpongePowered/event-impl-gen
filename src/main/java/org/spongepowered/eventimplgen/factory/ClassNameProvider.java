@@ -53,9 +53,9 @@ public class ClassNameProvider {
         String name = clazz.getSimpleName().toString();
         while (clazz.getEnclosingElement() != null && clazz.getEnclosingElement() instanceof TypeElement) {
             clazz = (TypeElement) clazz.getEnclosingElement();
-            name = clazz.getSimpleName() + "$" + name;
+            name = clazz.getSimpleName() + "_" + name;
         }
-        return this.targetPackage + "." + name + "$" + classifier;
+        return this.targetPackage + "." + name + "_" + classifier;
     }
 
 }

@@ -141,7 +141,7 @@ public class EventImplClassWriter extends ClassWriter {
         mv.visitVarInsn(ALOAD, 0);
         mv.visitVarInsn(Type.getType(this.descriptors.getTypeDescriptor(property.getType())).getOpcode(ILOAD), 1);
 
-        if (this.types.isSameType(this.types.erasure(property.getAccessor().asType()), this.elements.getTypeElement(Optional.class.getName()).asType())) {
+        if (this.types.isAssignable(property.getAccessor().getReturnType(), this.elements.getTypeElement(Optional.class.getName()).asType())) {
             mv.visitMethodInsn(INVOKESTATIC, "java/util/Optional", "ofNullable",
                 "(Ljava/lang/Object;)Ljava/util/Optional;", false);
         }
