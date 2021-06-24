@@ -22,5 +22,24 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-@org.checkerframework.framework.qual.DefaultQualifier(org.checkerframework.checker.nullness.qual.NonNull.class)
-package org.spongepowered.api.util.annotation.eventgen;
+package test.event.lifecycle;
+
+import test.event.Event;
+import test.event.GenericEvent;
+
+import java.nio.Buffer;
+import java.util.List;
+
+public interface CriterionEvent extends Event {
+
+    List<String> triggers();
+
+    void setTriggers(final List<String> triggers);
+
+    interface Trigger<C extends Buffer> extends CriterionEvent, GenericEvent<C> {
+
+        List<C> buffers();
+
+    }
+
+}

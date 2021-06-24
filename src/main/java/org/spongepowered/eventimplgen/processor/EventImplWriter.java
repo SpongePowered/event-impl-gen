@@ -166,8 +166,12 @@ public class EventImplWriter implements PropertyConsumer {
 
         while ((scannedType = queue.poll()) != null) {
             final AnnotationMirror anno = AnnotationUtils.getAnnotation(scannedType, ImplementedBy.class);
-            final Integer priority = AnnotationUtils.getValue(anno, "priority");
-            if (priority != null && priority >= max) {
+            Integer priority = AnnotationUtils.getValue(anno, "priority");
+            if (priority == null) {
+                priority = 1;
+            }
+
+            if (anno != null && priority >= max) {
                 implementedBy = anno;
                 max = priority;
             }

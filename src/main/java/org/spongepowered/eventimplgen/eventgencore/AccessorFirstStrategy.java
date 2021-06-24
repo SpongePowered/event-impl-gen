@@ -50,7 +50,8 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
@@ -70,7 +71,6 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
     private static final Pattern MUTATOR = Pattern.compile("^set([A-Z].*)");
 
     private final Descriptors descriptors;
-    private final Elements elements;
     private final Types types;
     private final boolean allowFluentStyle;
 
@@ -84,7 +84,6 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
     @AssistedInject
     public AccessorFirstStrategy(final Types types, final Elements elements, final Descriptors descriptors, @Assisted final boolean allowFluentStyle) {
         this.types = types;
-        this.elements = elements;
         this.descriptors = descriptors;
         this.allowFluentStyle = allowFluentStyle;
         this.optionalType = elements.getTypeElement("java.util.Optional").asType();
@@ -255,9 +254,15 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
 
         for (final Map.Entry<String, Set<ExecutableElement>> entry : accessors.entrySet()) {
             for (final ExecutableElement accessor : entry.getValue()) {
+                final ExecutableType relativizedAccessor = (ExecutableType) this.types.asMemberOf(((DeclaredType) type.asType()), accessor);
                 final @Nullable ExecutableElement mutator = this.findMutator(accessor, mutators.get(entry.getKey()));
-                result.add(new Property(entry.getKey(), accessor.getReturnType(), accessorHierarchyBottoms.get(entry.getKey()),
-                    mostSpecific.get(entry.getKey()), accessor, mutator
+                result.add(new Property(
+                    entry.getKey(),
+                    relativizedAccessor.getReturnType(),
+                    accessorHierarchyBottoms.get(entry.getKey()),
+                    mostSpecific.get(entry.getKey()),
+                    accessor,
+                    mutator
                 ));
             }
         }

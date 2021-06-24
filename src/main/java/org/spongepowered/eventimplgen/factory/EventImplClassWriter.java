@@ -90,7 +90,7 @@ public class EventImplClassWriter extends ClassWriter {
         EventImplClassWriter create(final int flags);
     }
 
-    public void generateField(final TypeElement container, final Property property) {
+    public void generateField(final Property property) {
         if (!ClassGenerator.isRequired(property) && !ClassGenerator.generateMethods(property)) {
             // If the field will be unused, don't generate it at all
             return;
@@ -100,7 +100,7 @@ public class EventImplClassWriter extends ClassWriter {
             ACC_PRIVATE,
             property.getName(),
             this.descriptors.getTypeDescriptor(property.getType()),
-            this.signatures.ofField(container, property),
+            this.signatures.ofField(property),
             null
         );
         fv.visitEnd();

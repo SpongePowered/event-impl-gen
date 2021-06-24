@@ -35,6 +35,7 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
@@ -71,17 +72,25 @@ public class Descriptors {
     }
 
     public String getDescriptor(final ExecutableElement method) {
+        return this.getDescriptor((ExecutableType) method.asType(), true);
+    }
+
+    public String getDescriptor(final ExecutableType method) {
         return this.getDescriptor(method, true);
     }
 
     public String getDescriptor(final ExecutableElement method, final boolean includeReturnType) {
+        return this.getDescriptor((ExecutableType) method.asType(), includeReturnType);
+    }
+
+    public String getDescriptor(final ExecutableType method, final boolean includeReturnType) {
         if (includeReturnType) {
-            return method.asType().accept(this.descWriter, new StringBuilder()).toString();
+            return method.accept(this.descWriter, new StringBuilder()).toString();
         } else {
             final StringBuilder builder = new StringBuilder();
             builder.append('(');
-            for (final VariableElement type : method.getParameters()) {
-                type.asType().accept(this.descWriter, builder);
+            for (final TypeMirror type : method.getParameterTypes()) {
+                type.accept(this.descWriter, builder);
             }
             builder.append(")V");
             return builder.toString();

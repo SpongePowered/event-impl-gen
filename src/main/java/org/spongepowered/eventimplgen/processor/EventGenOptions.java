@@ -24,6 +24,7 @@
  */
 package org.spongepowered.eventimplgen.processor;
 
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.api.util.annotation.eventgen.GenerateFactoryMethod;
 import org.spongepowered.api.util.annotation.eventgen.NoFactoryMethod;
@@ -33,6 +34,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -69,8 +71,8 @@ public class EventGenOptions {
     this.messager = messager;
   }
 
-  public @Nullable String generatedEventFactory() {
-    return this.options.get(EventGenOptions.GENERATED_EVENT_FACTORY);
+  public String generatedEventFactory() {
+    return Objects.requireNonNull(this.options.get(EventGenOptions.GENERATED_EVENT_FACTORY), "invalid state, factory name not provided");
   }
 
   public @Nullable String sortPriorityPrefix() {

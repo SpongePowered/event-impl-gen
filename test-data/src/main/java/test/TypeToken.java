@@ -22,22 +22,20 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package test.event;
+package test;
 
-import org.spongepowered.api.util.annotation.eventgen.NoFactoryMethod;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 
-/**
- * Base interface for events.
- */
-@NoFactoryMethod
-public interface Event {
+public abstract class TypeToken<V> {
+    private final Type type;
 
-    default String version() {
-        return "dingbats";
+    protected TypeToken() {
+        this.type = ((ParameterizedType) this.getClass().getGenericSuperclass()).getActualTypeArguments()[0];
     }
 
-    boolean cancelled();
-
-    void setCancelled(final boolean cancelled);
+    public Type type() {
+        return this.type;
+    }
 
 }

@@ -160,11 +160,11 @@ public final class Property implements Comparable<Property> {
      * @return True if tis property's type is the least specific
      */
     public boolean isLeastSpecificType(final Types types) {
-        return types.isSameType(this.type, this.leastSpecificMethod.getReturnType());
+        return types.isSameType(this.accessor.asType(), this.leastSpecificMethod.asType());
     }
 
     public boolean isMostSpecificType(final Types types) {
-        return types.isSameType(this.type, this.mostSpecificMethod.getReturnType());
+        return types.isSameType(this.accessor.asType(), this.mostSpecificMethod.asType());
     }
 
     @Override

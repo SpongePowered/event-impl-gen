@@ -44,6 +44,7 @@ import java.util.stream.Stream;
 import javax.annotation.processing.Messager;
 import javax.annotation.processing.RoundEnvironment;
 import javax.inject.Inject;
+import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -152,7 +153,7 @@ public class EventScanner {
                         consumer.forwardedMethods(this.findForwardedMethods(event));
                     }
                 }
-            } else {
+            } else if (active.getKind() != ElementKind.ENUM) { // implicitly exclude enums, they are commonly declared nested in event interfaces
                 this.messager.printMessage(Diagnostic.Kind.ERROR, "This element (" + active.getKind() + " " + active.getSimpleName() + ")  was "
                     + "annotated directly or transitively, but it is not a package or interface", active);
                 failed = true;
@@ -167,7 +168,16 @@ public class EventScanner {
     }
 
     public boolean isNonTransitivelyExcluded(final TypeElement candidate) {
-        return !ElementFilter.typesIn(candidate.getEnclosedElements()).isEmpty();
+        if (!ElementFilter.typesIn(candidate.getEnclosedElements()).isEmpty()) {
+            // no explicit inclusion annotation applied
+            for (final AnnotationMirror anno : candidate.getAnnotationMirrors()) {
+                if (this.inclusiveAnnotations.contains(this.elements.getBinaryName((TypeElement) anno.getAnnotationType().asElement()).toString())) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
     }
 
     private List<ExecutableElement> findForwardedMethods(final TypeElement event) {

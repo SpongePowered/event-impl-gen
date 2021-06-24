@@ -99,7 +99,7 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
         }
 
         if (transformWith != null) {
-            return new MethodPair(name, leastSpecificMethod, transformWith, property);
+            return new MethodPair(name, transformWith, property);
         }
         return null;
     }
@@ -142,7 +142,7 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
             return Result.FAILURE;
         }
 
-        classWriter.generateField(eventClass, property);
+        classWriter.generateField(property);
         if (property.getMutator().isPresent()) {
             classWriter.generateMutator(eventClass, internalName, property.getName(), property);
         }
@@ -156,11 +156,10 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
 
     static final class MethodPair {
 
-        static final MethodPair FAILED = new MethodPair("error", null, null, null);
+        static final MethodPair FAILED = new MethodPair("error", null, null);
 
         private final String name;
 
-        private ExecutableElement callerMethod;
         private final ExecutableElement transformerMethod;
 
         private final Property property;
@@ -169,13 +168,11 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
          * Creates a new {@link MethodPair}.
          *
          * @param name The name
-         * @param callerMethod The caller method
          * @param transformerMethod The transformer method
          * @param property The property
          */
-        public MethodPair(final String name, final ExecutableElement callerMethod, final ExecutableElement transformerMethod, final Property property) {
+        public MethodPair(final String name, final ExecutableElement transformerMethod, final Property property) {
             this.name = name;
-            this.callerMethod = callerMethod;
             this.transformerMethod = transformerMethod;
             this.property = property;
         }

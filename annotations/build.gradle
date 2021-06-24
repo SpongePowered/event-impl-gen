@@ -1,3 +1,0 @@
-dependencies {
-  compileOnlyApi "org.checkerframework:checker-qual:${checkerQualVersion}"
-}

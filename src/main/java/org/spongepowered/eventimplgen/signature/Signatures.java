@@ -73,7 +73,7 @@ public class Signatures {
      * @param field the field to generate a signature for
      * @return the signature
      */
-    public @Nullable String ofField(final TypeElement container, final Property field) {
+    public @Nullable String ofField(final Property field) {
         final TypeMirror fieldType = field.getType(); // field.getType().getKind() == TypeKind.DECLARED ? this.types.asMemberOf((DeclaredType) container.asType(), this.types.asElement(field.getType())) : field.getType();
         final List<? extends TypeMirror> parameters = fieldType.getKind() == TypeKind.DECLARED ? ((DeclaredType) fieldType).getTypeArguments() : Collections.emptyList();
         if ((parameters.isEmpty() || fieldType.getKind().isPrimitive()) && !(fieldType.getKind() == TypeKind.ARRAY

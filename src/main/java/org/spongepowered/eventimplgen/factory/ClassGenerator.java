@@ -154,7 +154,7 @@ public class ClassGenerator {
         }
     }
 
-    private static AnnotationMirror getUseField(final TypeMirror clazz, final String fieldName) {
+    private static UseField getUseField(final TypeMirror clazz, final String fieldName) {
         if (clazz.getKind() != TypeKind.DECLARED) {
             return null;
         }
@@ -165,7 +165,7 @@ public class ClassGenerator {
 
         for (final VariableElement element : ElementFilter.fieldsIn(type.getEnclosedElements())) {
             if (element.getSimpleName().contentEquals(fieldName)) {
-                return AnnotationUtils.getAnnotation(element, "org.spongepowered.api.util.annotation.eventgen.UseField");
+                return element.getAnnotation(UseField.class);
             }
         }
 
@@ -258,8 +258,7 @@ public class ClassGenerator {
         if (property.isLeastSpecificType(this.types)) {
             final VariableElement field = this.getField(parentType, property.getName());
             if (field == null || field.getAnnotation(UseField.class) == null) {
-                classWriter.generateField(event, property);
-                return true;
+                classWriter.generateField(property);
             } else if (field.getModifiers().contains(Modifier.PRIVATE)) {
                 this.messager.printMessage(Diagnostic.Kind.ERROR, "You've annotated the field " + property.getName() + " with @UseField, "
                     + "but it's private. This just won't work.", field);
@@ -401,7 +400,6 @@ public class ClassGenerator {
     private void generateAccessorsAndMutator(
         final EventImplClassWriter cw,
         final TypeElement type,
-        final TypeMirror parentType,
         final String internalName,
         final Property property
     ) {
@@ -437,9 +435,9 @@ public class ClassGenerator {
 
         if (property.isLeastSpecificType(this.types) && (ClassGenerator.isRequired(property) || ClassGenerator.generateMethods(property))) {
             boolean overrideToString = false;
-            final AnnotationMirror useField = ClassGenerator.getUseField(parentType, property.getName());
+            final UseField useField = ClassGenerator.getUseField(parentType, property.getName());
             if (useField != null) {
-                overrideToString = AnnotationUtils.getValue(useField, "overrideToString");
+                overrideToString = useField.overrideToString();
             }
 
             toStringMv.visitVarInsn(ALOAD, 0);
@@ -580,8 +578,8 @@ public class ClassGenerator {
             this.contributeToString(internalName, parentType, property, toStringMv);
 
             if (!processed) {
-                this.contributeField(cw, eventClass, parentType, property);
-                this.generateAccessorsAndMutator(cw, eventClass, parentType, internalName, property);
+                success &= this.contributeField(cw, eventClass, parentType, property);
+                this.generateAccessorsAndMutator(cw, eventClass, internalName, property);
             }
         }
         return success;

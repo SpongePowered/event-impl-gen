@@ -25,19 +25,11 @@
 package test.event;
 
 import org.spongepowered.api.util.annotation.eventgen.NoFactoryMethod;
+import test.TypeToken;
 
-/**
- * Base interface for events.
- */
 @NoFactoryMethod
-public interface Event {
+public interface GenericEvent<T> extends Event {
 
-    default String version() {
-        return "dingbats";
-    }
-
-    boolean cancelled();
-
-    void setCancelled(final boolean cancelled);
+    TypeToken<T> type();
 
 }

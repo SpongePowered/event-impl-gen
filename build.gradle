@@ -20,7 +20,6 @@ allprojects {
 
     dependencies {
         errorprone "com.google.errorprone:error_prone_core:$errorproneVersion"
-        compileOnlyApi "com.google.errorprone:error_prone_annotations:$errorproneVersion"
     }
 
     eclipse {
@@ -75,6 +74,8 @@ dependencies {
     api "org.ow2.asm:asm:9.1"
     implementation project(":event-impl-gen-annotations")
     api "com.squareup:javapoet:1.13.0"
+
+    compileOnlyApi "com.google.errorprone:error_prone_annotations:$errorproneVersion"
 
     implementation "com.google.dagger:dagger:$daggerVersion"
     annotationProcessor "com.google.dagger:dagger-compiler:$daggerVersion"

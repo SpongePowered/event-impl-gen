@@ -103,7 +103,8 @@ public class FactoryInterfaceGenerator {
             params.append(parameter.getSimpleName().toString());
         }
 
-        spec.addCode("return $T.$L($L);", TypeName.get(targetMethod.getEnclosingElement().asType()), targetMethod.getSimpleName().toString(), params.toString());
+        final String template = targetMethod.getTypeParameters().isEmpty() ? "return $T.$L($L);" : "return $T.$L<>($L);";
+        spec.addCode(template, TypeName.get(targetMethod.getEnclosingElement().asType()), targetMethod.getSimpleName().toString(), params.toString());
 
         return spec.build();
     }
@@ -137,7 +138,8 @@ public class FactoryInterfaceGenerator {
             simpleName = eventName;
         }
         final TypeName implType = ClassName.get(pkgName, simpleName);
-        spec.addCode("return new $T($L);", implType, paramNames.toString());
+        final String template = event.getTypeParameters().isEmpty() ? "return new $T($L);" : "return new $T<>($L);";
+        spec.addCode(template, implType, paramNames.toString());
 
         return spec.build();
     }
