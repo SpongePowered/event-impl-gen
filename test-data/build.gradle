@@ -1,3 +1,5 @@
+import org.gradle.api.publish.maven.tasks.AbstractPublishToMaven
+
 dependencies {
     annotationProcessor project(":")
     compileOnlyApi project(":event-impl-gen-annotations")
@@ -9,12 +11,10 @@ dependencies {
     testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:5.7.2"
 }
 
-tasks {
-    compileJava {
-        options.compilerArgs << '-AeventGenFactory=test.event.TestEventFactory'
-    }
+compileJava {
+    options.compilerArgs << '-AeventGenFactory=test.event.TestEventFactory'
+}
 
-   /*withType(org.gradle.api.publish.maven.tasks.AbstractPublishToMaven).configureEach { // todo
-        enabled = false
-    }*/
+tasks.withType(AbstractPublishToMaven).configureEach {
+    enabled = false
 }
