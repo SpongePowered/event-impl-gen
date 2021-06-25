@@ -35,7 +35,7 @@ import java.lang.annotation.Target;
  * <p>By default, an event which contains subinterfaces will not have
  * an event factory method generated.</p>
  */
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.CLASS)
 @Target({ElementType.TYPE, ElementType.PACKAGE})
 public @interface NoFactoryMethod {
 }

@@ -39,7 +39,7 @@ import java.lang.annotation.Target;
  * set automatically, even if it matches a property from the implemented
  * event.</p>
  */
-@Retention(RetentionPolicy.RUNTIME)
+@Retention(RetentionPolicy.CLASS)
 @Target(ElementType.FIELD)
 public @interface UseField {
 

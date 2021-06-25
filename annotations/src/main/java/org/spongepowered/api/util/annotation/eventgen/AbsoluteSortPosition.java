@@ -41,7 +41,7 @@ import java.lang.annotation.Target;
  * properties with the absolute ordering 0, 1, and 3 will still be adjacent to
  * each other.</p>
  */
-@Retention(RetentionPolicy.RUNTIME)
+@Retention(RetentionPolicy.CLASS)
 @Target(ElementType.METHOD)
 public @interface AbsoluteSortPosition {
 

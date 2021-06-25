@@ -40,7 +40,7 @@ import java.lang.annotation.Target;
  * must have a method annotated with {@link TransformWith}, with a matching
  * {@link #value()}.</p>
  */
-@Retention(RetentionPolicy.RUNTIME)
+@Retention(RetentionPolicy.CLASS)
 @Target(ElementType.METHOD)
 public @interface TransformResult {
 

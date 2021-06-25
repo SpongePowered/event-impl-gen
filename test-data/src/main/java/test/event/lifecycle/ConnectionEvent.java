@@ -30,4 +30,8 @@ public interface ConnectionEvent extends Event {
 
     String name();
 
+    default int help() {
+        return 5;
+    }
+
 }

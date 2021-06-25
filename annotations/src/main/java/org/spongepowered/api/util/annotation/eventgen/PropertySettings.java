@@ -35,7 +35,7 @@ import java.lang.annotation.Target;
  * <p>This annotation should always be placed on the getter method of a
  * property.</p>
  */
-@Retention(RetentionPolicy.RUNTIME)
+@Retention(RetentionPolicy.CLASS)
 @Target(ElementType.METHOD)
 public @interface PropertySettings {
 

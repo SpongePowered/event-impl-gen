@@ -35,7 +35,7 @@ import java.lang.annotation.Target;
  */
 @Inherited
 @Target(ElementType.TYPE)
-@Retention(RetentionPolicy.RUNTIME)
+@Retention(RetentionPolicy.CLASS)
 public @interface ImplementedBy {
 
     /**

@@ -39,7 +39,7 @@ import java.lang.annotation.Target;
  * factory method signature, code expecting the old event signature
  * will continue to function.</p>
  */
-@Retention(RetentionPolicy.RUNTIME)
+@Retention(RetentionPolicy.CLASS)
 @Target(ElementType.METHOD)
 public @interface FactoryMethod {
 }

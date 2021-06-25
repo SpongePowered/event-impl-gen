@@ -40,7 +40,7 @@ import java.lang.annotation.Target;
  * an instance of the method's class, or Object (for compatibility with
  * generics).</p>
  */
-@Retention(RetentionPolicy.RUNTIME)
+@Retention(RetentionPolicy.CLASS)
 @Target(ElementType.METHOD)
 public @interface TransformWith {
 

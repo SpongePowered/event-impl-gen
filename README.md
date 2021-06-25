@@ -34,3 +34,19 @@ genEventImpl {
 
 **Eclipse**: Because Eclipse compiles continuously, event implementations are generated immediately. When using Gradle, a bit of plumbing is 
 required to ensure annotation processors are automatically detected
+
+
+### Options
+
+Beyond the one required `eventGenFactory` option to declare the location of the generated event factory, there are several other options to 
+control the output:
+
+| Option | Description | Format | Required | Default Value |
+|------- | ----------- | ------ | -------- | ------------- |
+| `eventGenFactory` | The package to put the generated factory in | qualified binary name | *yes* | *none* |
+| `sortPriorityPrefix` | prefix for methods that should be placed first when sotring | string | *no* | `original` |
+| `groupingPrefixes` | appears to modify sorting to group certain prefixes together | `<a>:<b>[,<a>:<b>]*` | *no* | `from:to` |
+| `inclusiveAnnotations` | customize the annotations that include an event type  in processing | binary name of an annotation | *no* | `o.s.a.u.a.e.GenerateFactoryMethod` |
+| `exclusiveAnnotations` | customize the annotations that exclude an event type from processing | binary name of an annotation | *no* | `o.s.a.u.a.e.GenerateFactoryMethod` |
+| `eventGenDebug` | print extra debug output | boolean | *no* | `false` |
+
