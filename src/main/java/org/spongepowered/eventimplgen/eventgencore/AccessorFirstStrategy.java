@@ -24,12 +24,11 @@
  */
 package org.spongepowered.eventimplgen.eventgencore;
 
+import dagger.assisted.Assisted;
+import dagger.assisted.AssistedFactory;
+import dagger.assisted.AssistedInject;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import spoon.reflect.declaration.CtMethod;
-import spoon.reflect.declaration.CtParameter;
-import spoon.reflect.declaration.CtType;
-import spoon.reflect.declaration.ModifierKind;
-import spoon.reflect.reference.CtTypeReference;
+import org.spongepowered.eventimplgen.signature.Descriptors;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -42,10 +41,23 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import javax.annotation.processing.Messager;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.ExecutableType;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
+import javax.tools.Diagnostic;
 
 /**
  *
@@ -60,10 +72,23 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
     private static final Pattern ACCESSOR_KEEPS = Pattern.compile("^(keeps[A-Z].*)");
     private static final Pattern MUTATOR = Pattern.compile("^set([A-Z].*)");
 
+    private final Descriptors descriptors;
+    private final Types types;
     private final boolean allowFluentStyle;
 
-    public AccessorFirstStrategy(final boolean allowFluentStyle) {
+    private final TypeElement optional;
+
+    @AssistedFactory
+    public interface Factory {
+        AccessorFirstStrategy create(final boolean allowFluentStyle);
+    }
+
+    @AssistedInject
+    public AccessorFirstStrategy(final Types types, final Elements elements, final Descriptors descriptors, @Assisted final boolean allowFluentStyle) {
+        this.types = types;
+        this.descriptors = descriptors;
         this.allowFluentStyle = allowFluentStyle;
+        this.optional = elements.getTypeElement("java.util.Optional");
     }
 
     /**
@@ -73,14 +98,14 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
      * @param method The method
      * @return The property name, if the method is an accessor
      */
-    private String getAccessorName(final CtMethod<?> method) {
+    private String getAccessorName(final ExecutableElement method) {
         Matcher m;
 
         if (this.isPublic(method) && method.getParameters().isEmpty()) {
-            final String methodName = method.getSimpleName();
-            final CtTypeReference<?> returnType = method.getType();
+            final CharSequence methodName = method.getSimpleName();
+            final TypeMirror returnType = method.getReturnType();
 
-            if (returnType.getQualifiedName().equals("void")) {
+            if (returnType.getKind() == TypeKind.VOID) {
                 return null;
             }
 
@@ -90,22 +115,22 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
             }
 
             m = AccessorFirstStrategy.ACCESSOR_BOOL.matcher(methodName);
-            if (m.matches() && returnType.getQualifiedName().equals("boolean")) {
+            if (m.matches() && returnType.getKind() == TypeKind.BOOLEAN) {
                 return AccessorFirstStrategy.getPropertyName(m.group(1));
             }
 
             m = AccessorFirstStrategy.ACCESSOR_KEEPS.matcher(methodName);
-            if (m.matches() && returnType.getQualifiedName().equals("boolean")) {
+            if (m.matches() && returnType.getKind() == TypeKind.BOOLEAN) {
                 return AccessorFirstStrategy.getPropertyName(m.group(1));
             }
 
             m = AccessorFirstStrategy.ACCESSOR_HAS.matcher(methodName);
-            if (m.matches() && returnType.getQualifiedName().equals("boolean")) {
+            if (m.matches() && returnType.getKind() == TypeKind.BOOLEAN) {
                 return AccessorFirstStrategy.getPropertyName(methodName); // This is intentional, we want to keep the 'has'
             }
 
             if (this.allowFluentStyle) {
-                return methodName;
+                return methodName.toString();
             }
         }
 
@@ -119,24 +144,24 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
      * @param method The method
      * @return The property name, if the method is an mutator
      */
-    private @Nullable String getMutatorName(final CtMethod<?> method) {
+    private @Nullable String getMutatorName(final ExecutableElement method) {
         final Matcher m;
 
-        if (this.isPublic(method) && method.getParameters().size() == 1 && method.getType().getQualifiedName().equals("void")) {
+        if (this.isPublic(method) && method.getParameters().size() == 1 && method.getReturnType().getKind() == TypeKind.VOID) {
             m = AccessorFirstStrategy.MUTATOR.matcher(method.getSimpleName());
             if (m.matches()) {
                 return AccessorFirstStrategy.getPropertyName(m.group(1));
             } else if (this.allowFluentStyle) {
-                return method.getSimpleName();
+                return method.getSimpleName().toString();
             }
         }
 
         return null;
     }
 
-    private boolean isPublic(final CtMethod<?> method) {
-        final Set<ModifierKind> modifiers = method.getModifiers();
-        return modifiers.contains(ModifierKind.PUBLIC) || !(modifiers.contains(ModifierKind.PROTECTED) || modifiers.contains(ModifierKind.PRIVATE));
+    private boolean isPublic(final ExecutableElement method) {
+        final Set<Modifier> modifiers = method.getModifiers();
+        return modifiers.contains(Modifier.PUBLIC) || !(modifiers.contains(Modifier.PROTECTED) || modifiers.contains(Modifier.PRIVATE));
     }
 
     /**
@@ -145,8 +170,8 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
      * @param name The name
      * @return The cleaned up name
      */
-    public static String getPropertyName(final String name) {
-        return Character.toLowerCase(name.charAt(0)) + name.substring(1);
+    public static String getPropertyName(final CharSequence name) {
+        return Character.toLowerCase(name.charAt(0)) + name.subSequence(1, name.length()).toString();
     }
 
     /**
@@ -157,81 +182,97 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
      * @param candidates The collection of candidates
      * @return A mutator, if found
      */
-    protected @Nullable CtMethod<?> findMutator(final CtMethod<?> accessor, final @Nullable Collection<CtMethod<?>> candidates) {
+    protected @Nullable ExecutableElement findMutator(final ExecutableElement accessor, final @Nullable Collection<ExecutableElement> candidates) {
         if (candidates == null) {
             return null;
         }
 
-        final CtTypeReference<?> expectedType = accessor.getType();
+        final TypeMirror expectedType = accessor.getReturnType();
 
-        for (final CtMethod<?> method : candidates) {
+        // Optional tests
+        final boolean isOptionalReturn = expectedType.getKind() == TypeKind.DECLARED && this.types.isAssignable(this.types.erasure(expectedType), this.optional.asType());
+        for (final ExecutableElement method : candidates) {
             // TODO: Handle supertypes
-            if (method.getParameters().get(0).getType().getQualifiedName().equals(expectedType.getQualifiedName()) || expectedType.getQualifiedName().equals(Optional.class.getName())) {
+            final TypeMirror firstParam = method.getParameters().get(0).asType();
+            if (this.types.isSameType(firstParam, expectedType)) {
                 return method;
             }
+
+            if (isOptionalReturn && this.types.isSameType(firstParam, ((DeclaredType) expectedType).getTypeArguments().get(0))) {
+                return method;
+            }
+
         }
 
         return null;
     }
 
     @Override
-    public List<Property> findProperties(final CtTypeReference<?> type) {
+    public List<Property> findProperties(final TypeElement type) {
         Objects.requireNonNull(type, "type");
 
-        final Map<String, Set<CtMethod<?>>> accessors = new HashMap<>();
-        final Map<String, Set<CtMethod<?>>> mutators = new HashMap<>();
-        final Map<String, CtMethod<?>> accessorHierarchyBottoms = new HashMap<>();
-        final Map<String, CtMethod<?>> mostSpecific = new HashMap<>();
+        final Map<String, Set<ExecutableElement>> accessors = new HashMap<>();
+        final Map<String, Set<ExecutableElement>> mutators = new HashMap<>();
+        final Map<String, ExecutableElement> accessorHierarchyBottoms = new HashMap<>();
+        final Map<String, ExecutableElement> mostSpecific = new HashMap<>();
         final Set<String> signatures = new HashSet<>();
 
-        final Deque<CtType<?>> queue = new ArrayDeque<>();
-        queue.push(type.getDeclaration());
+        final Deque<TypeElement> queue = new ArrayDeque<>();
+        queue.push(type);
 
         while (!queue.isEmpty()) {
-            final CtType<?> ourType = queue.pop();
-            for (final CtMethod<?> method : ourType.getMethods()) {
+            final TypeElement ourType = queue.pop();
+            for (final Element element : ourType.getEnclosedElements()) {
+                if (element.getKind() != ElementKind.METHOD) {
+                    continue;
+                }
+                final ExecutableElement method = (ExecutableElement) element;
+
                 String name;
 
                 final StringBuilder signature = new StringBuilder(method.getSimpleName() + ";");
-                for (final CtParameter<?> parameterType : method.getParameters()) {
-                    signature.append(parameterType.getType().getQualifiedName()).append(";");
-                }
-                signature.append(method.getType().getSimpleName());
+                signature.append(this.descriptors.getDescriptor(method));
 
-                final CtMethod<?> leastSpecificMethod;
+                final ExecutableElement leastSpecificMethod;
                 if ((name = this.getAccessorName(method)) != null && !signatures.contains(signature.toString())
                         && ((leastSpecificMethod = accessorHierarchyBottoms.get(name)) == null
-                                    || !leastSpecificMethod.getType().getQualifiedName().equals(method.getType().getQualifiedName()))) {
+                                    || !this.types.isSameType(leastSpecificMethod.getReturnType(), method.getReturnType()))) {
                     accessors.computeIfAbsent(name, $ -> new HashSet<>()).add(method);
                     signatures.add(signature.toString());
 
-                    if (!mostSpecific.containsKey(name) || method.getType().isSubtypeOf(mostSpecific.get(name).getType())) {
+                    if (!mostSpecific.containsKey(name) || this.types.isSubtype(method.getReturnType(), mostSpecific.get(name).getReturnType())) {
                         mostSpecific.put(name, method);
                     }
 
                     if (accessorHierarchyBottoms.get(name) == null
-                            || accessorHierarchyBottoms.get(name).getType().isSubtypeOf(method.getType())) {
+                            || this.types.isSubtype(accessorHierarchyBottoms.get(name).getReturnType(), method.getReturnType())) {
                         accessorHierarchyBottoms.put(name, method);
                     }
                 } else if ((name = this.getMutatorName(method)) != null) {
                     mutators.computeIfAbsent(name, $ -> new HashSet<>()).add(method);
                 }
             }
-            if (ourType.getSuperclass() != null) {
-                queue.push(ourType.getSuperclass().getDeclaration());
+            if (ourType.getSuperclass().getKind() != TypeKind.NONE) {
+                queue.push((TypeElement) this.types.asElement(ourType.getSuperclass()));
             }
-            for (final CtTypeReference<?> iface : ourType.getSuperInterfaces()) {
-                queue.push(iface.getDeclaration());
+            for (final TypeMirror iface : ourType.getInterfaces()) {
+                queue.push((TypeElement) this.types.asElement(iface));
             }
         }
 
         final List<Property> result = new ArrayList<>();
 
-        for (final Map.Entry<String, Set<CtMethod<?>>> entry : accessors.entrySet()) {
-            for (final CtMethod<?> accessor : entry.getValue()) {
-                final @Nullable CtMethod<?> mutator = this.findMutator(accessor, mutators.get(entry.getKey()));
-                result.add(new Property(entry.getKey(), accessor.getType(), accessorHierarchyBottoms.get(entry.getKey()),
-                    mostSpecific.get(entry.getKey()), accessor, mutator
+        for (final Map.Entry<String, Set<ExecutableElement>> entry : accessors.entrySet()) {
+            for (final ExecutableElement accessor : entry.getValue()) {
+                final ExecutableType relativizedAccessor = (ExecutableType) this.types.asMemberOf(((DeclaredType) type.asType()), accessor);
+                final @Nullable ExecutableElement mutator = this.findMutator(accessor, mutators.get(entry.getKey()));
+                result.add(new Property(
+                    entry.getKey(),
+                    relativizedAccessor.getReturnType(),
+                    accessorHierarchyBottoms.get(entry.getKey()),
+                    mostSpecific.get(entry.getKey()),
+                    accessor,
+                    mutator
                 ));
             }
         }

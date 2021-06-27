@@ -22,25 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.eventimplgen;
+@NoFactoryMethod
+package test.event.cause;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-
-import org.gradle.api.Project;
-import org.gradle.testfixtures.ProjectBuilder;
-import org.junit.jupiter.api.Test;
-
-public class SimpleExecutionTest {
-
-    @Test
-    void testProject() {
-        final Project project = ProjectBuilder.builder().build();
-
-        project.getPlugins().apply("java-library");
-        project.getPlugins().apply("org.spongepowered.gradle.event-impl-gen");
-
-        // Basic task application
-        assertNotNull(project.getTasks().findByName("genEventImpl"));
-    }
-
-}
+import org.spongepowered.api.util.annotation.eventgen.NoFactoryMethod;

@@ -24,9 +24,9 @@
  */
 package org.spongepowered.eventimplgen.eventgencore;
 
-import spoon.reflect.reference.CtTypeReference;
-
 import java.util.List;
+
+import javax.lang.model.element.TypeElement;
 
 /**
  * Finds all the properties in a class.
@@ -42,6 +42,6 @@ public interface PropertySearchStrategy {
      * @param type The class
      * @return A set of properties
      */
-    List<Property> findProperties(final CtTypeReference<?> type);
+    List<Property> findProperties(final TypeElement type);
 
 }

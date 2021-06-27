@@ -1,14 +1,15 @@
 pluginManagement {
     repositories {
         maven {
-            url = "https://repo.nokee.dev/release/"
-            name = "nokeee"
-            mavenContent {
-                releasesOnly()
-                includeGroupByRegex("dev\\.nokee.*")
-                includeGroupByRegex("dev\\.gradleplugins.*")
-            }
+            url = "https://repo.spongepowered.org/repository/maven-public/"
+            name = "sponge"
         }
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
         maven {
             url = "https://repo.spongepowered.org/repository/maven-public/"
             name = "sponge"
@@ -17,3 +18,8 @@ pluginManagement {
 }
 
 rootProject.name = "event-impl-gen"
+
+['annotations', 'test-data'].each {
+    include it
+    findProject(":$it").name = "${rootProject.name}-$it"
+}

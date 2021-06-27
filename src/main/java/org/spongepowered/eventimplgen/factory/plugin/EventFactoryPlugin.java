@@ -24,9 +24,10 @@
  */
 package org.spongepowered.eventimplgen.factory.plugin;
 
-import org.objectweb.asm.ClassWriter;
 import org.spongepowered.eventimplgen.eventgencore.Property;
-import spoon.reflect.declaration.CtType;
+import org.spongepowered.eventimplgen.factory.ClassContext;
+
+import javax.lang.model.element.TypeElement;
 
 /**
  * Represents a class which modifies the behavior of an event generator.
@@ -43,11 +44,31 @@ public interface EventFactoryPlugin {
      *
      * @param eventClass The {@link Class} of the event an implementation is being generated for
      * @param internalName The internal name of the event
-     * @param classWriter The {@link ClassWriter} being used to generate the event class implementation
+     * @param classWriter The {@link ClassContext} holding information about the implementation class
      * @param property The {@link Property} being processed
      *
      * @return whether the provided {@link Property} was processed.
      */
-    boolean contributeProperty(CtType<?> eventClass, String internalName, ClassWriter classWriter, Property property);
+    Result contributeProperty(TypeElement eventClass, String internalName, ClassContext classWriter, Property property);
+
+    enum Result {
+        /**
+         * Claim the property, having successfully processed it.
+         */
+        SUCCESSS,
+        /**
+         * Indicate that this plugin does not claim the provided property.
+         */
+        IGNORE,
+        /**
+         * Indicate that an error occurred while processing this property.
+         *
+         * <p>This should be accompanied by a logged error message.</p>
+         *
+         * <p>By returning this value, final writing of a class file will be
+         * suppressed but other properties in the class may be processed.</p>
+         */
+        FAILURE;
+    }
 
 }

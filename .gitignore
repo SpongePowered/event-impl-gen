@@ -71,3 +71,8 @@ nb-configuration.xml
 *.iml
 *.ipr
 *.iws
+*/.apt_generated/
+*/.apt_generated_tests/
+/.apt_generated/
+/.apt_generated_tests/
+.factorypath

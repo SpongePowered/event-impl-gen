@@ -24,159 +24,138 @@
  */
 package org.spongepowered.eventimplgen.factory;
 
-import static org.objectweb.asm.Opcodes.ACC_FINAL;
-import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
-import static org.objectweb.asm.Opcodes.ACC_STATIC;
-import static org.objectweb.asm.Opcodes.ACC_SUPER;
-import static org.objectweb.asm.Opcodes.ARETURN;
-import static org.objectweb.asm.Opcodes.DUP;
-import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
-import static org.objectweb.asm.Opcodes.INVOKESTATIC;
-import static org.objectweb.asm.Opcodes.NEW;
-import static org.objectweb.asm.Opcodes.V1_8;
-
-import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.Label;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
-import org.spongepowered.eventimplgen.EventImplGenTask;
+import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.JavaFile;
+import com.squareup.javapoet.MethodSpec;
+import com.squareup.javapoet.TypeName;
+import com.squareup.javapoet.TypeSpec;
+import com.squareup.javapoet.TypeVariableName;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.eventgencore.PropertySorter;
-import org.spongepowered.eventimplgen.factory.plugin.AccessorModifierEventFactoryPlugin;
-import org.spongepowered.eventimplgen.factory.plugin.EventFactoryPlugin;
-import spoon.reflect.declaration.CtMethod;
-import spoon.reflect.declaration.CtParameter;
-import spoon.reflect.declaration.CtType;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeVariable;
+
+@Singleton
 public class FactoryInterfaceGenerator {
 
-    public static final List<EventFactoryPlugin> PLUGINS = new ArrayList<>();
+    private final ClassGenerator generator;
 
-    static {
-        FactoryInterfaceGenerator.PLUGINS.add(new AccessorModifierEventFactoryPlugin());
+    @Inject
+    FactoryInterfaceGenerator(final ClassGenerator generator) {
+        this.generator = generator;
     }
 
-    public static byte[] createClass(
+    public JavaFile createClass(
             final String name,
-            final Map<CtType<?>, List<Property>> foundProperties,
-            final ClassGeneratorProvider provider,
+            final Map<TypeElement, List<Property>> foundProperties,
             final PropertySorter sorter,
-            final List<CtMethod<?>> forwardedMethods) {
-        final String internalName = ClassGenerator.getInternalName(name);
+            final List<ExecutableElement> forwardedMethods) {
+        final ClassName clazz = ClassName.bestGuess(name);
+        final TypeSpec.Builder factoryClass = TypeSpec.classBuilder(clazz.topLevelClassName())
+            .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+            .addMethod(MethodSpec.constructorBuilder()
+                .addModifiers(Modifier.PRIVATE)
+                .build())
+            .addAnnotation(this.generator.generatedAnnotation());
 
-        final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
-        cw.visit(V1_8, ACC_PUBLIC | ACC_SUPER | ACC_FINAL, internalName, null, "java/lang/Object", new String[] {});
-
-        for (final Map.Entry<CtType<?>, List<Property>> event : foundProperties.entrySet()) {
-            FactoryInterfaceGenerator.generateRealImpl(cw,
-                             event.getKey(),
-                             ClassGenerator.getInternalName(ClassGenerator.getEventName(event.getKey(), provider)),
-                             ClassGenerator.getRequiredProperties(sorter.sortProperties(event.getValue())));
+        for (final Map.Entry<TypeElement, List<Property>> event : foundProperties.entrySet()) {
+            factoryClass.addOriginatingElement(event.getKey());
+            factoryClass.addMethod(this.generateRealImpl(
+                 event.getKey(),
+                 this.generator.qualifiedName(event.getKey()),
+                 this.generator.getRequiredProperties(sorter.sortProperties(event.getValue()))
+            ));
         }
 
-        for (final CtMethod<?> forwardedMethod : forwardedMethods) {
-            FactoryInterfaceGenerator.generateForwardingMethod(cw, forwardedMethod);
+        for (final ExecutableElement forwardedMethod : forwardedMethods) {
+            factoryClass.addOriginatingElement(forwardedMethod);
+            factoryClass.addMethod(this.generateForwardingMethod(forwardedMethod));
         }
 
-        cw.visitEnd();
-        return cw.toByteArray();
+        return JavaFile.builder(clazz.packageName(), factoryClass.build())
+            .indent("    ")
+            .build();
     }
 
-    private static void generateForwardingMethod(final ClassWriter cw, final CtMethod<?> targetMethod) {
-        final String desc = ClassGenerator.getDescriptor(targetMethod);
-        final MethodVisitor mv = cw.visitMethod(ACC_PUBLIC | ACC_STATIC, targetMethod.getSimpleName(), desc, null, null);
+    private MethodSpec generateForwardingMethod(final ExecutableElement targetMethod) {
+        final MethodSpec.Builder spec = MethodSpec.methodBuilder(targetMethod.getSimpleName().toString())
+            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+            .returns(TypeName.get(targetMethod.getReturnType()));
 
+        for (final TypeParameterElement param : targetMethod.getTypeParameters()) {
+            spec.addTypeVariable(TypeVariableName.get((TypeVariable) param.asType()));
+        }
 
-        final Label start = new Label();
-        final Label end = new Label();
-
-        mv.visitCode();
-        mv.visitLabel(start);
-
-        for (int i = 0, slot = 0; i < targetMethod.getParameters().size(); i++, slot++) {
-            final CtParameter<?> param = targetMethod.getParameters().get(i);
-            final Type type = Type.getType(ClassGenerator.getTypeDescriptor(param.getType()));
-            mv.visitVarInsn(type.getOpcode(Opcodes.ILOAD), i);
-
-            mv.visitLocalVariable(param.getSimpleName(), type.getDescriptor(), null, start, end, slot);
-            mv.visitParameter(param.getSimpleName(), 0);
-
-            if (type.getSize() > 1) {
-                slot++; // Skip over unusable following slot
+        final StringBuilder params = new StringBuilder();
+        for (final VariableElement parameter : targetMethod.getParameters()) {
+            spec.addParameter(TypeName.get(parameter.asType()), parameter.getSimpleName().toString(), Modifier.FINAL);
+            if (params.length() > 0) {
+                params.append(", ");
             }
+            params.append(parameter.getSimpleName().toString());
         }
-        mv.visitMethodInsn(INVOKESTATIC, ClassGenerator.getInternalName(targetMethod.getDeclaringType().getQualifiedName()), targetMethod.getSimpleName(), desc, targetMethod.getDeclaringType().isInterface());
-        mv.visitInsn(ARETURN);
-        mv.visitLabel(end);
 
-        mv.visitMaxs(0, 0);
-        mv.visitEnd();
+        final String template = targetMethod.getTypeParameters().isEmpty() ? "return $T.$L($L);" : "return $T.$L<>($L);";
+        spec.addCode(template, TypeName.get(targetMethod.getEnclosingElement().asType()), targetMethod.getSimpleName().toString(), params.toString());
+
+        return spec.build();
     }
 
-    private static void generateRealImpl(final ClassWriter cw, final CtType<?> event, final String eventName, final List<Property> params) {
-        final MethodVisitor mv = cw.visitMethod(
-            ACC_PUBLIC | ACC_STATIC,
-            EventImplGenTask.generateMethodName(event),
-            FactoryInterfaceGenerator.getDescriptor(event, params),
-            Signatures.ofFactoryMethod(event, params),
-            null
-        );
+    private MethodSpec generateRealImpl(final TypeElement event, final String eventName, final List<Property> params) {
+        final MethodSpec.Builder spec = MethodSpec.methodBuilder(FactoryInterfaceGenerator.generateMethodName(event))
+            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+            .returns(TypeName.get(event.asType()));
 
-        final Label start = new Label();
-        final Label end = new Label();
-
-        mv.visitCode();
-
-        mv.visitLabel(start);
-
-        mv.visitTypeInsn(NEW, eventName);
-        mv.visitInsn(DUP);
-
-        final int[] slots = new int[params.size()];
-
-        for (int i = 0, slot = 0; i < params.size(); i++, slot++) {
-            final Property param = params.get(i);
-            slots[i] = slot;
-            final Type type = Type.getType(ClassGenerator.getTypeDescriptor(param.getType()));
-            mv.visitVarInsn(type.getOpcode(Opcodes.ILOAD), slot); // Parameters start at slot 0 for static methods
-
-            if (type.getSize() > 1) {
-                slot++; // Skip over unusable following slot
-            }
-        }
-        mv.visitMethodInsn(INVOKESPECIAL, eventName, "<init>", FactoryInterfaceGenerator.getDescriptor(null, params), false);
-
-        mv.visitInsn(ARETURN);
-        mv.visitLabel(end);
-
-        for (int i = 0; i < params.size(); i++) {
-            final Property property = params.get(i);
-            mv.visitLocalVariable(property.getName(), ClassGenerator.getTypeDescriptor(property.getType()), null, start, end, slots[i]);
-            mv.visitParameter(property.getName(), ACC_FINAL);
+        for (final TypeParameterElement param : event.getTypeParameters()) {
+            spec.addTypeVariable(TypeVariableName.get((TypeVariable) param.asType()));
         }
 
-        mv.visitMaxs(0, 0);
-        mv.visitEnd();
-    }
-
-    private static String getDescriptor(final CtType<?> event, final List<? extends Property> params) {
-        final StringBuilder builder = new StringBuilder();
-        builder.append("(");
+        final StringBuilder paramNames = new StringBuilder();
         for (final Property property : params) {
-            builder.append(ClassGenerator.getTypeDescriptor(property.getType()));
+            spec.addParameter(TypeName.get(property.getType()), property.getName(), Modifier.FINAL);
+            if (paramNames.length() > 0) {
+                paramNames.append(", ");
+            }
+            paramNames.append(property.getName());
         }
-        builder.append(")");
-        if (event != null) {
-            builder.append(ClassGenerator.getTypeDescriptor(event.getReference()));
+
+        final String pkgName;
+        final String simpleName;
+        final int lastDot = eventName.lastIndexOf('.');
+        if (lastDot > -1) {
+            pkgName = eventName.substring(0, lastDot);
+            simpleName = eventName.substring(lastDot + 1);
         } else {
-            builder.append("V");
+            pkgName = "";
+            simpleName = eventName;
         }
-        return builder.toString();
+        final TypeName implType = ClassName.get(pkgName, simpleName);
+        final String template = event.getTypeParameters().isEmpty() ? "return new $T($L);" : "return new $T<>($L);";
+        spec.addCode(template, implType, paramNames.toString());
+
+        return spec.build();
+    }
+
+    public static String generateMethodName(TypeElement event) {
+        final StringBuilder name = new StringBuilder();
+        do {
+            name.insert(0, event.getSimpleName());
+            final ElementKind kind = event.getEnclosingElement().getKind();
+            event = kind.isClass() || kind.isInterface() ? (TypeElement) event.getEnclosingElement() : null;
+        } while (event != null);
+        name.insert(0, "create");
+        return name.toString();
     }
 
 }

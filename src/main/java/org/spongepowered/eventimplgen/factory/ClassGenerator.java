@@ -24,138 +24,162 @@
  */
 package org.spongepowered.eventimplgen.factory;
 
-import static org.objectweb.asm.Opcodes.ACC_PRIVATE;
-import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
-import static org.objectweb.asm.Opcodes.ACC_SUPER;
-import static org.objectweb.asm.Opcodes.ALOAD;
-import static org.objectweb.asm.Opcodes.ARETURN;
-import static org.objectweb.asm.Opcodes.ASTORE;
-import static org.objectweb.asm.Opcodes.ATHROW;
-import static org.objectweb.asm.Opcodes.CHECKCAST;
-import static org.objectweb.asm.Opcodes.DUP;
-import static org.objectweb.asm.Opcodes.GETFIELD;
-import static org.objectweb.asm.Opcodes.IFNE;
-import static org.objectweb.asm.Opcodes.IFNONNULL;
-import static org.objectweb.asm.Opcodes.IFNULL;
-import static org.objectweb.asm.Opcodes.ILOAD;
-import static org.objectweb.asm.Opcodes.INSTANCEOF;
-import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
-import static org.objectweb.asm.Opcodes.INVOKESTATIC;
-import static org.objectweb.asm.Opcodes.INVOKEVIRTUAL;
-import static org.objectweb.asm.Opcodes.IRETURN;
-import static org.objectweb.asm.Opcodes.ISUB;
-import static org.objectweb.asm.Opcodes.NEW;
-import static org.objectweb.asm.Opcodes.PUTFIELD;
-import static org.objectweb.asm.Opcodes.RETURN;
-import static org.objectweb.asm.Opcodes.V1_8;
-import static org.spongepowered.eventimplgen.EventImplGenTask.getValue;
-
-import org.gradle.api.JavaVersion;
-import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.FieldVisitor;
-import org.objectweb.asm.Label;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
-import org.spongepowered.eventimplgen.EventImplGenTask;
+import com.squareup.javapoet.AnnotationSpec;
+import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.CodeBlock;
+import com.squareup.javapoet.JavaFile;
+import com.squareup.javapoet.MethodSpec;
+import com.squareup.javapoet.TypeName;
+import com.squareup.javapoet.TypeSpec;
+import com.squareup.javapoet.TypeVariableName;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.spongepowered.api.util.annotation.eventgen.PropertySettings;
+import org.spongepowered.api.util.annotation.eventgen.UseField;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.eventgencore.PropertySorter;
 import org.spongepowered.eventimplgen.factory.plugin.EventFactoryPlugin;
-import spoon.reflect.declaration.CtAnnotation;
-import spoon.reflect.declaration.CtField;
-import spoon.reflect.declaration.CtMethod;
-import spoon.reflect.declaration.CtParameter;
-import spoon.reflect.declaration.CtType;
-import spoon.reflect.declaration.ModifierKind;
-import spoon.reflect.reference.CtArrayTypeReference;
-import spoon.reflect.reference.CtTypeParameterReference;
-import spoon.reflect.reference.CtTypeReference;
+import org.spongepowered.eventimplgen.processor.EventImplGenProcessor;
+import org.spongepowered.eventimplgen.signature.Descriptors;
 
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import javax.annotation.processing.Messager;
+import javax.inject.Inject;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.Name;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
+import javax.tools.Diagnostic;
+
 /**
- * Generates the bytecode for classes needed by {@link ClassGeneratorProvider}.
+ * Generates the bytecode for classes needed by {@link ClassNameProvider}.
  */
 public class ClassGenerator {
 
-    private NullPolicy nullPolicy = NullPolicy.DISABLE_PRECONDITIONS;
-    private JavaVersion targetVersion = JavaVersion.VERSION_1_8;
+    private static final ClassName OBJECTS = ClassName.get(Objects.class);
 
-    private static CtAnnotation<?> getPropertySettings(final Property property) {
+    private final Types types;
+    private final Elements elements;
+    private final Descriptors descriptors;
+    private final Messager messager;
+    private final ClassContext.Factory classContextFactory;
+    private final SourceVersion targetVersion;
+    private final ClassNameProvider classNameProvider;
+
+    private NullPolicy nullPolicy = NullPolicy.DISABLE_PRECONDITIONS;
+
+    @Inject
+    ClassGenerator(
+        final ClassNameProvider classNameProvider,
+        final Types types,
+        final Elements elements,
+        final Descriptors descriptors,
+        final Messager messager,
+        final ClassContext.Factory classContextFactory,
+        final SourceVersion targetVersion
+    ) {
+        this.classNameProvider = classNameProvider;
+        this.types = types;
+        this.elements = elements;
+        this.descriptors = descriptors;
+        this.messager = messager;
+        this.classContextFactory = classContextFactory;
+        this.targetVersion = targetVersion;
+    }
+
+    private static PropertySettings getPropertySettings(final Property property) {
         // Check the most specific method first.
         // This ensures that users can add @PropertySettings on an
         // overridden method.
-        final CtAnnotation<?> anno = EventImplGenTask.getAnnotation(
-                property.getMostSpecificMethod(),
-                "org.spongepowered.api.util.annotation.eventgen.PropertySettings");
+        final PropertySettings anno = property.getMostSpecificMethod().getAnnotation(PropertySettings.class);
 
         if (anno != null) {
             return anno;
         }
-        return EventImplGenTask.getAnnotation(property.getAccessor(), "org.spongepowered.api.util.annotation.eventgen.PropertySettings");
+        return property.getAccessor().getAnnotation(PropertySettings.class);
     }
 
-    private static boolean isRequired(final Property property) {
-        final CtAnnotation<?> settings = ClassGenerator.getPropertySettings(property);
+    static boolean isRequired(final Property property) {
+        final PropertySettings settings = ClassGenerator.getPropertySettings(property);
         if (settings == null) {
-            return !property.getMostSpecificMethod().isDefaultMethod();
+            return !property.getMostSpecificMethod().isDefault();
         } else {
-            return getValue(settings, "requiredParameter");
+            return settings.requiredParameter();
         }
     }
 
-    private static boolean generateMethods(final Property property) {
-        final CtAnnotation<?> settings = ClassGenerator.getPropertySettings(property);
+    static boolean generateMethods(final Property property) {
+        final PropertySettings settings = ClassGenerator.getPropertySettings(property);
         if (settings != null) {
-            return getValue(settings, "generateMethods");
+            return settings.generateMethods();
         } else {
-            return !property.getMostSpecificMethod().isDefaultMethod();
+            return !property.getMostSpecificMethod().isDefault();
         }
     }
 
-    private static CtAnnotation<?> getUseField(final CtTypeReference<?> clazz, final String fieldName) {
-        final CtType<?> type = clazz.getDeclaration();
+    static UseField getUseField(final TypeMirror clazz, final String fieldName) {
+        if (clazz.getKind() != TypeKind.DECLARED) {
+            return null;
+        }
+        final Element type = ((DeclaredType) clazz).asElement();
         if (type == null) {
             return null;
         }
 
-        final CtField<?> field = type.getField(fieldName);
-        if (field != null) {
-            return EventImplGenTask.getAnnotation(field, "org.spongepowered.api.util.annotation.eventgen.UseField");
+        for (final VariableElement element : ElementFilter.fieldsIn(type.getEnclosedElements())) {
+            if (element.getSimpleName().contentEquals(fieldName)) {
+                return element.getAnnotation(UseField.class);
+            }
         }
+
         return null;
     }
 
-    public static boolean hasDeclaredMethod(final CtTypeReference<?> clazz, final String name, final CtTypeReference<?>... params) {
-        CtMethod<?> method;
-        CtType<?> type = clazz.getDeclaration();
-        while (type != null) {
-            method = type.getMethod(name, params);
-            if (method != null) {
+    public boolean hasDeclaredMethod(final DeclaredType clazz, final String name, final TypeMirror... params) {
+        for (final ExecutableElement method : ElementFilter.methodsIn(this.elements.getAllMembers((TypeElement) clazz.asElement()))) {
+            if (method.getSimpleName().contentEquals(name) && this.parametersEqual(method.getParameters(), params)) {
                 return true;
             }
-            type = type.getSuperclass() == null ? null : type.getSuperclass().getDeclaration();
         }
 
         return false;
     }
 
-    public static CtField<?> getField(final CtTypeReference<?> clazz, final String fieldName) {
-        CtField<?> field;
-        CtType<?> type = clazz.getDeclaration();
-        while (type != null) {
-            field = type.getField(fieldName);
-            if (field != null) {
+    private boolean parametersEqual(final List<? extends VariableElement> a, final TypeMirror... b) {
+        if (a.size() != b.length) {
+            return false;
+        }
+
+        for (int i = 0; i < b.length; ++i) {
+            if (!this.types.isSameType(a.get(i).asType(), b[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public VariableElement getField(final DeclaredType clazz, final String fieldName) {
+        for (final VariableElement field : ElementFilter.fieldsIn(this.elements.getAllMembers((TypeElement) clazz.asElement()))) {
+            if (field.getSimpleName().contentEquals(fieldName)) {
                 return field;
             }
-
-            type = type.getSuperclass() == null ? null : type.getSuperclass().getDeclaration();
         }
         return null;
     }
@@ -178,34 +202,39 @@ public class ClassGenerator {
         this.nullPolicy = Objects.requireNonNull(nullPolicy, "nullPolicy");
     }
 
-    public void setTargetCompatibility(final JavaVersion version) {
-        this.targetVersion = Objects.requireNonNull(version, "version");
+    private Set<String> alwaysQualifiedImports(final TypeElement element) {
+        // always qualify the return types of properties in properties
+        return this.elements.getAllMembers(element)
+            .stream()
+            .filter(el -> el.getKind().isClass() || el.getKind().isInterface())
+            .map(el -> el.getSimpleName().toString())
+            .collect(Collectors.toSet());
     }
 
-    private boolean hasNullable(final CtMethod<?> method) {
-        return ClassGenerator.hasAnnotationOnSelfOrReturnType(method, name -> name.equals("Nullable"));
+    private boolean hasNullable(final ExecutableElement method) {
+        return ClassGenerator.hasAnnotationOnSelfOrReturnType(method, name -> name.contentEquals("Nullable"));
     }
 
-    private boolean hasNonNull(final CtMethod<?> method) {
-        return ClassGenerator.hasAnnotationOnSelfOrReturnType(method, name -> name.equals("NotNull") || name.equals("Nonnull"));
+    private boolean hasNonNull(final ExecutableElement method) {
+        return ClassGenerator.hasAnnotationOnSelfOrReturnType(method, name -> name.contentEquals("NotNull") || name.contentEquals("Nonnull"));
     }
 
-    private static boolean hasAnnotationOnSelfOrReturnType(final CtMethod<?> method, final Predicate<String> annotationTest) {
+    private static boolean hasAnnotationOnSelfOrReturnType(final ExecutableElement method, final Predicate<Name> annotationTest) {
         // On the method itself
-        final List<CtAnnotation<?>> annotations = method.getAnnotations();
+        final List<? extends AnnotationMirror> annotations = method.getAnnotationMirrors();
         if (!annotations.isEmpty()) {
-            for (final CtAnnotation<?> annotation : annotations) {
-                if (annotationTest.test(annotation.getType().getSimpleName())) {
+            for (final AnnotationMirror annotation : annotations) {
+                if (annotationTest.test(annotation.getAnnotationType().asElement().getSimpleName())) {
                     return true;
                 }
             }
         }
 
         // On return type
-        final List<CtAnnotation<?>> typeUseAnnotations = method.getType().getAnnotations();
+        final List<? extends AnnotationMirror> typeUseAnnotations = method.getReturnType().getAnnotationMirrors();
         if (!typeUseAnnotations.isEmpty()) {
-            for (final CtAnnotation<?> annotation : annotations) {
-                if (annotationTest.test(annotation.getType().getSimpleName())) {
+            for (final AnnotationMirror annotation : annotations) {
+                if (annotationTest.test(annotation.getAnnotationType().asElement().getSimpleName())) {
                     return true;
                 }
             }
@@ -214,415 +243,99 @@ public class ClassGenerator {
         return false;
     }
 
-    public static void generateField(final ClassWriter classWriter, final CtType<?> container, final Property property) {
-        if (!ClassGenerator.isRequired(property) && !ClassGenerator.generateMethods(property)) {
-            // If the field will be unused, don't generate it at all
-            return;
+    public boolean contributeField(final ClassContext classWriter, final DeclaredType parentType, final Property property) {
+        final VariableElement field = this.getField(parentType, property.getName());
+        if (field == null || field.getAnnotation(UseField.class) == null) {
+            classWriter.addField(property);
+        } else if (field.getModifiers().contains(Modifier.PRIVATE)) {
+            this.messager.printMessage(Diagnostic.Kind.ERROR, "You've annotated the field " + property.getName() + " with @UseField, "
+                + "but it's private. This just won't work.", field);
+            return false;
+        } else if (!this.types.isSubtype(field.asType(), property.getType())) {
+            this.messager.printMessage(Diagnostic.Kind.ERROR, String.format("In event %s with parent %s - you've specified field '%s' of type %s"
+                    + " but the property has the expected type of %s", this.elements.getBinaryName((TypeElement) property.getAccessor().getEnclosingElement()),
+                parentType, field.getSimpleName(), field.asType(), property.getType()), field);
+            return false;
         }
-
-        final FieldVisitor fv = classWriter.visitField(ACC_PRIVATE, property.getName(), ClassGenerator.getTypeDescriptor(property.getType()),
-                                                       Signatures.ofField(container, property), null);
-        fv.visitEnd();
+        return true;
     }
 
-    public static String getDescriptor(final CtMethod<?> method) {
-        return ClassGenerator.getDescriptor(method, true);
+    public List<Property> getRequiredProperties(final List<Property> properties) {
+        return properties.stream().filter(p -> p.isMostSpecificType(this.types) && ClassGenerator.isRequired(p)).collect(Collectors.toList());
     }
 
-    public static String getDescriptor(final CtMethod<?> method, final boolean includeReturnType) {
-        final StringBuilder builder = new StringBuilder();
-        builder.append("(");
-        for (final CtParameter<?> type: method.getParameters()) {
-            builder.append(ClassGenerator.getTypeDescriptor(type.getType()));
-        }
-        builder.append(")");
-        if (includeReturnType) {
-            builder.append(ClassGenerator.getTypeDescriptor(method.getType()));
-        } else {
-            builder.append("V");
-        }
-        return builder.toString();
-    }
+    private MethodSpec generateConstructor(final DeclaredType parentType, final List<Property> properties) {
+        final List<Property> requiredProperties = this.getRequiredProperties(properties);
+        final MethodSpec.Builder builder = MethodSpec.constructorBuilder();
 
-    public static CtTypeReference<?>[] getParameterTypes(final CtMethod<?> method) {
-        final List<CtTypeReference<?>> types = new ArrayList<>();
-        for (final CtParameter<?> parameter: method.getParameters()) {
-            types.add(parameter.getType());
-        }
-        return types.toArray(new CtTypeReference<?>[types.size()]);
-    }
-
-    public static String getTypeDescriptor(CtTypeReference<?> type) {
-        // For descriptors, we want the actual type
-        if (type instanceof CtTypeParameterReference) {
-            type = ((CtTypeParameterReference) type).getBoundingType();
-        }
-
-        final String name = type.getQualifiedName();
-        if (type.isPrimitive()) {
-            if (name.equals("boolean")) {
-                return "Z";
-            } else if (name.equals("int")) {
-                return "I";
-            } else if (name.equals("byte")) {
-                return "B";
-            } else if (name.equals("short")) {
-                return "S";
-            } else if (name.equals("char")) {
-                return "C";
-            } else if (name.equals("void")) {
-                return "V";
-            } else if (name.equals("float")) {
-                return "F";
-            } else if (name.equals("long")) {
-                return "J";
-            } else if (name.equals("double")) {
-                return "D";
-            } else {
-                return "V";
-            }
-        } else if (type instanceof CtArrayTypeReference) {
-            return "[" + ClassGenerator.getTypeDescriptor(((CtArrayTypeReference) type).getComponentType());
-        } else {
-            return "L" + name.replace(".", "/") + ";";
-        }
-    }
-
-    private void contributeField(final ClassWriter classWriter, final CtType<?> event, final CtTypeReference<?> parentType, final Property property) {
-        if (property.isLeastSpecificType()) {
-            final CtField<?> field = ClassGenerator.getField(parentType, property.getName());
-            if (field == null || EventImplGenTask.getAnnotation(field, "org.spongepowered.api.util.annotation.eventgen.UseField") == null) {
-                ClassGenerator.generateField(classWriter, event, property);
-            } else if (field.getModifiers().contains(ModifierKind.PRIVATE)) {
-                throw new RuntimeException("You've annotated the field " + property.getName() + " with @SetField, "
-                        + "but it's private. This just won't work.");
-            } else if (!field.getType().isSubtypeOf(property.getType())) {
-                throw new RuntimeException(String.format("In event %s with parent %s - you've specified field '%s' of type %s"
-                        + " but the property has the expected type of %s", property.getAccessor().getDeclaringType().getQualifiedName(),
-                        parentType.getQualifiedName(), field.getSimpleName(), field.getType(), property.getType()));
-            }
-        }
-    }
-
-    public static List<Property> getRequiredProperties(final List<Property> properties) {
-        return properties.stream().filter(p -> p.isMostSpecificType() && ClassGenerator.isRequired(p)).collect(Collectors.toList());
-    }
-
-    private void generateConstructor(
-            final ClassWriter classWriter,
-            final CtType<?> interfaceType,
-            final String internalName,
-            final CtTypeReference<?> parentType,
-            final List<Property> properties) {
-        final List<? extends Property> requiredProperties = ClassGenerator.getRequiredProperties(properties);
-
-        final StringBuilder builder = new StringBuilder();
-        builder.append("(");
+        final CodeBlock.Builder initializer = CodeBlock.builder();
         for (final Property property : requiredProperties) {
-            builder.append(ClassGenerator.getTypeDescriptor(property.getType()));
-        }
-        builder.append(")V");
-
-        final String methodDesc = builder.toString();
-
-        final MethodVisitor mv = classWriter.visitMethod(
-                0,
-                "<init>",
-                methodDesc,
-                Signatures.ofConstructor(interfaceType, requiredProperties),
-                null);
-
-        // Parameter names
-        for (final Property property : properties) {
-            mv.visitParameter(property.getName(), 0);
-        }
-
-        // The implementation
-        mv.visitCode();
-
-        // super()
-        mv.visitVarInsn(ALOAD, 0);
-        mv.visitMethodInsn(INVOKESPECIAL, ClassGenerator.getInternalName(parentType.getQualifiedName()), "<init>", "()V", false);
-
-        // 0 is 'this', parameters start at 1
-        for (int i = 0, paramIndex = 1; i < requiredProperties.size(); i++, paramIndex++) {
-            final Property property = requiredProperties.get(i);
-
-            final Type type = Type.getType(ClassGenerator.getTypeDescriptor(property.getType()));
-            final int loadOpcode = type.getOpcode(Opcodes.ILOAD);
-
-            final boolean isPrimitive = property.getType().isPrimitive();
-
-            // Only if we have a null policy:
-            // if (value == null) throw new NullPointerException(...)
-            if (this.nullPolicy != NullPolicy.DISABLE_PRECONDITIONS) {
-                final boolean useNullTest = !isPrimitive && (((this.nullPolicy == NullPolicy.NON_NULL_BY_DEFAULT && !this.hasNullable(property.getAccessor()))
+            builder.addParameter(TypeName.get(property.getType()), property.getName(), Modifier.FINAL);
+                // Only if we have a null policy:
+                // if (value == null) throw new NullPointerException(...)
+                if (this.nullPolicy != NullPolicy.DISABLE_PRECONDITIONS) {
+                    final boolean useNullTest = !property.getType().getKind().isPrimitive()
+                        && (((this.nullPolicy == NullPolicy.NON_NULL_BY_DEFAULT && !this.hasNullable(property.getAccessor()))
                         || (this.nullPolicy == NullPolicy.NULL_BY_DEFAULT && this.hasNonNull(property.getAccessor())))
                         && ClassGenerator.isRequired(property));
 
-                if (useNullTest) {
-                    final Label afterNullTest = new Label();
-                    mv.visitVarInsn(loadOpcode, paramIndex);
-                    mv.visitJumpInsn(IFNONNULL, afterNullTest);
-                    mv.visitTypeInsn(NEW, "java/lang/NullPointerException");
-                    mv.visitInsn(DUP);
-                    mv.visitLdcInsn("The property '" + property.getName() + "' was not provided!");
-                    mv.visitMethodInsn(INVOKESPECIAL, "java/lang/NullPointerException", "<init>", "(Ljava/lang/String;)V", false);
-                    mv.visitInsn(ATHROW);
-                    mv.visitLabel(afterNullTest);
+                    if (useNullTest) {
+                        initializer.addStatement(
+                            "this.$1L = $2T.requireNonNull($1L, $3S)",
+                            property.getName(),
+                            OBJECTS,
+                            "The property '" + property.getName() + "' was not provided!"
+                        );
+                        continue;
+                    }
                 }
-            }
 
-            final boolean hasUseField = ClassGenerator.getUseField(parentType, property.getName()) != null;
-
-            // stack: -> this
-            mv.visitVarInsn(ALOAD, 0);
-
-            // ProperObject newValue = (ProperObject) value
-            mv.visitVarInsn(loadOpcode, paramIndex);
-            //visitUnboxingMethod(mv, Type.getType(property.getType()));
-
-            // this.field = newValue
-
-            final String desc = ClassGenerator.getTypeDescriptor(property.getLeastSpecificType());
-
-            if (hasUseField) {
-                mv.visitFieldInsn(PUTFIELD, ClassGenerator.getInternalName(parentType.getQualifiedName()), property.getName(), desc);
-            } else {
-                mv.visitFieldInsn(PUTFIELD, internalName, property.getName(), desc);
-            }
-            // }
-
-            if (type.equals(Type.LONG_TYPE) || type.equals(Type.DOUBLE_TYPE)) {
-                paramIndex++; // Skip empty slot
-            }
+            // no null test
+            initializer.addStatement("this.$1L = $1L", property.getName());
         }
 
         // super.init();
-        if (ClassGenerator.hasDeclaredMethod(parentType, "init")) {
-            mv.visitVarInsn(ALOAD, 0);
-            mv.visitMethodInsn(INVOKESPECIAL, ClassGenerator.getInternalName(parentType.getQualifiedName()), "init", "()V", false);
+        if (this.hasDeclaredMethod(parentType, "init")) {
+            initializer.addStatement("super.init()");
         }
 
-        mv.visitInsn(RETURN);
-        mv.visitMaxs(0, 0);
-        mv.visitEnd();
+        builder.addCode(initializer.build());
+        return builder.build();
     }
 
-    private void generateAccessor(
-            final ClassWriter cw,
-            final CtType<?> eventClass,
-            final String internalName,
-            final Property property) {
-        final CtMethod<?> accessor = property.getAccessor();
+    private MethodSpec generateAccessor(final Property property) {
+        final ExecutableElement accessor = property.getAccessor();
+        final TypeName returnType = TypeName.get(property.getType());
+        final MethodSpec.Builder builder = MethodSpec.methodBuilder(accessor.getSimpleName().toString())
+            .addAnnotation(Override.class)
+            .addModifiers(Modifier.PUBLIC)
+            .returns(TypeName.get(property.getType()));
 
-        final MethodVisitor mv = cw.visitMethod(
-            ACC_PUBLIC,
-            accessor.getSimpleName(),
-            ClassGenerator.getDescriptor(accessor),
-            Signatures.ofMethod(eventClass, accessor),
-            null
-        );
-        mv.visitCode();
-        mv.visitVarInsn(ALOAD, 0);
-        mv.visitFieldInsn(GETFIELD, internalName, property.getName(), ClassGenerator.getTypeDescriptor(property.getLeastSpecificType()));
-
-        if (!property.isLeastSpecificType()) {
-            mv.visitTypeInsn(CHECKCAST, ClassGenerator.getInternalName(property.getType().getQualifiedName()));
+        if (property.isLeastSpecificType(this.types)) {
+            builder.addStatement("return this.$L", property.getName());
+        } else {
+            // a cast is needed
+            builder.addStatement("return ($T) this.$L", returnType, property.getName());
         }
-        mv.visitInsn(Type.getType(ClassGenerator.getTypeDescriptor(property.getType())).getOpcode(IRETURN));
-        mv.visitMaxs(0, 0);
-        mv.visitEnd();
+        return builder.build();
     }
 
-    /**
-     * Generates a standard mutator method.
-     *
-     * <p>This method assumes that a standard field has been generated for the
-     * provided {@link Property}</p>
-     *
-     * @param cw The {@link ClassWriter} to generate the mutator in
-     * @param type The {@link Class} of the event that's having an
-     *        implementation generated
-     * @param internalName The internal name (slashes instead of periods in the
-     *        package) of the new class being generated
-     * @param fieldName The name of the field to mutate
-     * @param fieldType The type of the field to mutate
-     * @param property The {@link Property} containing the mutator method to
-     *        generate for
-     */
-    public static void generateMutator(
-            final ClassWriter cw,
-            final CtType<?> type,
-            final String internalName,
-            final String fieldName,
-            final CtType<?> fieldType,
-            final Property property) {
-        final CtMethod<?> mutator = property.getMutator().get();
-
-        final MethodVisitor mv = cw.visitMethod(
-            ACC_PUBLIC,
-            mutator.getSimpleName(),
-            ClassGenerator.getDescriptor(mutator),
-            Signatures.ofMethod(type, mutator),
-            null
-        );
-        mv.visitParameter(fieldName, 0);
-
-        mv.visitCode();
-        mv.visitVarInsn(ALOAD, 0);
-        mv.visitVarInsn(Type.getType(ClassGenerator.getTypeDescriptor(property.getType())).getOpcode(ILOAD), 1);
-
-        if (property.getAccessor().getType().getQualifiedName().equals(Optional.class.getName())) {
-            mv.visitMethodInsn(INVOKESTATIC, "java/util/Optional", "ofNullable",
-                               "(Ljava/lang/Object;)Ljava/util/Optional;", false);
-        }
-
-        if (!property.getType().isPrimitive() && !property.getMostSpecificType().getQualifiedName().equals(property.getLeastSpecificType().getQualifiedName())) {
-            final CtTypeReference<?> mostSpecificReturn = property.getMostSpecificType();
-            //CtMethod<?> specific =  type.getMethod(property.getAccessor().getSimpleName(), getParameterTypes(property.getAccessor()));
-
-            final Label afterException = new Label();
-            mv.visitInsn(DUP);
-            mv.visitJumpInsn(IFNULL, afterException);
-            mv.visitInsn(DUP);
-            mv.visitTypeInsn(INSTANCEOF, ClassGenerator.getInternalName(mostSpecificReturn.getQualifiedName()));
-
-            mv.visitJumpInsn(IFNE, afterException);
-
-            mv.visitTypeInsn(NEW, "java/lang/RuntimeException");
-            mv.visitInsn(DUP);
-
-            mv.visitTypeInsn(NEW, "java/lang/StringBuilder");
-            mv.visitInsn(DUP);
-            mv.visitMethodInsn(INVOKESPECIAL, "java/lang/StringBuilder", "<init>", "()V", false);
-
-            mv.visitLdcInsn("You've attempted to call the method '" + mutator.getSimpleName() + "' with an object of type ");
-            mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "append", "(Ljava/lang/Object;)Ljava/lang/StringBuilder;", false);
-
-            mv.visitVarInsn(Type.getType(ClassGenerator.getTypeDescriptor(property.getType())).getOpcode(ILOAD), 1);
-            mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Object", "getClass", "()Ljava/lang/Class;", false);
-            mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Class", "getName", "()Ljava/lang/String;", false);
-            mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "append", "(Ljava/lang/Object;)Ljava/lang/StringBuilder;", false);
-
-            mv.visitLdcInsn(", instead of " + mostSpecificReturn.getSimpleName() + ". Though you may have been listening for a supertype of this "
-                                    + "event, it's actually a " + type.getQualifiedName() + ". You need to ensure that the type of the event is what you think"
-                                    + " it is, before calling the method (e.g TileEntityChangeEvent#setNewData");
-            mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "append", "(Ljava/lang/Object;)Ljava/lang/StringBuilder;", false);
-            mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "toString", "()Ljava/lang/String;", false);
-
-            mv.visitMethodInsn(INVOKESPECIAL, "java/lang/RuntimeException", "<init>", "(Ljava/lang/String;)V", false);
-            mv.visitInsn(ATHROW);
-
-            mv.visitLabel(afterException);
-        }
-
-        mv.visitFieldInsn(PUTFIELD, internalName, property.getName(), ClassGenerator.getTypeDescriptor(property.getLeastSpecificType()));
-        mv.visitInsn(RETURN);
-        mv.visitMaxs(0, 0);
-        mv.visitEnd();
-    }
 
     private void generateAccessorsAndMutator(
-            final ClassWriter cw,
-            final CtType<?> type,
-            final CtTypeReference<?> parentType,
-            final String internalName,
-            final Property property) {
+        final ClassContext typeBuilder,
+        final TypeElement type,
+        final Property property
+    ) {
         if (ClassGenerator.generateMethods(property)) {
-            this.generateAccessor(cw, type, internalName, property);
+            if (property.isMostSpecificType(this.types)) { // only generate most specific return type -- compiler will generate the others for us
+                typeBuilder.addMethod(this.generateAccessor(property));
+            }
 
-            final Optional<CtMethod<?>> mutatorOptional = property.getMutator();
+            final Optional<ExecutableElement> mutatorOptional = property.getMutator();
             if (mutatorOptional.isPresent()) {
-                ClassGenerator.generateMutator(cw, type, internalName, property.getName(), property.getType().getDeclaration(), property);
+                typeBuilder.addMutator(type, property.getName(), property);
             }
         }
-    }
-
-    private MethodVisitor initializeToString(final ClassWriter cw, final CtType<?> type) {
-        final MethodVisitor toStringMv = cw.visitMethod(ACC_PUBLIC, "toString", "()Ljava/lang/String;", null, null);
-        toStringMv.visitCode();
-        toStringMv.visitTypeInsn(NEW, "java/lang/StringBuilder");
-        toStringMv.visitInsn(DUP);
-        toStringMv.visitMethodInsn(INVOKESPECIAL, "java/lang/StringBuilder", "<init>", "()V", false);
-        toStringMv.visitLdcInsn(type.getSimpleName() + "{");
-        toStringMv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "append", "(Ljava/lang/Object;)Ljava/lang/StringBuilder;", false);
-
-        toStringMv.visitVarInsn(ASTORE, 1);
-
-        return toStringMv;
-    }
-
-    private void contributeToString(
-            final String internalName,
-            final CtTypeReference<?> parentType,
-            final Property property,
-            final MethodVisitor toStringMv) {
-
-        if (property.isLeastSpecificType() && (ClassGenerator.isRequired(property) || ClassGenerator.generateMethods(property))) {
-            boolean overrideToString = false;
-            final CtAnnotation<?> useField = ClassGenerator.getUseField(parentType, property.getName());
-            if (useField != null) {
-                overrideToString = EventImplGenTask.getValue(useField, "overrideToString");
-            }
-
-            toStringMv.visitVarInsn(ALOAD, 0);
-
-            toStringMv.visitVarInsn(ALOAD, 1);
-            toStringMv.visitLdcInsn(property.getName());
-            toStringMv
-                    .visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "append", "(Ljava/lang/Object;)Ljava/lang/StringBuilder;", false);
-
-            toStringMv.visitLdcInsn("=");
-            toStringMv
-                    .visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "append", "(Ljava/lang/Object;)Ljava/lang/StringBuilder;", false);
-
-            toStringMv.visitVarInsn(ALOAD, 0);
-            if (overrideToString) {
-                toStringMv.visitFieldInsn(GETFIELD, internalName, property.getName(), ClassGenerator.getTypeDescriptor(property.getLeastSpecificType()));
-            } else {
-                toStringMv.visitMethodInsn(INVOKESPECIAL, internalName, property.getAccessor().getSimpleName(),
-                    ClassGenerator.getDescriptor(property.getAccessor()), false);
-            }
-
-            final String desc = property.getType().isPrimitive() ? ClassGenerator.getTypeDescriptor(property.getType()) : "Ljava/lang/Object;";
-
-            toStringMv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "append",
-                                       "(" + desc + ")Ljava/lang/StringBuilder;", false);
-
-            toStringMv.visitLdcInsn(", ");
-            toStringMv
-                    .visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "append", "(Ljava/lang/Object;)Ljava/lang/StringBuilder;", false);
-        }
-    }
-
-    private void finalizeToString(final MethodVisitor mv) {
-        // The StringBuilder is on the top of the stack from the last append() -
-        // duplicate it for call to replace()
-        mv.visitVarInsn(ALOAD, 1);
-        mv.visitInsn(DUP);
-
-        // The replace starts at 2 characters before the end, to remove the
-        // extra command and space added
-        mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "length", "()I", false);
-        mv.visitLdcInsn(2);
-        mv.visitInsn(ISUB);
-
-        mv.visitVarInsn(ALOAD, 1);
-        mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "length", "()I", false);
-
-        mv.visitLdcInsn("}");
-
-        mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "replace", "(IILjava/lang/String;)Ljava/lang/StringBuilder;", false);
-        mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "toString", "()Ljava/lang/String;", false);
-
-        mv.visitInsn(ARETURN);
-        mv.visitMaxs(0, 0);
-        mv.visitEnd();
-    }
-
-    public static String getInternalName(final String name) {
-        return name.replace('.', '/');
     }
 
     /**
@@ -631,36 +344,41 @@ public class ClassGenerator {
      * @param type The type
      * @param name The canonical of the generated class
      * @param parentType The parent type
-     * @return The class' contents, to be loaded via a {@link ClassLoader}
+     * @return The class' contents, or {@code null} if an error was reported while generating the class
      */
-    public byte[] createClass(
-            final CtType<?> type,
-            final String name,
-            final CtTypeReference<?> parentType,
-            final List<Property> properties,
-            final PropertySorter sorter,
-            final List<? extends EventFactoryPlugin> plugins) {
+    public @Nullable JavaFile createClass(
+        final TypeElement type,
+        final String name,
+        final DeclaredType parentType,
+        final List<Property> properties,
+        final PropertySorter sorter,
+        final Set<? extends EventFactoryPlugin> plugins
+    ) {
         Objects.requireNonNull(type, "type");
         Objects.requireNonNull(name, "name");
         Objects.requireNonNull(parentType, "parentType");
 
-        final String internalName = ClassGenerator.getInternalName(name);
+        final String internalName = this.descriptors.getInternalName(name);
 
-        final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
-        cw.visit(
-            V1_8,
-            ACC_SUPER,
-            internalName,
-            Signatures.ofImplClass(parentType.getTypeDeclaration(), Collections.singletonList(type)),
-            ClassGenerator.getInternalName(parentType.getQualifiedName()),
-            new String[] {ClassGenerator.getInternalName(type.getQualifiedName())}
-        );
+        final ClassName typeName = ClassName.bestGuess(name);
+        final TypeSpec.Builder classBuilder = TypeSpec.classBuilder(typeName)
+            .addModifiers(Modifier.FINAL)
+            .superclass(TypeName.get(parentType))
+            .addSuperinterface(TypeName.get(type.asType()))
+            .addOriginatingElement(type)
+            .addAnnotation(this.generatedAnnotation());
+        classBuilder.alwaysQualifiedNames.addAll(this.alwaysQualifiedImports(type));
 
+        for (final TypeParameterElement param : type.getTypeParameters()) {
+            classBuilder.addTypeVariable(TypeVariableName.get(param));
+        }
 
         // Create the constructor
-        this.generateConstructor(cw, type, internalName, parentType, sorter.sortProperties(properties));
+        classBuilder.addMethod(this.generateConstructor(parentType, sorter.sortProperties(properties)));
 
-        final MethodVisitor toStringMv = this.initializeToString(cw, type);
+        final ClassContext ctx = this.classContextFactory.create(classBuilder);
+
+        ctx.initializeToString(type);
 
         // Create the fields
         // this.contributeFields(cw, parentType, properties, plugins);
@@ -669,45 +387,64 @@ public class ClassGenerator {
         // "ClassName{param1=value1, param2=value2, ...}"
 
         // Create the accessors and mutators, and fill out the toString method
-        this.generateWithPlugins(cw, type, parentType, internalName, properties, toStringMv, plugins);
+        if (!this.generateWithPlugins(ctx, type, parentType, internalName, properties, plugins)) {
+            return null;
+        }
 
         // Now build the toString
-        this.finalizeToString(toStringMv);
+        ctx.finalizeToString(type);
 
-        cw.visitEnd();
-
-        return cw.toByteArray();
+        return JavaFile.builder(typeName.packageName(), classBuilder.build())
+            .indent("    ")
+            .build();
     }
 
-    private void generateWithPlugins(
-            final ClassWriter cw,
-            final CtType<?> eventClass,
-            final CtTypeReference<?> parentType,
-            final String internalName,
-            final List<? extends Property> properties,
-            final MethodVisitor toStringMv,
-            final List<? extends EventFactoryPlugin> plugins) {
+    private boolean generateWithPlugins(
+        final ClassContext classBuilder,
+        final TypeElement eventClass,
+        final DeclaredType parentType,
+        final String internalName,
+        final List<Property> properties,
+        final Set<? extends EventFactoryPlugin> plugins
+    ) {
+        boolean success = true;
 
         for (final Property property : properties) {
             boolean processed = false;
 
             for (final EventFactoryPlugin plugin : plugins) {
-                processed = plugin.contributeProperty(eventClass, internalName, cw, property);
+                final EventFactoryPlugin.Result result = plugin.contributeProperty(eventClass, internalName, classBuilder, property);
+                processed = result != EventFactoryPlugin.Result.IGNORE;
+                success &= result != EventFactoryPlugin.Result.FAILURE;
                 if (processed) {
                     break;
                 }
             }
 
-            this.contributeToString(internalName, parentType, property, toStringMv);
+            classBuilder.contributeToString(parentType, property);
 
             if (!processed) {
-                this.contributeField(cw, eventClass, parentType, property);
-                this.generateAccessorsAndMutator(cw, eventClass, parentType, internalName, property);
+                success &= this.contributeField(classBuilder, parentType, property);
+                this.generateAccessorsAndMutator(classBuilder, eventClass, property);
             }
         }
+        return success;
     }
 
-    public static String getEventName(final CtType<?> event, final ClassGeneratorProvider classGeneratorProvider) {
-        return classGeneratorProvider.getClassName(event, "Impl");
+    AnnotationSpec generatedAnnotation() {
+        final ClassName clazz;
+        if (this.targetVersion.ordinal() > SourceVersion.RELEASE_8.ordinal()) {
+            clazz = ClassName.get("javax.annotation.processing", "Generated");
+        } else {
+            clazz = ClassName.get("javax.annotation", "Generated");
+        }
+
+        return AnnotationSpec.builder(clazz)
+            .addMember("value", "$S", EventImplGenProcessor.class.getName())
+            .build();
+    }
+
+    public String qualifiedName(final TypeElement event) {
+        return this.classNameProvider.getClassName(event, "Impl");
     }
 }
