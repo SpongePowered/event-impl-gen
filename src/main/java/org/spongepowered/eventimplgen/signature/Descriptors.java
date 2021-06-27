@@ -24,19 +24,11 @@
  */
 package org.spongepowered.eventimplgen.signature;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.spongepowered.eventimplgen.eventgencore.Property;
-
-import java.util.ArrayList;
-import java.util.List;
-
 import javax.inject.Inject;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
-import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
@@ -56,31 +48,8 @@ public class Descriptors {
         this.descWriter = descWriter;
     }
 
-    public String getDescriptor(final List<Property> properties, final @Nullable TypeMirror returnType) {
-        final StringBuilder builder = new StringBuilder();
-        builder.append("(");
-        for (final Property property : properties) {
-            property.getType().accept(this.descWriter, builder);
-        }
-        builder.append(")");
-        if (returnType != null) {
-            returnType.accept(this.descWriter, builder);
-        } else {
-            builder.append("V");
-        }
-        return builder.toString();
-    }
-
     public String getDescriptor(final ExecutableElement method) {
         return this.getDescriptor((ExecutableType) method.asType(), true);
-    }
-
-    public String getDescriptor(final ExecutableType method) {
-        return this.getDescriptor(method, true);
-    }
-
-    public String getDescriptor(final ExecutableElement method, final boolean includeReturnType) {
-        return this.getDescriptor((ExecutableType) method.asType(), includeReturnType);
     }
 
     public String getDescriptor(final ExecutableType method, final boolean includeReturnType) {
@@ -94,28 +63,6 @@ public class Descriptors {
             }
             builder.append(")V");
             return builder.toString();
-        }
-    }
-
-    public static TypeMirror[] getParameterTypes(final ExecutableElement method) {
-        final List<TypeMirror> types = new ArrayList<>();
-        for (final VariableElement parameter: method.getParameters()) {
-            types.add(parameter.asType());
-        }
-        return types.toArray(new TypeMirror[0]);
-    }
-
-    public String getTypeDescriptor(TypeMirror type) {
-        // For descriptors, we want the actual type
-        /*if (type.getKind() == TypeKind.TYPEVAR) {
-            type = ((TypeVariable) type).getUpperBound();
-        }*/
-        type = this.types.erasure(type);
-
-        if (type.getKind().isPrimitive()) {
-            return String.valueOf(TypeToDescriptorWriter.descriptor((PrimitiveType) type));
-        } else {
-            return type.accept(this.descWriter, new StringBuilder()).toString();
         }
     }
 

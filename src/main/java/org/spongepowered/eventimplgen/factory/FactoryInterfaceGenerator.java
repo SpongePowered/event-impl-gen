@@ -66,7 +66,8 @@ public class FactoryInterfaceGenerator {
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
             .addMethod(MethodSpec.constructorBuilder()
                 .addModifiers(Modifier.PRIVATE)
-                .build());
+                .build())
+            .addAnnotation(this.generator.generatedAnnotation());
 
         for (final Map.Entry<TypeElement, List<Property>> event : foundProperties.entrySet()) {
             factoryClass.addOriginatingElement(event.getKey());
@@ -82,7 +83,9 @@ public class FactoryInterfaceGenerator {
             factoryClass.addMethod(this.generateForwardingMethod(forwardedMethod));
         }
 
-        return JavaFile.builder(clazz.packageName(), factoryClass.build()).build();
+        return JavaFile.builder(clazz.packageName(), factoryClass.build())
+            .indent("    ")
+            .build();
     }
 
     private MethodSpec generateForwardingMethod(final ExecutableElement targetMethod) {

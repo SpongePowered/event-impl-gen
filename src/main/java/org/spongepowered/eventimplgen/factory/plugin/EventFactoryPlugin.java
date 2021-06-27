@@ -24,9 +24,8 @@
  */
 package org.spongepowered.eventimplgen.factory.plugin;
 
-import org.objectweb.asm.ClassWriter;
 import org.spongepowered.eventimplgen.eventgencore.Property;
-import org.spongepowered.eventimplgen.factory.EventImplClassWriter;
+import org.spongepowered.eventimplgen.factory.ClassContext;
 
 import javax.lang.model.element.TypeElement;
 
@@ -45,12 +44,12 @@ public interface EventFactoryPlugin {
      *
      * @param eventClass The {@link Class} of the event an implementation is being generated for
      * @param internalName The internal name of the event
-     * @param classWriter The {@link ClassWriter} being used to generate the event class implementation
+     * @param classWriter The {@link ClassContext} holding information about the implementation class
      * @param property The {@link Property} being processed
      *
      * @return whether the provided {@link Property} was processed.
      */
-    Result contributeProperty(TypeElement eventClass, String internalName, EventImplClassWriter classWriter, Property property);
+    Result contributeProperty(TypeElement eventClass, String internalName, ClassContext classWriter, Property property);
 
     enum Result {
         /**

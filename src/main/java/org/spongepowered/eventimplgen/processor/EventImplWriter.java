@@ -36,7 +36,6 @@ import org.spongepowered.eventimplgen.factory.NullPolicy;
 import org.spongepowered.eventimplgen.factory.plugin.EventFactoryPlugin;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -122,7 +121,7 @@ public class EventImplWriter implements PropertyConsumer {
 
     public void dumpRound() throws IOException {
         this.generator.setNullPolicy(NullPolicy.NON_NULL_BY_DEFAULT);
-        byte[] clazz;
+        JavaFile clazz;
         for (final TypeElement event : this.roundFoundProperties.keySet()) {
             final String name = this.generator.qualifiedName(event);
             final @Nullable DeclaredType baseClass = this.getBaseClass(event);
@@ -134,9 +133,7 @@ public class EventImplWriter implements PropertyConsumer {
             );
 
             if (clazz != null) {
-                try (final OutputStream os = this.filer.createClassFile(name, event).openOutputStream()) {
-                    os.write(clazz);
-                }
+                clazz.writeTo(this.filer);
             } else {
                 this.failed = true;
             }

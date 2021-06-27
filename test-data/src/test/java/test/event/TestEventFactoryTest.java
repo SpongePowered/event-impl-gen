@@ -42,7 +42,7 @@ class TestEventFactoryTest {
 
         TestEventFactory.createNestedTestPost(false, 3);
         TestEventFactory.createNestedTestPre(false, 4);
-        TestEventFactory.createCriterionEventTrigger(Collections.emptyList(), Collections.emptyList(), new TypeToken<ByteBuffer>() {}, false);
+        // TestEventFactory.createCriterionEventTrigger(Collections.emptyList(), Collections.emptyList(), new TypeToken<ByteBuffer>() {}, false);
     }
 
 }

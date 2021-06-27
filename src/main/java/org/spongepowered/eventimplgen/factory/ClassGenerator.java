@@ -24,40 +24,23 @@
  */
 package org.spongepowered.eventimplgen.factory;
 
-import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
-import static org.objectweb.asm.Opcodes.ACC_SUPER;
-import static org.objectweb.asm.Opcodes.ALOAD;
-import static org.objectweb.asm.Opcodes.ARETURN;
-import static org.objectweb.asm.Opcodes.ASTORE;
-import static org.objectweb.asm.Opcodes.ATHROW;
-import static org.objectweb.asm.Opcodes.CHECKCAST;
-import static org.objectweb.asm.Opcodes.DUP;
-import static org.objectweb.asm.Opcodes.GETFIELD;
-import static org.objectweb.asm.Opcodes.IFNONNULL;
-import static org.objectweb.asm.Opcodes.INVOKESPECIAL;
-import static org.objectweb.asm.Opcodes.INVOKEVIRTUAL;
-import static org.objectweb.asm.Opcodes.IRETURN;
-import static org.objectweb.asm.Opcodes.ISUB;
-import static org.objectweb.asm.Opcodes.NEW;
-import static org.objectweb.asm.Opcodes.PUTFIELD;
-import static org.objectweb.asm.Opcodes.RETURN;
-
+import com.squareup.javapoet.AnnotationSpec;
+import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.CodeBlock;
+import com.squareup.javapoet.JavaFile;
+import com.squareup.javapoet.MethodSpec;
+import com.squareup.javapoet.TypeName;
+import com.squareup.javapoet.TypeSpec;
+import com.squareup.javapoet.TypeVariableName;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.Label;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
 import org.spongepowered.api.util.annotation.eventgen.PropertySettings;
 import org.spongepowered.api.util.annotation.eventgen.UseField;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.eventgencore.PropertySorter;
 import org.spongepowered.eventimplgen.factory.plugin.EventFactoryPlugin;
-import org.spongepowered.eventimplgen.processor.PreviewFeatures;
+import org.spongepowered.eventimplgen.processor.EventImplGenProcessor;
 import org.spongepowered.eventimplgen.signature.Descriptors;
-import org.spongepowered.eventimplgen.signature.Signatures;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -74,6 +57,7 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
@@ -88,15 +72,15 @@ import javax.tools.Diagnostic;
  */
 public class ClassGenerator {
 
+    private static final ClassName OBJECTS = ClassName.get(Objects.class);
+
     private final Types types;
     private final Elements elements;
-    private final Signatures signatures;
     private final Descriptors descriptors;
     private final Messager messager;
+    private final ClassContext.Factory classContextFactory;
     private final SourceVersion targetVersion;
-    private final boolean previewEnabled;
     private final ClassNameProvider classNameProvider;
-    private final EventImplClassWriter.Factory classWriterFactory;
 
     private NullPolicy nullPolicy = NullPolicy.DISABLE_PRECONDITIONS;
 
@@ -105,22 +89,18 @@ public class ClassGenerator {
         final ClassNameProvider classNameProvider,
         final Types types,
         final Elements elements,
-        final Signatures signatures,
         final Descriptors descriptors,
         final Messager messager,
-        final EventImplClassWriter.Factory classWriterFactory,
-        final SourceVersion targetVersion,
-        @PreviewFeatures final boolean previewEnabled
+        final ClassContext.Factory classContextFactory,
+        final SourceVersion targetVersion
     ) {
         this.classNameProvider = classNameProvider;
         this.types = types;
         this.elements = elements;
-        this.signatures = signatures;
         this.descriptors = descriptors;
         this.messager = messager;
-        this.classWriterFactory = classWriterFactory;
+        this.classContextFactory = classContextFactory;
         this.targetVersion = targetVersion;
-        this.previewEnabled = previewEnabled;
     }
 
     private static PropertySettings getPropertySettings(final Property property) {
@@ -153,7 +133,7 @@ public class ClassGenerator {
         }
     }
 
-    private static UseField getUseField(final TypeMirror clazz, final String fieldName) {
+    static UseField getUseField(final TypeMirror clazz, final String fieldName) {
         if (clazz.getKind() != TypeKind.DECLARED) {
             return null;
         }
@@ -253,21 +233,19 @@ public class ClassGenerator {
         return false;
     }
 
-    public boolean contributeField(final EventImplClassWriter classWriter, final TypeElement event, final DeclaredType parentType, final Property property) {
-        if (property.isLeastSpecificType(this.types)) {
-            final VariableElement field = this.getField(parentType, property.getName());
-            if (field == null || field.getAnnotation(UseField.class) == null) {
-                classWriter.generateField(property);
-            } else if (field.getModifiers().contains(Modifier.PRIVATE)) {
-                this.messager.printMessage(Diagnostic.Kind.ERROR, "You've annotated the field " + property.getName() + " with @UseField, "
-                    + "but it's private. This just won't work.", field);
-                return false;
-            } else if (!this.types.isSubtype(field.asType(), property.getType())) {
-                this.messager.printMessage(Diagnostic.Kind.ERROR, String.format("In event %s with parent %s - you've specified field '%s' of type %s"
-                        + " but the property has the expected type of %s", this.elements.getBinaryName((TypeElement) property.getAccessor().getEnclosingElement()),
-                    parentType, field.getSimpleName(), field.asType(), property.getType()), field);
-                return false;
-            }
+    public boolean contributeField(final ClassContext classWriter, final DeclaredType parentType, final Property property) {
+        final VariableElement field = this.getField(parentType, property.getName());
+        if (field == null || field.getAnnotation(UseField.class) == null) {
+            classWriter.addField(property);
+        } else if (field.getModifiers().contains(Modifier.PRIVATE)) {
+            this.messager.printMessage(Diagnostic.Kind.ERROR, "You've annotated the field " + property.getName() + " with @UseField, "
+                + "but it's private. This just won't work.", field);
+            return false;
+        } else if (!this.types.isSubtype(field.asType(), property.getType())) {
+            this.messager.printMessage(Diagnostic.Kind.ERROR, String.format("In event %s with parent %s - you've specified field '%s' of type %s"
+                    + " but the property has the expected type of %s", this.elements.getBinaryName((TypeElement) property.getAccessor().getEnclosingElement()),
+                parentType, field.getSimpleName(), field.asType(), property.getType()), field);
+            return false;
         }
         return true;
     }
@@ -276,222 +254,73 @@ public class ClassGenerator {
         return properties.stream().filter(p -> p.isMostSpecificType(this.types) && ClassGenerator.isRequired(p)).collect(Collectors.toList());
     }
 
-    private void generateConstructor(
-            final ClassWriter classWriter,
-            final TypeElement interfaceType,
-            final String internalName,
-            final DeclaredType parentType,
-            final List<Property> properties) {
+    private MethodSpec generateConstructor(final List<Property> properties) {
         final List<Property> requiredProperties = this.getRequiredProperties(properties);
-        final String methodDesc = this.descriptors.getDescriptor(requiredProperties, this.types.getNoType(TypeKind.VOID));
+        final MethodSpec.Builder builder = MethodSpec.constructorBuilder();
 
-        final MethodVisitor mv = classWriter.visitMethod(
-                0,
-                "<init>",
-                methodDesc,
-                this.signatures.ofConstructor(interfaceType, requiredProperties),
-                null);
-
-        // Parameter names
+        final CodeBlock.Builder initializer = CodeBlock.builder();
         for (final Property property : requiredProperties) {
-            mv.visitParameter(property.getName(), 0);
-        }
-
-        // The implementation
-        mv.visitCode();
-
-        // super()
-        mv.visitVarInsn(ALOAD, 0);
-        mv.visitMethodInsn(INVOKESPECIAL, this.descriptors.getInternalName(parentType), "<init>", "()V", false);
-
-        // 0 is 'this', parameters start at 1
-        for (int i = 0, paramIndex = 1; i < requiredProperties.size(); i++, paramIndex++) {
-            final Property property = requiredProperties.get(i);
-
-            final Type type = Type.getType(this.descriptors.getTypeDescriptor(property.getType()));
-            final int loadOpcode = type.getOpcode(Opcodes.ILOAD);
-
-            final boolean isPrimitive = property.getType().getKind().isPrimitive();
-
-            // Only if we have a null policy:
-            // if (value == null) throw new NullPointerException(...)
-            if (this.nullPolicy != NullPolicy.DISABLE_PRECONDITIONS) {
-                final boolean useNullTest = !isPrimitive && (((this.nullPolicy == NullPolicy.NON_NULL_BY_DEFAULT && !this.hasNullable(property.getAccessor()))
+            builder.addParameter(TypeName.get(property.getType()), property.getName(), Modifier.FINAL);
+                // Only if we have a null policy:
+                // if (value == null) throw new NullPointerException(...)
+                if (this.nullPolicy != NullPolicy.DISABLE_PRECONDITIONS) {
+                    final boolean useNullTest = !property.getType().getKind().isPrimitive()
+                        && (((this.nullPolicy == NullPolicy.NON_NULL_BY_DEFAULT && !this.hasNullable(property.getAccessor()))
                         || (this.nullPolicy == NullPolicy.NULL_BY_DEFAULT && this.hasNonNull(property.getAccessor())))
                         && ClassGenerator.isRequired(property));
 
-                if (useNullTest) {
-                    final Label afterNullTest = new Label();
-                    mv.visitVarInsn(loadOpcode, paramIndex);
-                    mv.visitJumpInsn(IFNONNULL, afterNullTest);
-                    mv.visitTypeInsn(NEW, "java/lang/NullPointerException");
-                    mv.visitInsn(DUP);
-                    mv.visitLdcInsn("The property '" + property.getName() + "' was not provided!");
-                    mv.visitMethodInsn(INVOKESPECIAL, "java/lang/NullPointerException", "<init>", "(Ljava/lang/String;)V", false);
-                    mv.visitInsn(ATHROW);
-                    mv.visitLabel(afterNullTest);
+                    if (useNullTest) {
+                        initializer.addStatement(
+                            "this.$1L = $2T.requireNonNull($1L, $3S)",
+                            property.getName(),
+                            OBJECTS,
+                            "The property '" + property.getName() + "' was not provided!"
+                        );
+                        continue;
+                    }
                 }
-            }
 
-            final boolean hasUseField = ClassGenerator.getUseField(parentType, property.getName()) != null;
-
-            // stack: -> this
-            mv.visitVarInsn(ALOAD, 0);
-
-            // ProperObject newValue = (ProperObject) value
-            mv.visitVarInsn(loadOpcode, paramIndex);
-            //visitUnboxingMethod(mv, Type.getType(property.getType()));
-
-            // this.field = newValue
-
-            final String desc = this.descriptors.getTypeDescriptor(property.getLeastSpecificType());
-
-            if (hasUseField) {
-                mv.visitFieldInsn(PUTFIELD, this.descriptors.getInternalName(parentType), property.getName(), desc);
-            } else {
-                mv.visitFieldInsn(PUTFIELD, internalName, property.getName(), desc);
-            }
-            // }
-
-            if (type.equals(Type.LONG_TYPE) || type.equals(Type.DOUBLE_TYPE)) {
-                paramIndex++; // Skip empty slot
-            }
+            // no null test
+            initializer.addStatement("this.$1L = $1L", property.getName());
         }
 
-        // super.init();
-        if (this.hasDeclaredMethod(parentType, "init")) {
-            mv.visitVarInsn(ALOAD, 0);
-            mv.visitMethodInsn(INVOKESPECIAL, this.descriptors.getInternalName(parentType), "init", "()V", false);
-        }
-
-        mv.visitInsn(RETURN);
-        mv.visitMaxs(0, 0);
-        mv.visitEnd();
+        builder.addCode(initializer.build());
+        return builder.build();
     }
 
-    private void generateAccessor(
-            final ClassWriter cw,
-            final TypeElement eventClass,
-            final String internalName,
-            final Property property) {
+    private MethodSpec generateAccessor(final Property property) {
         final ExecutableElement accessor = property.getAccessor();
+        final TypeName returnType = TypeName.get(property.getType());
+        final MethodSpec.Builder builder = MethodSpec.methodBuilder(accessor.getSimpleName().toString())
+            .addAnnotation(Override.class)
+            .addModifiers(Modifier.PUBLIC)
+            .returns(TypeName.get(property.getType()));
 
-        final MethodVisitor mv = cw.visitMethod(
-            ACC_PUBLIC,
-            accessor.getSimpleName().toString(),
-            this.descriptors.getDescriptor(accessor),
-            this.signatures.ofMethod(eventClass, accessor),
-            null
-        );
-        mv.visitCode();
-        mv.visitVarInsn(ALOAD, 0);
-        mv.visitFieldInsn(GETFIELD, internalName, property.getName(), this.descriptors.getTypeDescriptor(property.getLeastSpecificType()));
-
-        if (!property.isLeastSpecificType(this.types)) {
-            mv.visitTypeInsn(CHECKCAST, this.descriptors.getInternalName(property.getType()));
+        if (property.isLeastSpecificType(this.types)) {
+            builder.addStatement("return this.$L", property.getName());
+        } else {
+            // a cast is needed
+            builder.addStatement("return ($T) this.$L", returnType, property.getName());
         }
-        mv.visitInsn(Type.getType(this.descriptors.getTypeDescriptor(property.getType())).getOpcode(IRETURN));
-        mv.visitMaxs(0, 0);
-        mv.visitEnd();
+        return builder.build();
     }
 
 
     private void generateAccessorsAndMutator(
-        final EventImplClassWriter cw,
+        final ClassContext typeBuilder,
         final TypeElement type,
-        final String internalName,
         final Property property
     ) {
         if (ClassGenerator.generateMethods(property)) {
-            this.generateAccessor(cw, type, internalName, property);
+            if (property.isMostSpecificType(this.types)) { // only generate most specific return type -- compiler will generate the others for us
+                typeBuilder.addMethod(this.generateAccessor(property));
+            }
 
             final Optional<ExecutableElement> mutatorOptional = property.getMutator();
             if (mutatorOptional.isPresent()) {
-                cw.generateMutator(type, internalName, property.getName(), property);
+                typeBuilder.addMutator(type, property.getName(), property);
             }
         }
-    }
-
-    private MethodVisitor initializeToString(final ClassWriter cw, final TypeElement type) {
-        final MethodVisitor toStringMv = cw.visitMethod(ACC_PUBLIC, "toString", "()Ljava/lang/String;", null, null);
-        toStringMv.visitCode();
-        toStringMv.visitTypeInsn(NEW, "java/lang/StringBuilder");
-        toStringMv.visitInsn(DUP);
-        toStringMv.visitMethodInsn(INVOKESPECIAL, "java/lang/StringBuilder", "<init>", "()V", false);
-        toStringMv.visitLdcInsn(type.getSimpleName() + "{");
-        toStringMv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "append", "(Ljava/lang/Object;)Ljava/lang/StringBuilder;", false);
-
-        toStringMv.visitVarInsn(ASTORE, 1);
-
-        return toStringMv;
-    }
-
-    private void contributeToString(
-            final String internalName,
-            final TypeMirror parentType,
-            final Property property,
-            final MethodVisitor toStringMv) {
-
-        if (property.isLeastSpecificType(this.types) && (ClassGenerator.isRequired(property) || ClassGenerator.generateMethods(property))) {
-            boolean overrideToString = false;
-            final UseField useField = ClassGenerator.getUseField(parentType, property.getName());
-            if (useField != null) {
-                overrideToString = useField.overrideToString();
-            }
-
-            toStringMv.visitVarInsn(ALOAD, 0);
-
-            toStringMv.visitVarInsn(ALOAD, 1);
-            toStringMv.visitLdcInsn(property.getName());
-            toStringMv
-                    .visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "append", "(Ljava/lang/Object;)Ljava/lang/StringBuilder;", false);
-
-            toStringMv.visitLdcInsn("=");
-            toStringMv
-                    .visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "append", "(Ljava/lang/Object;)Ljava/lang/StringBuilder;", false);
-
-            toStringMv.visitVarInsn(ALOAD, 0);
-            if (overrideToString) {
-                toStringMv.visitFieldInsn(GETFIELD, internalName, property.getName(), this.descriptors.getTypeDescriptor(property.getLeastSpecificType()));
-            } else {
-                toStringMv.visitMethodInsn(INVOKESPECIAL, internalName, property.getAccessor().getSimpleName().toString(),
-                    this.descriptors.getDescriptor(property.getAccessor()), false);
-            }
-
-            final String desc = property.getType().getKind().isPrimitive() ? this.descriptors.getTypeDescriptor(property.getType()) : "Ljava/lang/Object;";
-
-            toStringMv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "append",
-                                       "(" + desc + ")Ljava/lang/StringBuilder;", false);
-
-            toStringMv.visitLdcInsn(", ");
-            toStringMv
-                    .visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "append", "(Ljava/lang/Object;)Ljava/lang/StringBuilder;", false);
-        }
-    }
-
-    private void finalizeToString(final MethodVisitor mv) {
-        // The StringBuilder is on the top of the stack from the last append() -
-        // duplicate it for call to replace()
-        mv.visitVarInsn(ALOAD, 1);
-        mv.visitInsn(DUP);
-
-        // The replace starts at 2 characters before the end, to remove the
-        // extra command and space added
-        mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "length", "()I", false);
-        mv.visitLdcInsn(2);
-        mv.visitInsn(ISUB);
-
-        mv.visitVarInsn(ALOAD, 1);
-        mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "length", "()I", false);
-
-        mv.visitLdcInsn("}");
-
-        mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "replace", "(IILjava/lang/String;)Ljava/lang/StringBuilder;", false);
-        mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/StringBuilder", "toString", "()Ljava/lang/String;", false);
-
-        mv.visitInsn(ARETURN);
-        mv.visitMaxs(0, 0);
-        mv.visitEnd();
     }
 
     /**
@@ -502,7 +331,7 @@ public class ClassGenerator {
      * @param parentType The parent type
      * @return The class' contents, or {@code null} if an error was reported while generating the class
      */
-    public byte@Nullable [] createClass(
+    public @Nullable JavaFile createClass(
         final TypeElement type,
         final String name,
         final DeclaredType parentType,
@@ -516,21 +345,24 @@ public class ClassGenerator {
 
         final String internalName = this.descriptors.getInternalName(name);
 
-        final EventImplClassWriter cw = this.classWriterFactory.create(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
-        cw.visit(
-            ClassGenerator.bytecodeVersion(this.targetVersion, this.previewEnabled),
-            ACC_SUPER | ACC_PUBLIC,
-            internalName,
-            this.signatures.ofImplClass(parentType, Collections.singletonList(type.asType())),
-            this.descriptors.getInternalName(parentType),
-            new String[] {this.descriptors.getInternalName(type.asType())}
-        );
+        final ClassName typeName = ClassName.bestGuess(name);
+        final TypeSpec.Builder classBuilder = TypeSpec.classBuilder(typeName)
+            .addModifiers(Modifier.FINAL)
+            .superclass(TypeName.get(parentType))
+            .addSuperinterface(TypeName.get(type.asType()))
+            .addOriginatingElement(type)
+            .addAnnotation(this.generatedAnnotation());
 
+        for (final TypeParameterElement param : type.getTypeParameters()) {
+            classBuilder.addTypeVariable(TypeVariableName.get(param));
+        }
 
         // Create the constructor
-        this.generateConstructor(cw, type, internalName, parentType, sorter.sortProperties(properties));
+        classBuilder.addMethod(this.generateConstructor(sorter.sortProperties(properties)));
 
-        final MethodVisitor toStringMv = this.initializeToString(cw, type);
+        final ClassContext ctx = this.classContextFactory.create(classBuilder);
+
+        ctx.initializeToString(type);
 
         // Create the fields
         // this.contributeFields(cw, parentType, properties, plugins);
@@ -539,25 +371,24 @@ public class ClassGenerator {
         // "ClassName{param1=value1, param2=value2, ...}"
 
         // Create the accessors and mutators, and fill out the toString method
-        if (!this.generateWithPlugins(cw, type, parentType, internalName, properties, toStringMv, plugins)) {
+        if (!this.generateWithPlugins(ctx, type, parentType, internalName, properties, plugins)) {
             return null;
         }
 
         // Now build the toString
-        this.finalizeToString(toStringMv);
+        ctx.finalizeToString(type);
 
-        cw.visitEnd();
-
-        return cw.toByteArray();
+        return JavaFile.builder(typeName.packageName(), classBuilder.build())
+            .indent("    ")
+            .build();
     }
 
     private boolean generateWithPlugins(
-        final EventImplClassWriter cw,
+        final ClassContext classBuilder,
         final TypeElement eventClass,
         final DeclaredType parentType,
         final String internalName,
-        final List<? extends Property> properties,
-        final MethodVisitor toStringMv,
+        final List<Property> properties,
         final Set<? extends EventFactoryPlugin> plugins
     ) {
         boolean success = true;
@@ -566,7 +397,7 @@ public class ClassGenerator {
             boolean processed = false;
 
             for (final EventFactoryPlugin plugin : plugins) {
-                final EventFactoryPlugin.Result result = plugin.contributeProperty(eventClass, internalName, cw, property);
+                final EventFactoryPlugin.Result result = plugin.contributeProperty(eventClass, internalName, classBuilder, property);
                 processed = result != EventFactoryPlugin.Result.IGNORE;
                 success &= result != EventFactoryPlugin.Result.FAILURE;
                 if (processed) {
@@ -574,25 +405,30 @@ public class ClassGenerator {
                 }
             }
 
-            this.contributeToString(internalName, parentType, property, toStringMv);
+            classBuilder.contributeToString(parentType, property);
 
             if (!processed) {
-                success &= this.contributeField(cw, eventClass, parentType, property);
-                this.generateAccessorsAndMutator(cw, eventClass, internalName, property);
+                success &= this.contributeField(classBuilder, parentType, property);
+                this.generateAccessorsAndMutator(classBuilder, eventClass, property);
             }
         }
         return success;
     }
 
-    public String qualifiedName(final TypeElement event) {
-        return this.classNameProvider.getClassName(event, "Impl");
+    AnnotationSpec generatedAnnotation() {
+        final ClassName clazz;
+        if (this.targetVersion.ordinal() > SourceVersion.RELEASE_8.ordinal()) {
+            clazz = ClassName.get("javax.annotation.processing", "Generated");
+        } else {
+            clazz = ClassName.get("javax.annotation", "Generated");
+        }
+
+        return AnnotationSpec.builder(clazz)
+            .addMember("value", "$S", EventImplGenProcessor.class.getName())
+            .build();
     }
 
-    private static int bytecodeVersion(final SourceVersion sourceVersion, final boolean previewEnabled) {
-        if (sourceVersion == SourceVersion.RELEASE_1) {
-            return Opcodes.V1_1; // last version where minor version is used
-        } else {
-            return (Opcodes.V1_2 + sourceVersion.ordinal() - SourceVersion.RELEASE_2.ordinal()) | (previewEnabled ? Opcodes.V_PREVIEW : 0);
-        }
+    public String qualifiedName(final TypeElement event) {
+        return this.classNameProvider.getClassName(event, "Impl");
     }
 }

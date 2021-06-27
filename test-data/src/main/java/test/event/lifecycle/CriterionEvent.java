@@ -36,9 +36,22 @@ public interface CriterionEvent extends Event {
 
     void setTriggers(final List<String> triggers);
 
+    CharSequence name();
+
+    void setName(final CharSequence name);
+
+    interface Register extends CriterionEvent {
+
+    }
+
     interface Trigger<C extends Buffer> extends CriterionEvent, GenericEvent<C> {
 
         List<C> buffers();
+
+        @Override
+        String name();
+
+        void setName(final String name);
 
     }
 

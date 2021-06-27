@@ -24,27 +24,19 @@
  */
 package org.spongepowered.eventimplgen.factory.plugin;
 
-import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
-import static org.objectweb.asm.Opcodes.ALOAD;
-import static org.objectweb.asm.Opcodes.GETFIELD;
-import static org.objectweb.asm.Opcodes.INVOKEINTERFACE;
-import static org.objectweb.asm.Opcodes.INVOKEVIRTUAL;
-import static org.objectweb.asm.Opcodes.IRETURN;
-
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Type;
+import com.squareup.javapoet.MethodSpec;
+import com.squareup.javapoet.TypeName;
 import org.spongepowered.api.util.annotation.eventgen.TransformResult;
 import org.spongepowered.api.util.annotation.eventgen.TransformWith;
 import org.spongepowered.eventimplgen.eventgencore.Property;
-import org.spongepowered.eventimplgen.factory.EventImplClassWriter;
-import org.spongepowered.eventimplgen.signature.Descriptors;
+import org.spongepowered.eventimplgen.factory.ClassContext;
 
 import java.util.Objects;
 
 import javax.annotation.processing.Messager;
 import javax.inject.Inject;
-import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Types;
@@ -57,18 +49,15 @@ import javax.tools.Diagnostic;
 public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
 
     private final Types types;
-    private final Descriptors descriptors;
     private final Messager messager;
 
     @Inject
-    AccessorModifierEventFactoryPlugin(final Types types, final Descriptors descriptors, final Messager messager) {
+    AccessorModifierEventFactoryPlugin(final Types types, final Messager messager) {
         this.types = types;
-        this.descriptors = descriptors;
         this.messager = messager;
     }
 
     private MethodPair getLinkedField(final Property property) {
-
         final ExecutableElement leastSpecificMethod = property.getLeastSpecificMethod();
         final TransformResult transformResult;
         ExecutableElement transformWith = null;
@@ -104,37 +93,18 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
         return null;
     }
 
-    private void generateTransformingAccessor(final EventImplClassWriter cw, final String internalName, final MethodPair pair, final Property property) {
-
+    private void generateTransformingAccessor(final ClassContext cw, final MethodPair pair, final Property property) {
         final ExecutableElement accessor = property.getAccessor();
-
-        final MethodVisitor mv = cw.visitMethod(ACC_PUBLIC, accessor.getSimpleName().toString(), this.descriptors.getDescriptor(accessor), null, null);
-        mv.visitCode();
-        mv.visitVarInsn(ALOAD, 0);
-        mv.visitFieldInsn(GETFIELD, internalName, property.getName(), this.descriptors.getTypeDescriptor(property.getLeastSpecificType()));
-
         final ExecutableElement transformerMethod = pair.getTransformerMethod();
-
-        int opcode = INVOKEVIRTUAL;
-        if (transformerMethod.getEnclosingElement().getKind() == ElementKind.INTERFACE) {
-            opcode = INVOKEINTERFACE;
-        }
-
-        mv.visitMethodInsn(
-            opcode,
-            this.descriptors.getInternalName(transformerMethod.getEnclosingElement().asType()),
-            transformerMethod.getSimpleName().toString(),
-            this.descriptors.getDescriptor(transformerMethod),
-            opcode != INVOKEVIRTUAL
-        );
-
-        mv.visitInsn(Type.getType(this.descriptors.getTypeDescriptor(property.getType())).getOpcode(IRETURN));
-        mv.visitMaxs(0, 0);
-        mv.visitEnd();
+        cw.addMethod(MethodSpec.methodBuilder(accessor.getSimpleName().toString())
+            .addModifiers(Modifier.PUBLIC)
+            .addAnnotation(Override.class)
+            .returns(TypeName.get(property.getType()))
+            .addStatement("return this.$L(this.$L)", transformerMethod.getSimpleName().toString(), property.getName()));
     }
 
     @Override
-    public Result contributeProperty(final TypeElement eventClass, final String internalName, final EventImplClassWriter classWriter, final Property property) {
+    public Result contributeProperty(final TypeElement eventClass, final String internalName, final ClassContext classWriter, final Property property) {
         final MethodPair methodPair = this.getLinkedField(property);
         if (methodPair == null) {
             return Result.IGNORE;
@@ -142,26 +112,22 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
             return Result.FAILURE;
         }
 
-        classWriter.generateField(property);
+        classWriter.addField(property);
         if (property.getMutator().isPresent()) {
-            classWriter.generateMutator(eventClass, internalName, property.getName(), property);
+            classWriter.addMutator(eventClass, property.getName(), property);
         }
 
-        this.generateTransformingAccessor(classWriter, internalName, methodPair, property);
+        this.generateTransformingAccessor(classWriter, methodPair, property);
 
         return Result.SUCCESSS;
     }
-
-
 
     static final class MethodPair {
 
         static final MethodPair FAILED = new MethodPair("error", null, null);
 
         private final String name;
-
         private final ExecutableElement transformerMethod;
-
         private final Property property;
 
         /**
@@ -188,5 +154,7 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
         public Property getProperty() {
             return this.property;
         }
+
     }
+
 }
