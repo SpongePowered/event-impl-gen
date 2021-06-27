@@ -28,6 +28,7 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import test.TypeToken;
 import test.event.lifecycle.ConnectionEvent;
+import test.event.lifecycle.NestedTest;
 
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -36,13 +37,10 @@ class TestEventFactoryTest {
 
     @Test
     void testTestEventFactory() {
-        final ConnectionEvent conn = TestEventFactory.createConnectionEvent("aaa", false);
+        // Most of our validation is that the test set compiles, this just executes a basic implementation.
+        final NestedTest.Post conn = TestEventFactory.createNestedTestPost(false, 5);
         Assertions.assertThat(conn.toString())
-            .isEqualTo("ConnectionEvent{cancelled=false, name=aaa}");
-
-        TestEventFactory.createNestedTestPost(false, 3);
-        TestEventFactory.createNestedTestPre(false, 4);
-        // TestEventFactory.createCriterionEventTrigger(Collections.emptyList(), Collections.emptyList(), new TypeToken<ByteBuffer>() {}, false);
+            .isEqualTo("Post{cancelled=false, count=5}");
     }
 
 }

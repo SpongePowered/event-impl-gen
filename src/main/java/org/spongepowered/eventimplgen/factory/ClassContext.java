@@ -57,12 +57,14 @@ public final class ClassContext {
     private final TypeSpec.Builder builder;
     private final CodeBlock.Builder toStringBuilder = CodeBlock.builder();
     private boolean toStringReceivedParam;
+    private final TypeMirror erasedOptional;
 
     @AssistedInject
     public ClassContext(final Types types, final Elements elements, @Assisted final TypeSpec.Builder builder) {
         this.types = types;
         this.elements = elements;
         this.builder = builder;
+        this.erasedOptional = types.erasure(elements.getTypeElement(Optional.class.getName()).asType());
     }
 
     @AssistedFactory
@@ -125,11 +127,11 @@ public final class ClassContext {
         final MethodSpec.Builder method = MethodSpec.methodBuilder(mutator.getSimpleName().toString())
             .addModifiers(Modifier.PUBLIC)
             .addAnnotation(Override.class)
-            .addParameter(TypeName.get(mutator.getParameters().get(0).asType()), property.getName());
+            .addParameter(TypeName.get(mutator.getParameters().get(0).asType()), property.getName(), Modifier.FINAL);
 
         final String varName;
-        if (this.types.isAssignable(property.getAccessor().getReturnType(), this.elements.getTypeElement(Optional.class.getName()).asType())) {
-            method.addStatement("$T wrapped = $T.ofNullable($L)", TypeName.get(property.getType()), OPTIONAL, property.getName());
+        if (this.types.isAssignable(property.getAccessor().getReturnType(), this.erasedOptional)) {
+            method.addStatement("final $T wrapped = $T.ofNullable($L)", TypeName.get(property.getType()), OPTIONAL, property.getName());
             varName = "wrapped";
         } else {
             varName = property.getName();

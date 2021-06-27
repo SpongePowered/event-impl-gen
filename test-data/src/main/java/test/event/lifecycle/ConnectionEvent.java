@@ -26,12 +26,26 @@ package test.event.lifecycle;
 
 import test.event.Event;
 
+import java.nio.file.Path;
+import java.util.Optional;
+
 public interface ConnectionEvent extends Event {
 
     String name();
 
+    Optional<Path> destination();
+
+    void setDestination(final Path path);
+
     default int help() {
         return 5;
+    }
+
+    interface URL extends ConnectionEvent {
+
+        java.net.URL source();
+
+        interface Direct extends URL {}
     }
 
 }

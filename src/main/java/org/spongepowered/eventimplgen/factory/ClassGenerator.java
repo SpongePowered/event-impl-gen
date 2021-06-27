@@ -41,6 +41,7 @@ import org.spongepowered.eventimplgen.factory.plugin.EventFactoryPlugin;
 import org.spongepowered.eventimplgen.processor.EventImplGenProcessor;
 import org.spongepowered.eventimplgen.signature.Descriptors;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -201,6 +202,15 @@ public class ClassGenerator {
         this.nullPolicy = Objects.requireNonNull(nullPolicy, "nullPolicy");
     }
 
+    private Set<String> alwaysQualifiedImports(final TypeElement element) {
+        // always qualify the return types of properties in properties
+        return this.elements.getAllMembers(element)
+            .stream()
+            .filter(el -> el.getKind().isClass() || el.getKind().isInterface())
+            .map(el -> el.getSimpleName().toString())
+            .collect(Collectors.toSet());
+    }
+
     private boolean hasNullable(final ExecutableElement method) {
         return ClassGenerator.hasAnnotationOnSelfOrReturnType(method, name -> name.contentEquals("Nullable"));
     }
@@ -254,7 +264,7 @@ public class ClassGenerator {
         return properties.stream().filter(p -> p.isMostSpecificType(this.types) && ClassGenerator.isRequired(p)).collect(Collectors.toList());
     }
 
-    private MethodSpec generateConstructor(final List<Property> properties) {
+    private MethodSpec generateConstructor(final DeclaredType parentType, final List<Property> properties) {
         final List<Property> requiredProperties = this.getRequiredProperties(properties);
         final MethodSpec.Builder builder = MethodSpec.constructorBuilder();
 
@@ -282,6 +292,11 @@ public class ClassGenerator {
 
             // no null test
             initializer.addStatement("this.$1L = $1L", property.getName());
+        }
+
+        // super.init();
+        if (this.hasDeclaredMethod(parentType, "init")) {
+            initializer.addStatement("super.init()");
         }
 
         builder.addCode(initializer.build());
@@ -352,13 +367,14 @@ public class ClassGenerator {
             .addSuperinterface(TypeName.get(type.asType()))
             .addOriginatingElement(type)
             .addAnnotation(this.generatedAnnotation());
+        classBuilder.alwaysQualifiedNames.addAll(this.alwaysQualifiedImports(type));
 
         for (final TypeParameterElement param : type.getTypeParameters()) {
             classBuilder.addTypeVariable(TypeVariableName.get(param));
         }
 
         // Create the constructor
-        classBuilder.addMethod(this.generateConstructor(sorter.sortProperties(properties)));
+        classBuilder.addMethod(this.generateConstructor(parentType, sorter.sortProperties(properties)));
 
         final ClassContext ctx = this.classContextFactory.create(classBuilder);
 

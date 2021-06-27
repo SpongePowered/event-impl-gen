@@ -45,6 +45,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.annotation.processing.Messager;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -56,6 +57,7 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
+import javax.tools.Diagnostic;
 
 /**
  *
@@ -74,7 +76,7 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
     private final Types types;
     private final boolean allowFluentStyle;
 
-    private final TypeMirror optionalType;
+    private final TypeElement optional;
 
     @AssistedFactory
     public interface Factory {
@@ -86,7 +88,7 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
         this.types = types;
         this.descriptors = descriptors;
         this.allowFluentStyle = allowFluentStyle;
-        this.optionalType = elements.getTypeElement("java.util.Optional").asType();
+        this.optional = elements.getTypeElement("java.util.Optional");
     }
 
     /**
@@ -187,11 +189,19 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
 
         final TypeMirror expectedType = accessor.getReturnType();
 
+        // Optional tests
+        final boolean isOptionalReturn = expectedType.getKind() == TypeKind.DECLARED && this.types.isAssignable(this.types.erasure(expectedType), this.optional.asType());
         for (final ExecutableElement method : candidates) {
             // TODO: Handle supertypes
-            if (this.types.isSameType(method.getParameters().get(0).asType(), expectedType) || this.types.isSameType(expectedType, this.optionalType)) {
+            final TypeMirror firstParam = method.getParameters().get(0).asType();
+            if (this.types.isSameType(firstParam, expectedType)) {
                 return method;
             }
+
+            if (isOptionalReturn && this.types.isSameType(firstParam, ((DeclaredType) expectedType).getTypeArguments().get(0))) {
+                return method;
+            }
+
         }
 
         return null;

@@ -27,6 +27,7 @@ package org.spongepowered.eventimplgen.factory;
 import org.spongepowered.eventimplgen.processor.EventGenOptions;
 
 import javax.inject.Inject;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 
 /**
@@ -49,13 +50,20 @@ public class ClassNameProvider {
      * @param classifier The classifier
      * @return Canonical name
      */
-    public String getClassName(TypeElement clazz, final String classifier) {
-        String name = clazz.getSimpleName().toString();
-        while (clazz.getEnclosingElement() != null && clazz.getEnclosingElement() instanceof TypeElement) {
-            clazz = (TypeElement) clazz.getEnclosingElement();
-            name = clazz.getSimpleName() + "_" + name;
+    public String getClassName(final TypeElement clazz, final String classifier) {
+        final StringBuilder name = new StringBuilder(this.targetPackage)
+            .append('.');
+        final int startIdx = name.length();
+        for (Element target = clazz; target != null && (target.getKind().isClass() || target.getKind().isInterface()); target = target.getEnclosingElement()) {
+            if (name.length() > startIdx) {
+                name.insert(startIdx, '_');
+            }
+            name.insert(startIdx, target.getSimpleName());
         }
-        return this.targetPackage + "." + name + "_" + classifier;
+        return name
+            .append('_')
+            .append(classifier)
+            .toString();
     }
 
 }
