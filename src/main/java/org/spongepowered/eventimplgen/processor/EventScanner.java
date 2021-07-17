@@ -26,11 +26,13 @@ package org.spongepowered.eventimplgen.processor;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.api.util.annotation.eventgen.FactoryMethod;
+import org.spongepowered.api.util.annotation.eventgen.internal.GeneratedEvent;
 import org.spongepowered.eventimplgen.AnnotationUtils;
 import org.spongepowered.eventimplgen.eventgencore.PropertySearchStrategy;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -85,20 +87,27 @@ public class EventScanner {
         this.strategy = strategy;
     }
 
-    boolean scanRound(final RoundEnvironment environment, final PropertyConsumer consumer) {
+    boolean scanRound(
+        final RoundEnvironment environment, final PropertyConsumer consumer,
+        final Set<? extends TypeElement> annotations
+    ) {
         if (!environment.getRootElements().isEmpty()) {
             // populate package tree
             this.packages.populate(environment, this.elements);
         }
         boolean failed = false;
-        final Queue<Element> elements = new ArrayDeque<>();
+        final Queue<OriginatedElement> elements = new ArrayDeque<>();
         for (final String inclusiveAnnotation : this.inclusiveAnnotations) {
             final TypeElement element = this.elements.getTypeElement(inclusiveAnnotation);
             if (element == null) {
                 this.messager.printMessage(Diagnostic.Kind.ERROR, "Unable to resolve an annotation for specified inclusive annotation " + inclusiveAnnotation);
                 failed = true;
             } else {
-                elements.addAll(environment.getElementsAnnotatedWith(element));
+                if (annotations.contains(element)) {
+                    for (final Element el : environment.getElementsAnnotatedWith(element)) {
+                        elements.add(OriginatedElement.root(el));
+                    }
+                }
             }
         }
 
@@ -115,11 +124,12 @@ public class EventScanner {
          * The search stops once we find an excluded annotation.
          *
          * Package state needs to be maintained across rounds -- enumerate all
-         * packages from the root elemnts of the round, add that to a store.
+         * packages from the root elements of the round, add that to a store.
          */
         final Set<Element> seen = new HashSet<>();
-        Element active;
-        while ((active = elements.poll()) != null) {
+        OriginatedElement pointer;
+        while ((pointer = elements.poll()) != null) {
+            final Element active = pointer.element;
             if (!seen.add(active)) {
                 continue;
             }
@@ -129,7 +139,10 @@ public class EventScanner {
 
             if (active.getKind() == ElementKind.PACKAGE) {
                 // add classes to consider
-                elements.addAll(ElementFilter.typesIn(active.getEnclosedElements()));
+                final OriginatedElement finalPointer = pointer;
+                active.getEnclosedElements().stream()
+                    .filter(el -> el.getKind().isInterface() || el.getKind().isClass())
+                    .forEach(el -> elements.add(new OriginatedElement(el, finalPointer)));
                 // then add subpackages, if they aren't annotated with an excluded element
                 final PackageNode node = this.packages.get(((PackageElement) active).getQualifiedName().toString());
 
@@ -140,19 +153,36 @@ public class EventScanner {
 
                 node.childPackages()
                     .filter(pkg -> !this.hasExclusiveAnnotation(pkg))
-                    .forEach(elements::add);
+                    .forEach(pkg -> elements.add(new OriginatedElement(pkg, finalPointer)));
             } else if (active.getKind().isInterface()) {
                 final TypeElement event = (TypeElement) active;
                 if (!this.hasExclusiveAnnotation(event)) {
-                    elements.addAll(ElementFilter.typesIn(event.getEnclosedElements()));
+                    for (final Element el : event.getEnclosedElements()) {
+                        if (el.getKind().isClass() || el.getKind().isInterface()) {
+                            elements.add(new OriginatedElement(el, pointer));
+                        }
+                    }
                     if (!this.isNonTransitivelyExcluded(event)) {
                         if (this.debugMode) {
                             this.messager.printMessage(Diagnostic.Kind.NOTE, "Generating for event " + event.getSimpleName());
                         }
-                        consumer.propertyFound(event, this.strategy.findProperties(event));
+                        final Set<Element> extraOriginating;
+                        if (pointer.parent == null) {
+                            extraOriginating = Collections.emptySet();
+                        } else {
+                            extraOriginating = new HashSet<>();
+                            OriginatedElement collector = pointer.parent;
+                            do {
+                                extraOriginating.add(collector.element);
+                            } while ((collector = collector.parent) != null);
+                        }
+                        consumer.propertyFound(event, this.strategy.findProperties(event), extraOriginating);
                         consumer.forwardedMethods(this.findForwardedMethods(event));
                     }
                 }
+            } else if (active.getKind() == ElementKind.CLASS
+                && active.getAnnotation(GeneratedEvent.class) != null) {
+                continue; // these implementation classes are indirectly annotated, but because we generated them we can ignore them.
             } else if (active.getKind() != ElementKind.ENUM) { // implicitly exclude enums, they are commonly declared nested in event interfaces
                 this.messager.printMessage(Diagnostic.Kind.ERROR, "This element (" + active.getKind() + " " + active.getSimpleName() + ")  was "
                     + "annotated directly or transitively, but it is not a package or interface", active);
@@ -263,6 +293,20 @@ public class EventScanner {
         @Override
         public String toString() {
             return "<root>";
+        }
+    }
+
+    static class OriginatedElement {
+        final Element element;
+        final @Nullable OriginatedElement parent;
+
+        static OriginatedElement root(final Element element) {
+            return new OriginatedElement(element, null);
+        }
+
+        OriginatedElement(final Element element, final @Nullable OriginatedElement parent) {
+            this.element = element;
+            this.parent = parent;
         }
     }
 

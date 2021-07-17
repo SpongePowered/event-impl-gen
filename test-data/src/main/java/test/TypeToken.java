@@ -38,4 +38,8 @@ public abstract class TypeToken<V> {
         return this.type;
     }
 
+    public String typeName() {
+        return this.type.getTypeName();
+    }
+
 }

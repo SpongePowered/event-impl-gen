@@ -22,22 +22,33 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package test.event.lifecycle;
+package org.spongepowered.api.util.annotation.eventgen.internal;
 
-import test.event.Event;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-public interface NestedTest extends Event {
+/**
+ * Indicates that this is a generated event implementation.
+ *
+ * <p>This annotation should not be used directly in source.</p>
+ */
+@Retention(RetentionPolicy.CLASS)
+@Target(ElementType.TYPE)
+public @interface GeneratedEvent {
 
-    int count();
+    /**
+     * The interface this implementation was generated from.
+     *
+     * @return the source interface
+     */
+    Class<?> source();
 
-    // void setCount(final int count);
-
-    interface Pre extends NestedTest {
-
-    }
-
-    interface Post extends NestedTest {
-
-    }
+    /**
+     * The version of {@code event-impl-gen} used to generate this
+     * implementation.
+     */
+    String version() default "<unknown>";
 
 }

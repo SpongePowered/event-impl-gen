@@ -10,6 +10,7 @@ dependencies {
 
 compileJava {
     // options.compilerArgs << '-AeventGenFactory=test.event.TestEventFactory'
+    // options.compilerArgs << '-Xlint:-processing'
     
     aptOptions {
         processorArgs = ['eventGenFactory': 'test.event.TestEventFactory']

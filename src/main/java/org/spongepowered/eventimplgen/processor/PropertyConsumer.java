@@ -27,7 +27,9 @@ package org.spongepowered.eventimplgen.processor;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 
 import java.util.List;
+import java.util.Set;
 
+import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 
@@ -36,7 +38,7 @@ import javax.lang.model.element.TypeElement;
  */
 public interface PropertyConsumer {
 
-    void propertyFound(final TypeElement event, final List<Property> property);
+    void propertyFound(final TypeElement event, final List<Property> property, final Set<? extends Element> originating);
 
     /**
      * Add all detected forwarded methods. These methods must be public and static.

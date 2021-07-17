@@ -31,6 +31,7 @@ import org.spongepowered.eventimplgen.AnnotationUtils;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.eventgencore.PropertySorter;
 import org.spongepowered.eventimplgen.factory.ClassGenerator;
+import org.spongepowered.eventimplgen.factory.EventData;
 import org.spongepowered.eventimplgen.factory.FactoryInterfaceGenerator;
 import org.spongepowered.eventimplgen.factory.NullPolicy;
 import org.spongepowered.eventimplgen.factory.plugin.EventFactoryPlugin;
@@ -73,10 +74,10 @@ public class EventImplWriter implements PropertyConsumer {
     private final ClassGenerator generator;
 
     // Cleared on write at the end of each round
-    private final Map<TypeElement, List<Property>> roundFoundProperties;
+    private final Map<TypeElement, EventData> roundFoundProperties;
 
     // All found properties, for generating the factory at the end
-    private final Map<TypeElement, List<Property>> allFoundProperties;
+    private final Map<TypeElement, EventData> allFoundProperties;
     private final List<ExecutableElement> forwardedMethods = new ArrayList<>();
     private boolean failed = false;
 
@@ -102,8 +103,9 @@ public class EventImplWriter implements PropertyConsumer {
     }
 
     @Override
-    public void propertyFound(final TypeElement event, final List<Property> property) {
-        this.roundFoundProperties.put(event, property);
+    public void propertyFound(
+        final TypeElement event, final List<Property> property, final Set<? extends Element> originating) {
+        this.roundFoundProperties.put(event, new EventData(property, originating));
     }
 
     @Override

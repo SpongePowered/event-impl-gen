@@ -5,8 +5,10 @@ templates formatted as Java interfaces using an annotation processor. This tool 
 
 ## Usage
 You can use `event-impl-gen` in your plugins to generate event implementations based on event interfaces. `event-impl-gen` is primarily tested on 
-Gradle 6+, but should work on any Java build tool.
+Gradle 7.2+, but should work on any Java build tool.
 To use it in your plugin, you need to apply it to your Gradle build script:
+
+**CAUTION**: Due to a bug in Gradle annotation processing, Gradle 7.2 or newer is required to take advantage of incremental compilation.
 
 ```gradle
 dependencies {

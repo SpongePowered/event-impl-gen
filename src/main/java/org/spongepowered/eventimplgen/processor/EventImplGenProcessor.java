@@ -82,7 +82,7 @@ public class EventImplGenProcessor extends AbstractProcessor {
         final EventScanner scanner = this.component.scanner();
         final EventImplWriter writer = this.component.writer();
 
-        if (!scanner.scanRound(roundEnv, writer)) {
+        if (!scanner.scanRound(roundEnv, writer, annotations)) {
             writer.skipRound();
         }
 

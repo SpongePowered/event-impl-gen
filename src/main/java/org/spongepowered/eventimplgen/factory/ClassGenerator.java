@@ -29,19 +29,20 @@ import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
+import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 import com.squareup.javapoet.TypeVariableName;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.api.util.annotation.eventgen.PropertySettings;
 import org.spongepowered.api.util.annotation.eventgen.UseField;
+import org.spongepowered.api.util.annotation.eventgen.internal.GeneratedEvent;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.eventgencore.PropertySorter;
 import org.spongepowered.eventimplgen.factory.plugin.EventFactoryPlugin;
 import org.spongepowered.eventimplgen.processor.EventImplGenProcessor;
 import org.spongepowered.eventimplgen.signature.Descriptors;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -283,7 +284,7 @@ public class ClassGenerator {
                         initializer.addStatement(
                             "this.$1L = $2T.requireNonNull($1L, $3S)",
                             property.getName(),
-                            OBJECTS,
+                            ClassGenerator.OBJECTS,
                             "The property '" + property.getName() + "' was not provided!"
                         );
                         continue;
@@ -350,7 +351,7 @@ public class ClassGenerator {
         final TypeElement type,
         final String name,
         final DeclaredType parentType,
-        final List<Property> properties,
+        final EventData data,
         final PropertySorter sorter,
         final Set<? extends EventFactoryPlugin> plugins
     ) {
@@ -361,20 +362,32 @@ public class ClassGenerator {
         final String internalName = this.descriptors.getInternalName(name);
 
         final ClassName typeName = ClassName.bestGuess(name);
+        final TypeName implementedInterface = TypeName.get(type.asType());
         final TypeSpec.Builder classBuilder = TypeSpec.classBuilder(typeName)
             .addModifiers(Modifier.FINAL)
             .superclass(TypeName.get(parentType))
-            .addSuperinterface(TypeName.get(type.asType()))
+            .addSuperinterface(implementedInterface)
             .addOriginatingElement(type)
-            .addAnnotation(this.generatedAnnotation());
+            .addAnnotation(this.generatedAnnotation())
+            .addAnnotation(
+                AnnotationSpec.builder(GeneratedEvent.class)
+                    .addMember("source", "$T.class",
+                        implementedInterface instanceof ParameterizedTypeName
+                        ? ((ParameterizedTypeName) implementedInterface).rawType
+                        : implementedInterface
+                    )
+                    .addMember("version", "$S", ClassGenerator.class.getPackage().getImplementationVersion())
+                    .build()
+            );
         classBuilder.alwaysQualifiedNames.addAll(this.alwaysQualifiedImports(type));
+        classBuilder.originatingElements.addAll(data.extraOrigins);
 
         for (final TypeParameterElement param : type.getTypeParameters()) {
             classBuilder.addTypeVariable(TypeVariableName.get(param));
         }
 
         // Create the constructor
-        classBuilder.addMethod(this.generateConstructor(parentType, sorter.sortProperties(properties)));
+        classBuilder.addMethod(this.generateConstructor(parentType, sorter.sortProperties(data.properties)));
 
         final ClassContext ctx = this.classContextFactory.create(classBuilder);
 
@@ -387,7 +400,7 @@ public class ClassGenerator {
         // "ClassName{param1=value1, param2=value2, ...}"
 
         // Create the accessors and mutators, and fill out the toString method
-        if (!this.generateWithPlugins(ctx, type, parentType, internalName, properties, plugins)) {
+        if (!this.generateWithPlugins(ctx, type, parentType, internalName, data.properties, plugins)) {
             return null;
         }
 

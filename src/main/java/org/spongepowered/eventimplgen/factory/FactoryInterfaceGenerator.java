@@ -58,7 +58,7 @@ public class FactoryInterfaceGenerator {
 
     public JavaFile createClass(
             final String name,
-            final Map<TypeElement, List<Property>> foundProperties,
+            final Map<TypeElement, EventData> foundProperties,
             final PropertySorter sorter,
             final List<ExecutableElement> forwardedMethods) {
         final ClassName clazz = ClassName.bestGuess(name);
@@ -69,12 +69,13 @@ public class FactoryInterfaceGenerator {
                 .build())
             .addAnnotation(this.generator.generatedAnnotation());
 
-        for (final Map.Entry<TypeElement, List<Property>> event : foundProperties.entrySet()) {
+        for (final Map.Entry<TypeElement, EventData> event : foundProperties.entrySet()) {
             factoryClass.addOriginatingElement(event.getKey());
+            factoryClass.originatingElements.addAll(event.getValue().extraOrigins);
             factoryClass.addMethod(this.generateRealImpl(
                  event.getKey(),
                  this.generator.qualifiedName(event.getKey()),
-                 this.generator.getRequiredProperties(sorter.sortProperties(event.getValue()))
+                 this.generator.getRequiredProperties(sorter.sortProperties(event.getValue().properties))
             ));
         }
 

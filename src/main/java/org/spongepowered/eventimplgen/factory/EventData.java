@@ -22,22 +22,25 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package test.event.lifecycle;
+package org.spongepowered.eventimplgen.factory;
 
-import test.event.Event;
+import org.spongepowered.eventimplgen.eventgencore.Property;
 
-public interface NestedTest extends Event {
+import java.util.List;
+import java.util.Set;
 
-    int count();
+import javax.lang.model.element.Element;
 
-    // void setCount(final int count);
+/**
+ * Data associated with a generated event
+ */
+public class EventData {
 
-    interface Pre extends NestedTest {
+    final List<Property> properties;
+    final Set<? extends Element> extraOrigins;
 
+    public EventData(final List<Property> properties, final Set<? extends Element> extraOrigins) {
+        this.properties = properties;
+        this.extraOrigins = extraOrigins;
     }
-
-    interface Post extends NestedTest {
-
-    }
-
 }
