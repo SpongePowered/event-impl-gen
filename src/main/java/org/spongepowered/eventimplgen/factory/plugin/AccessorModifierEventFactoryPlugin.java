@@ -104,7 +104,7 @@ public class AccessorModifierEventFactoryPlugin implements EventFactoryPlugin {
     }
 
     @Override
-    public Result contributeProperty(final TypeElement eventClass, final String internalName, final ClassContext classWriter, final Property property) {
+    public Result contributeProperty(final TypeElement eventClass, final ClassContext classWriter, final Property property) {
         final MethodPair methodPair = this.getLinkedField(property);
         if (methodPair == null) {
             return Result.IGNORE;

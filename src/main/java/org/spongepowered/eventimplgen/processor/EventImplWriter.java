@@ -24,6 +24,7 @@
  */
 package org.spongepowered.eventimplgen.processor;
 
+import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.JavaFile;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.api.util.annotation.eventgen.ImplementedBy;
@@ -51,6 +52,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
@@ -121,11 +123,14 @@ public class EventImplWriter implements PropertyConsumer {
         this.roundFoundProperties.clear();
     }
 
-    public void dumpRound() throws IOException {
+    public void dumpRound(final Set<? extends Element> rootElements) throws IOException {
         this.generator.setNullPolicy(NullPolicy.NON_NULL_BY_DEFAULT);
         JavaFile clazz;
         for (final TypeElement event : this.roundFoundProperties.keySet()) {
-            final String name = this.generator.qualifiedName(event);
+            final ClassName name = this.generator.qualifiedName(event);
+            if (!rootElements.contains(EventImplWriter.topLevelType(event))) { // only generate for rounds containing the appropriate root elements
+                continue;
+            }
             final @Nullable DeclaredType baseClass = this.getBaseClass(event);
             if (baseClass == null) {
                 continue; // an error occurred, don't generate
@@ -145,8 +150,15 @@ public class EventImplWriter implements PropertyConsumer {
         this.roundFoundProperties.clear();
     }
 
+    private static Element topLevelType(final TypeElement element) {
+        Element output = element;
+        while (output.getEnclosingElement().getKind() != ElementKind.PACKAGE) {
+            output = output.getEnclosingElement();
+        }
+        return output;
+    }
+
     public void dumpFinal() throws IOException {
-        this.dumpRound();
         if (this.failed) {
             return;
         }

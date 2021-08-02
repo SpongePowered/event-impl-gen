@@ -43,13 +43,12 @@ public interface EventFactoryPlugin {
      * <p>Returning {@code true} stops the processing of the provided {@link Property}.</p>
      *
      * @param eventClass The {@link Class} of the event an implementation is being generated for
-     * @param internalName The internal name of the event
      * @param classWriter The {@link ClassContext} holding information about the implementation class
      * @param property The {@link Property} being processed
      *
      * @return whether the provided {@link Property} was processed.
      */
-    Result contributeProperty(TypeElement eventClass, String internalName, ClassContext classWriter, Property property);
+    Result contributeProperty(TypeElement eventClass, ClassContext classWriter, Property property);
 
     enum Result {
         /**

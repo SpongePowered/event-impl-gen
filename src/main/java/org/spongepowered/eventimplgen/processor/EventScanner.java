@@ -88,7 +88,8 @@ public class EventScanner {
     }
 
     boolean scanRound(
-        final RoundEnvironment environment, final PropertyConsumer consumer,
+        final RoundEnvironment environment,
+        final PropertyConsumer consumer,
         final Set<? extends TypeElement> annotations
     ) {
         if (!environment.getRootElements().isEmpty()) {

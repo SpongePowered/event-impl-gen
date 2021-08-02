@@ -113,7 +113,7 @@ public class FactoryInterfaceGenerator {
         return spec.build();
     }
 
-    private MethodSpec generateRealImpl(final TypeElement event, final String eventName, final List<Property> params) {
+    private MethodSpec generateRealImpl(final TypeElement event, final ClassName eventName, final List<Property> params) {
         final MethodSpec.Builder spec = MethodSpec.methodBuilder(FactoryInterfaceGenerator.generateMethodName(event))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(TypeName.get(event.asType()));
@@ -131,19 +131,8 @@ public class FactoryInterfaceGenerator {
             paramNames.append(property.getName());
         }
 
-        final String pkgName;
-        final String simpleName;
-        final int lastDot = eventName.lastIndexOf('.');
-        if (lastDot > -1) {
-            pkgName = eventName.substring(0, lastDot);
-            simpleName = eventName.substring(lastDot + 1);
-        } else {
-            pkgName = "";
-            simpleName = eventName;
-        }
-        final TypeName implType = ClassName.get(pkgName, simpleName);
         final String template = event.getTypeParameters().isEmpty() ? "return new $T($L);" : "return new $T<>($L);";
-        spec.addCode(template, implType, paramNames.toString());
+        spec.addCode(template, eventName, paramNames.toString());
 
         return spec.build();
     }

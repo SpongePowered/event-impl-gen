@@ -24,6 +24,7 @@
  */
 package org.spongepowered.eventimplgen.factory;
 
+import com.squareup.javapoet.ClassName;
 import org.spongepowered.eventimplgen.processor.EventGenOptions;
 
 import javax.inject.Inject;
@@ -50,9 +51,8 @@ public class ClassNameProvider {
      * @param classifier The classifier
      * @return Canonical name
      */
-    public String getClassName(final TypeElement clazz, final String classifier) {
-        final StringBuilder name = new StringBuilder(this.targetPackage)
-            .append('.');
+    public ClassName getClassName(final TypeElement clazz, final String classifier) {
+        final StringBuilder name = new StringBuilder();
         final int startIdx = name.length();
         for (Element target = clazz; target != null && (target.getKind().isClass() || target.getKind().isInterface()); target = target.getEnclosingElement()) {
             if (name.length() > startIdx) {
@@ -60,10 +60,10 @@ public class ClassNameProvider {
             }
             name.insert(startIdx, target.getSimpleName());
         }
-        return name
+        return ClassName.get(this.targetPackage, name
             .append('_')
             .append(classifier)
-            .toString();
+            .toString());
     }
 
 }

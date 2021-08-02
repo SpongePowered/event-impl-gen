@@ -87,7 +87,7 @@ public class EventImplGenProcessor extends AbstractProcessor {
         }
 
         try {
-            writer.dumpRound();
+            writer.dumpRound(roundEnv.getRootElements());
             // If this is the last round, then let's do the actual generation
             if (roundEnv.processingOver()) {
                 writer.dumpFinal();

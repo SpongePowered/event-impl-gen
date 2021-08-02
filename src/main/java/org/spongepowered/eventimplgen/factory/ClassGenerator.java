@@ -78,7 +78,6 @@ public class ClassGenerator {
 
     private final Types types;
     private final Elements elements;
-    private final Descriptors descriptors;
     private final Messager messager;
     private final ClassContext.Factory classContextFactory;
     private final SourceVersion targetVersion;
@@ -91,7 +90,6 @@ public class ClassGenerator {
         final ClassNameProvider classNameProvider,
         final Types types,
         final Elements elements,
-        final Descriptors descriptors,
         final Messager messager,
         final ClassContext.Factory classContextFactory,
         final SourceVersion targetVersion
@@ -99,7 +97,6 @@ public class ClassGenerator {
         this.classNameProvider = classNameProvider;
         this.types = types;
         this.elements = elements;
-        this.descriptors = descriptors;
         this.messager = messager;
         this.classContextFactory = classContextFactory;
         this.targetVersion = targetVersion;
@@ -349,7 +346,7 @@ public class ClassGenerator {
      */
     public @Nullable JavaFile createClass(
         final TypeElement type,
-        final String name,
+        final ClassName name,
         final DeclaredType parentType,
         final EventData data,
         final PropertySorter sorter,
@@ -359,11 +356,8 @@ public class ClassGenerator {
         Objects.requireNonNull(name, "name");
         Objects.requireNonNull(parentType, "parentType");
 
-        final String internalName = this.descriptors.getInternalName(name);
-
-        final ClassName typeName = ClassName.bestGuess(name);
         final TypeName implementedInterface = TypeName.get(type.asType());
-        final TypeSpec.Builder classBuilder = TypeSpec.classBuilder(typeName)
+        final TypeSpec.Builder classBuilder = TypeSpec.classBuilder(name)
             .addModifiers(Modifier.FINAL)
             .superclass(TypeName.get(parentType))
             .addSuperinterface(implementedInterface)
@@ -400,14 +394,14 @@ public class ClassGenerator {
         // "ClassName{param1=value1, param2=value2, ...}"
 
         // Create the accessors and mutators, and fill out the toString method
-        if (!this.generateWithPlugins(ctx, type, parentType, internalName, data.properties, plugins)) {
+        if (!this.generateWithPlugins(ctx, type, parentType, data.properties, plugins)) {
             return null;
         }
 
         // Now build the toString
         ctx.finalizeToString(type);
 
-        return JavaFile.builder(typeName.packageName(), classBuilder.build())
+        return JavaFile.builder(name.packageName(), classBuilder.build())
             .indent("    ")
             .build();
     }
@@ -416,7 +410,6 @@ public class ClassGenerator {
         final ClassContext classBuilder,
         final TypeElement eventClass,
         final DeclaredType parentType,
-        final String internalName,
         final List<Property> properties,
         final Set<? extends EventFactoryPlugin> plugins
     ) {
@@ -426,7 +419,7 @@ public class ClassGenerator {
             boolean processed = false;
 
             for (final EventFactoryPlugin plugin : plugins) {
-                final EventFactoryPlugin.Result result = plugin.contributeProperty(eventClass, internalName, classBuilder, property);
+                final EventFactoryPlugin.Result result = plugin.contributeProperty(eventClass, classBuilder, property);
                 processed = result != EventFactoryPlugin.Result.IGNORE;
                 success &= result != EventFactoryPlugin.Result.FAILURE;
                 if (processed) {
@@ -457,7 +450,7 @@ public class ClassGenerator {
             .build();
     }
 
-    public String qualifiedName(final TypeElement event) {
+    public ClassName qualifiedName(final TypeElement event) {
         return this.classNameProvider.getClassName(event, "Impl");
     }
 }

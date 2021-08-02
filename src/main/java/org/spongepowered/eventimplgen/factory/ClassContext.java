@@ -53,7 +53,6 @@ public final class ClassContext {
     private static final ClassName OPTIONAL = ClassName.get(Optional.class);
 
     private final Types types;
-    private final Elements elements;
     private final TypeSpec.Builder builder;
     private final CodeBlock.Builder toStringBuilder = CodeBlock.builder();
     private boolean toStringReceivedParam;
@@ -62,7 +61,6 @@ public final class ClassContext {
     @AssistedInject
     public ClassContext(final Types types, final Elements elements, @Assisted final TypeSpec.Builder builder) {
         this.types = types;
-        this.elements = elements;
         this.builder = builder;
         this.erasedOptional = types.erasure(elements.getTypeElement(Optional.class.getName()).asType());
     }
