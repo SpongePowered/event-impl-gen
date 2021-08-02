@@ -41,7 +41,7 @@ public final class AnnotationUtils {
     private AnnotationUtils() {
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "TypeParameterUnusedInFormals"})
     public static <T> T getValue(final AnnotationMirror anno, final String key) {
         if (anno == null) {
             return null;

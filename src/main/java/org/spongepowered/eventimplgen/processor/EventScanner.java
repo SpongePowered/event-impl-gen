@@ -152,7 +152,7 @@ public class EventScanner {
                     continue;
                 }
 
-                node.childPackages()
+                node.childPackages(this.elements)
                     .filter(pkg -> !this.hasExclusiveAnnotation(pkg))
                     .forEach(pkg -> elements.add(new OriginatedElement(pkg, finalPointer)));
             } else if (active.getKind().isInterface()) {
@@ -241,9 +241,17 @@ public class EventScanner {
 
         protected final Map<String, PackageNode> knownChildren = new HashMap<>();
 
-        Stream<PackageElement> childPackages() {
-            return this.knownChildren.values().stream()
-                .map(node -> node.self)
+        Stream<PackageElement> childPackages(final Elements elements) {
+            return this.knownChildren.entrySet().stream()
+                .map(ent -> {
+                    final PackageNode node = ent.getValue();
+                    // this will fill in missing package elements, assuming that traverse the package tree top-down
+                    // that is true for EIG, but may not be true generally
+                    if (node.self == null && this.self != null) {
+                        node.self = elements.getPackageElement(this.self.getQualifiedName().toString() + '.' + ent.getKey());
+                    }
+                    return node.self;
+                })
                 .filter(Objects::nonNull);
         }
 
