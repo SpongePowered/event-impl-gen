@@ -52,7 +52,6 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
@@ -130,9 +129,14 @@ public class EventImplWriter implements PropertyConsumer {
         JavaFile clazz;
         for (final TypeElement event : this.roundFoundProperties.keySet()) {
             final ClassName name = this.generator.qualifiedName(event);
-            if (!rootElements.contains(EventImplWriter.topLevelType(event))) { // only generate for rounds containing the appropriate root elements
+            if (!rootElements.contains(EventImplGenProcessor.topLevelType(event))) { // only generate for rounds containing the appropriate root elements
                 continue;
             }
+            final TypeElement existing = this.elements.getTypeElement(name.reflectionName());
+            if (existing != null && rootElements.contains(existing)) { // already building the destination type
+                continue;
+            }
+
             final @Nullable DeclaredType baseClass = this.getBaseClass(event);
             if (baseClass == null) {
                 continue; // an error occurred, don't generate
@@ -151,14 +155,6 @@ public class EventImplWriter implements PropertyConsumer {
 
         this.allFoundProperties.putAll(this.roundFoundProperties);
         this.roundFoundProperties.clear();
-    }
-
-    private static Element topLevelType(final TypeElement element) {
-        Element output = element;
-        while (output.getEnclosingElement().getKind() != ElementKind.PACKAGE) {
-            output = output.getEnclosingElement();
-        }
-        return output;
     }
 
     public void dumpFinal() throws IOException {

@@ -25,8 +25,10 @@
 package org.spongepowered.eventimplgen.processor;
 
 import com.google.auto.service.AutoService;
+import org.spongepowered.api.util.annotation.eventgen.internal.GeneratedEvent;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.Set;
 
 import javax.annotation.processing.AbstractProcessor;
@@ -35,6 +37,8 @@ import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedOptions;
 import javax.lang.model.SourceVersion;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
 import javax.tools.Diagnostic;
 
@@ -54,6 +58,14 @@ public class EventImplGenProcessor extends AbstractProcessor {
 
     private EventGenComponent component;
 
+    static Element topLevelType(final TypeElement element) {
+        Element output = element;
+        while (output.getEnclosingElement().getKind() != ElementKind.PACKAGE) {
+            output = output.getEnclosingElement();
+        }
+        return output;
+    }
+
     @Override
     public synchronized void init(final ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
@@ -65,7 +77,9 @@ public class EventImplGenProcessor extends AbstractProcessor {
 
     @Override
     public Set<String> getSupportedAnnotationTypes() {
-        return this.component.options().inclusiveAnnotations();
+        final Set<String> supported = new HashSet<>(this.component.options().inclusiveAnnotations());
+        supported.add(GeneratedEvent.class.getName());
+        return supported;
     }
 
     @Override

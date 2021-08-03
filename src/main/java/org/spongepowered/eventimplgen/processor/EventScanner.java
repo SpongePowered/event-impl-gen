@@ -54,6 +54,9 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.QualifiedNameable;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
@@ -118,6 +121,8 @@ public class EventScanner {
             return false;
         }
 
+        this.hydrateIncrementalPackageHierarchy(environment, annotations);
+
         /*
          * Scan elements for the appropriate annotations.
          *
@@ -150,7 +155,8 @@ public class EventScanner {
                 final PackageNode node = this.packages.get((PackageElement) active);
 
                 if (node == null) {
-                    this.messager.printMessage(Diagnostic.Kind.WARNING, "Unable to query package metadata", active);
+                    this.messager.printMessage(Diagnostic.Kind.ERROR, "Unable to query package metadata", active);
+                    failed = true;
                     continue;
                 }
 
@@ -203,14 +209,52 @@ public class EventScanner {
     public boolean isNonTransitivelyExcluded(final TypeElement candidate) {
         if (!ElementFilter.typesIn(candidate.getEnclosedElements()).isEmpty()) {
             // no explicit inclusion annotation applied
-            for (final AnnotationMirror anno : candidate.getAnnotationMirrors()) {
-                if (this.inclusiveAnnotations.contains(this.elements.getBinaryName((TypeElement) anno.getAnnotationType().asElement()).toString())) {
-                    return false;
-                }
-            }
-            return true;
+            return !AnnotationUtils.containsAnnotation(candidate, this.inclusiveAnnotations);
         }
         return false;
+    }
+
+    /**
+     * Hydrate package hierarchy for indirectly annotated events when
+     * compiling incrementally.
+     *
+     * @param environment environment for determining elements
+     */
+    private void hydrateIncrementalPackageHierarchy(final RoundEnvironment environment, final Set<? extends TypeElement> annotations) {
+        final TypeElement generatedEvent = this.elements.getTypeElement(GeneratedEvent.class.getName());
+        if (generatedEvent != null && annotations.contains(generatedEvent)) {
+            // when compiling incrementally, rebuild scan information based on known generated events
+            final TypeMirror object = this.elements.getTypeElement("java.lang.Object").asType();
+            final Set<String> seenPackages = new HashSet<>();
+            for (final Element existing : environment.getElementsAnnotatedWith(generatedEvent)) {
+                final AnnotationMirror mirror = AnnotationUtils.getAnnotation(existing, GeneratedEvent.class);
+                final TypeMirror annotatedType = AnnotationUtils.getValue(mirror, "source");
+                if (annotatedType == null || this.types.isSameType(annotatedType, object) || annotatedType.getKind() != TypeKind.DECLARED) {
+                    continue;
+                }
+
+                final TypeElement eventItf = (TypeElement) ((DeclaredType) annotatedType).asElement();
+                // we already are re-processing directly annotated events, so this is just to traverse the package hierarchy
+                PackageElement packageElement = (PackageElement) EventImplGenProcessor.topLevelType(eventItf).getEnclosingElement();
+                String packageName = packageElement.getQualifiedName().toString();
+                if (seenPackages.add(packageName)) {
+                    this.packages.set(packageName, packageElement);
+                    int dotIndex;
+                    while ((dotIndex = packageName.lastIndexOf('.')) != -1) {
+                        packageName = packageName.substring(0, dotIndex);
+                        if (!seenPackages.add(packageName)) {
+                            break;
+                        }
+
+                        packageElement = this.elements.getPackageElement(packageName);
+                        if (packageElement != null) {
+                            this.packages.set(packageName, packageElement);
+                        }
+                    }
+                }
+            }
+        }
+
     }
 
     private List<ExecutableElement> findForwardedMethods(final TypeElement event) {

@@ -34,7 +34,7 @@ import javax.lang.model.element.Element;
 /**
  * Data associated with a generated event
  */
-public class EventData {
+public final class EventData {
 
     final List<Property> properties;
     final Set<? extends Element> extraOrigins;

@@ -43,4 +43,10 @@ class TestEventFactoryTest {
             .isEqualTo("Post{cancelled=false, count=5}");
     }
 
+    @Test
+    void testIndirectlyAnnotatedPackageGenerated() {
+        Assertions.assertThat(TestEventFactory.createPartyEvent(true, false, 100))
+            .isNotNull();
+    }
+
 }
