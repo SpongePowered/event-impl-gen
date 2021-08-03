@@ -61,6 +61,8 @@ import javax.tools.Diagnostic;
 
 public class EventScanner {
 
+    static final Pattern DOT_SPLIT = Pattern.compile("\\.");
+
     private final Set<String> inclusiveAnnotations;
     private final Set<String> exclusiveAnnotations;
     private final boolean debugMode;
@@ -94,7 +96,7 @@ public class EventScanner {
     ) {
         if (!environment.getRootElements().isEmpty()) {
             // populate package tree
-            this.packages.populate(environment, this.elements);
+            this.packages.populate(environment);
         }
         boolean failed = false;
         final Queue<OriginatedElement> elements = new ArrayDeque<>();
@@ -145,14 +147,14 @@ public class EventScanner {
                     .filter(el -> el.getKind().isInterface() || el.getKind().isClass())
                     .forEach(el -> elements.add(new OriginatedElement(el, finalPointer)));
                 // then add subpackages, if they aren't annotated with an excluded element
-                final PackageNode node = this.packages.get(((PackageElement) active).getQualifiedName().toString());
+                final PackageNode node = this.packages.get((PackageElement) active);
 
                 if (node == null) {
                     this.messager.printMessage(Diagnostic.Kind.WARNING, "Unable to query package metadata", active);
                     continue;
                 }
 
-                node.childPackages(this.elements)
+                node.childPackages()
                     .filter(pkg -> !this.hasExclusiveAnnotation(pkg))
                     .forEach(pkg -> elements.add(new OriginatedElement(pkg, finalPointer)));
             } else if (active.getKind().isInterface()) {
@@ -233,22 +235,25 @@ public class EventScanner {
         return methods;
     }
 
-    static class PackageNode {
-
-        protected static final Pattern DOT_SPLIT = Pattern.compile("\\.");
+    class PackageNode {
 
         @Nullable PackageElement self; // null at root
 
         protected final Map<String, PackageNode> knownChildren = new HashMap<>();
 
-        Stream<PackageElement> childPackages(final Elements elements) {
+        Stream<PackageElement> childPackages() {
             return this.knownChildren.entrySet().stream()
                 .map(ent -> {
                     final PackageNode node = ent.getValue();
                     // this will fill in missing package elements, assuming that traverse the package tree top-down
                     // that is true for EIG, but may not be true generally
                     if (node.self == null && this.self != null) {
-                        node.self = elements.getPackageElement(this.self.getQualifiedName().toString() + '.' + ent.getKey());
+                        node.self = EventScanner.this.elements.getPackageElement(this.self.getQualifiedName().toString() + '.' + ent.getKey());
+                    }
+                    if (node.self == null) {
+                        if (EventScanner.this.debugMode) {
+                            EventScanner.this.messager.printMessage(Diagnostic.Kind.NOTE, "No self for node " + node + " as child of " + this);
+                        }
                     }
                     return node.self;
                 })
@@ -261,12 +266,12 @@ public class EventScanner {
         }
     }
 
-    static class RootNode extends PackageNode {
+    class RootNode extends PackageNode {
 
-        void populate(final RoundEnvironment env, final Elements elements) {
+        void populate(final RoundEnvironment env) {
             final Set<String> seen = new HashSet<>();
             for (final TypeElement type : ElementFilter.typesIn(env.getRootElements())) {
-                final PackageElement pkg = elements.getPackageOf(type);
+                final PackageElement pkg = EventScanner.this.elements.getPackageOf(type);
                 final String pkgname = pkg.getQualifiedName().toString();
                 if (seen.add(pkgname)) {
                     this.set(pkgname, pkg);
@@ -278,13 +283,16 @@ public class EventScanner {
             this.get(name, true).self = element;
         }
 
-
-        PackageNode get(final String packageName) {
-            return this.get(packageName, false);
+        @Nullable PackageNode get(final PackageElement element) {
+            final @Nullable PackageNode node = this.get(element.getQualifiedName().toString(), false);
+            if (node != null) {
+                node.self = element;
+            }
+            return node;
         }
 
         PackageNode get(final String packageName, final boolean create) {
-            final String[] elements = PackageNode.DOT_SPLIT.split(packageName, -1);
+            final String[] elements = EventScanner.DOT_SPLIT.split(packageName, -1);
             PackageNode pointer = this;
             for (final String element : elements) {
                 if (create) {

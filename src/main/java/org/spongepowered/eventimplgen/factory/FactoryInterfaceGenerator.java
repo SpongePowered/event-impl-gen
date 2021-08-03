@@ -24,12 +24,14 @@
  */
 package org.spongepowered.eventimplgen.factory;
 
+import com.squareup.javapoet.AnnotationSpec;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 import com.squareup.javapoet.TypeVariableName;
+import org.spongepowered.api.util.annotation.eventgen.internal.GeneratedEvent;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.eventgencore.PropertySorter;
 
@@ -67,6 +69,12 @@ public class FactoryInterfaceGenerator {
             .addMethod(MethodSpec.constructorBuilder()
                 .addModifiers(Modifier.PRIVATE)
                 .build())
+            .addAnnotation(
+                AnnotationSpec.builder(GeneratedEvent.class)
+                    .addMember("source", "$T.class", Object.class)
+                    .addMember("version", "$S", FactoryInterfaceGenerator.class.getPackage().getImplementationVersion())
+                    .build()
+            )
             .addAnnotation(this.generator.generatedAnnotation());
 
         for (final Map.Entry<TypeElement, EventData> event : foundProperties.entrySet()) {

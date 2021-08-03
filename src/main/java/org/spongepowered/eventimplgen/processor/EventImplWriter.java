@@ -82,6 +82,8 @@ public class EventImplWriter implements PropertyConsumer {
     private final Map<TypeElement, EventData> allFoundProperties;
     private final List<ExecutableElement> forwardedMethods = new ArrayList<>();
     private boolean failed = false;
+    // only write out an event factory if some classes were written
+    private boolean classesWritten = false;
 
     @Inject
     EventImplWriter(
@@ -140,6 +142,7 @@ public class EventImplWriter implements PropertyConsumer {
             );
 
             if (clazz != null) {
+                this.classesWritten = true;
                 clazz.writeTo(this.filer);
             } else {
                 this.failed = true;
@@ -159,7 +162,7 @@ public class EventImplWriter implements PropertyConsumer {
     }
 
     public void dumpFinal() throws IOException {
-        if (this.failed) {
+        if (this.failed || !this.classesWritten) {
             return;
         }
         final JavaFile clazz = this.factoryGenerator.createClass(this.outputFactory, this.allFoundProperties, this.sorter, this.forwardedMethods);

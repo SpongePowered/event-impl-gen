@@ -30,7 +30,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Indicates that this is a generated event implementation.
+ * Indicates that this is a generated event implementation or factory.
  *
  * <p>This annotation should not be used directly in source.</p>
  */
@@ -40,6 +40,9 @@ public @interface GeneratedEvent {
 
     /**
      * The interface this implementation was generated from.
+     *
+     * <p>If this is {@link Object}, that indicates this is
+     * an event factory.</p>
      *
      * @return the source interface
      */
