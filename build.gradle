@@ -27,6 +27,7 @@ allprojects {
 
     tasks.withType(JavaCompile).configureEach {
         options.errorprone.disableWarningsInGeneratedCode = true
+        options.compilerArgs << '--module-version' << project.version
     }
 
     spongeConvention {
@@ -65,7 +66,8 @@ indra {
 sourceSets {
     main {
         multirelease {
-            alternateVersions 13
+            moduleName "org.spongepowered.eventimplgen"
+            alternateVersions 9, 13
         }
     }
 }

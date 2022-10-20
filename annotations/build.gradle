@@ -1,0 +1,7 @@
+sourceSets.main {
+    multirelease {
+        alternateVersions 9
+        moduleName "org.spongepowered.eventimplgen.annotations"
+        requireAllPackagesExported()
+    }
+}
