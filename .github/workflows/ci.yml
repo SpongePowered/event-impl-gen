@@ -15,4 +15,5 @@ jobs:
     uses: SpongePowered/.github/.github/workflows/shared-ci.yaml@master
     with:
       publish_release_javadoc: false
+      extra_gradle_publish_params: closeSonatypeStagingRepository
     secrets: inherit

@@ -1,0 +1,31 @@
+[metadata]
+version = "1.0"
+
+[versions]
+autoService = "1.0.1"
+checkerQual = "3.26.0"
+dagger = "2.44"
+errorprone = "2.16"
+junit = "5.9.1"
+
+[libraries]
+autoService-annotations = { module = "com.google.auto.service:auto-service-annotations", version.ref = "autoService" }
+autoService = { module = "com.google.auto.service:auto-service", version.ref = "autoService" }
+dagger-runtime = { module = "com.google.dagger:dagger", version.ref = "dagger" }
+dagger-compiler = { module = "com.google.dagger:dagger-compiler", version.ref = "dagger" }
+checkerQual = { module = "org.checkerframework:checker-qual", version.ref = "checkerQual" }
+errorprone = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
+errorprone-annotations = { module = "com.google.errorprone:error_prone_annotations", version.ref = "errorprone" }
+javapoet = { module = "com.squareup:javapoet", version = "1.13.0" }
+
+# Tests
+assertj = { module = "org.assertj:assertj-core", version = "3.23.1" }
+joor = { module = "org.jooq:joor-java-8", version = "0.9.14" }
+junit-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit" }
+junit-engine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit" }
+
+[plugins]
+eclipseApt = { id = "com.diffplug.eclipse.apt", version = "3.39.0" }
+errorprone = { id = "net.ltgt.errorprone", version = "2.0.2" }
+indra-sonatype = { id = "net.kyori.indra.publishing.sonatype", version = "2.1.1" }
+spongeConvention = { id = "org.spongepowered.gradle.sponge.dev", version = "2.1.1" }

@@ -1,12 +1,12 @@
 plugins {
-    id "org.spongepowered.gradle.sponge.dev" version "2.1.1" apply false
-    id "net.kyori.indra.publishing.sonatype" version "3.0.1"
-    id "net.ltgt.errorprone" version "2.0.2"
-    id "com.diffplug.eclipse.apt" version "3.39.0"
+    alias(libs.plugins.spongeConvention) apply false
+    alias(libs.plugins.indra.sonatype) apply false
+    alias(libs.plugins.errorprone)
+    alias(libs.plugins.eclipseApt)
 }
 
 // Default tasks
-defaultTasks 'licenseFormat', 'build'
+defaultTasks 'spotlessApply', 'build'
 
 // Basic project information
 group = "org.spongepowered"
@@ -18,7 +18,7 @@ allprojects {
     apply plugin: "com.diffplug.eclipse.apt"
 
     dependencies {
-        errorprone "com.google.errorprone:error_prone_core:$errorproneVersion"
+        errorprone libs.errorprone
     }
 
     eclipse {
@@ -75,21 +75,21 @@ sourceSets {
 // Project dependencies
 dependencies {
     implementation project(":event-impl-gen-annotations")
-    api "com.squareup:javapoet:1.13.0"
+    api libs.javapoet
 
-    compileOnlyApi "com.google.errorprone:error_prone_annotations:$errorproneVersion"
+    compileOnlyApi libs.errorprone.annotations
 
-    api "com.google.dagger:dagger:$daggerVersion"
-    annotationProcessor "com.google.dagger:dagger-compiler:$daggerVersion"
+    api libs.dagger.runtime
+    annotationProcessor libs.dagger.compiler
 
-    compileOnlyApi "com.google.auto.service:auto-service-annotations:$autoServiceVersion"
-    annotationProcessor "com.google.auto.service:auto-service:$autoServiceVersion"
+    compileOnlyApi libs.autoService.annotations
+    annotationProcessor libs.autoService
 
-    compileOnlyApi "org.checkerframework:checker-qual:${checkerQualVersion}"
+    compileOnlyApi libs.checkerQual
 
     // Tests
-    testImplementation "org.assertj:assertj-core:3.23.1"
-    testImplementation "org.jooq:joor-java-8:0.9.14"
-    testImplementation "org.junit.jupiter:junit-jupiter-api:5.9.1"
-    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:5.9.1"
+    testImplementation libs.assertj
+    testImplementation libs.joor
+    testImplementation libs.junit.api
+    testRuntimeOnly libs.junit.engine
 }
