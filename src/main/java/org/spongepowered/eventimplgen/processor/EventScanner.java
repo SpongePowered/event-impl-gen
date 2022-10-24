@@ -24,7 +24,7 @@
  */
 package org.spongepowered.eventimplgen.processor;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jetbrains.annotations.Nullable;
 import org.spongepowered.api.util.annotation.eventgen.FactoryMethod;
 import org.spongepowered.api.util.annotation.eventgen.internal.GeneratedEvent;
 import org.spongepowered.eventimplgen.AnnotationUtils;

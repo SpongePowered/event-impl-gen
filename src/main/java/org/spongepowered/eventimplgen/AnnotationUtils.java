@@ -24,7 +24,7 @@
  */
 package org.spongepowered.eventimplgen;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 import java.lang.annotation.Annotation;
 import java.util.Map;

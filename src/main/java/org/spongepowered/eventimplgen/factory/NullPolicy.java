@@ -24,8 +24,8 @@
  */
 package org.spongepowered.eventimplgen.factory;
 
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Determines how null parameters are handled.
@@ -45,7 +45,7 @@ public enum NullPolicy {
 
     /**
      * Assume that all parameters are nullable unless they are annotated with
-     * {@link NonNull}.
+     * {@link NotNull}.
      */
     NULL_BY_DEFAULT
 

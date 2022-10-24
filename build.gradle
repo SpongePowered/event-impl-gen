@@ -85,7 +85,7 @@ dependencies {
     compileOnlyApi libs.autoService.annotations
     annotationProcessor libs.autoService
 
-    compileOnlyApi libs.checkerQual
+    compileOnlyApi libs.jetbrainsAnnotations
 
     // Tests
     testImplementation libs.assertj

@@ -13,10 +13,10 @@ autoService-annotations = { module = "com.google.auto.service:auto-service-annot
 autoService = { module = "com.google.auto.service:auto-service", version.ref = "autoService" }
 dagger-runtime = { module = "com.google.dagger:dagger", version.ref = "dagger" }
 dagger-compiler = { module = "com.google.dagger:dagger-compiler", version.ref = "dagger" }
-checkerQual = { module = "org.checkerframework:checker-qual", version.ref = "checkerQual" }
 errorprone = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
 errorprone-annotations = { module = "com.google.errorprone:error_prone_annotations", version.ref = "errorprone" }
 javapoet = { module = "com.squareup:javapoet", version = "1.13.0" }
+jetbrainsAnnotations = { module = "org.jetbrains:annotations", version = "23.0.0"}
 
 # Tests
 assertj = { module = "org.assertj:assertj-core", version = "3.23.1" }
