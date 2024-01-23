@@ -52,7 +52,7 @@ jobs:
             echo "STATUS=release" >> $GITHUB_ENV
           fi
       - name: Publish with Gradle (snapshot)
-        if: "${{ runner.os == 'Linux' && env.STATUS != 'release' && github.event_name == 'push' && github.ref == 'refs/heads/master' }}"
+        if: "${{ runner.os == 'Linux' && env.STATUS != 'release' && github.event_name == 'push' && github.ref == 'refs/heads/v7.x' }}"
         run: ./gradlew -PforceSign=true publish
         env:
           ORG_GRADLE_PROJECT_githubPackagesUsername: "${{ github.actor }}"
