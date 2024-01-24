@@ -24,39 +24,51 @@
  */
 package org.spongepowered.eventimplgen;
 
+import java.util.Collections;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
+import org.gradle.api.artifacts.ConfigurationContainer;
+import org.gradle.api.artifacts.Dependency;
+import org.gradle.api.artifacts.ExcludeRule;
+import org.gradle.api.attributes.Attribute;
+import org.gradle.api.attributes.AttributeContainer;
 import org.gradle.api.file.CopySpec;
-import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.tasks.SourceSet;
+import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.util.GradleVersion;
 
 public class EventImplGenPlugin implements Plugin<Project> {
+    static final boolean HAS_GRADLE_7 = GradleVersion.current().getBaseVersion().compareTo(GradleVersion.version("7.0.0")) >= 0;
+    static final boolean HAS_GRADLE_6 = GradleVersion.current().getBaseVersion().compareTo(GradleVersion.version("6.0.0")) >= 0;
 
     private Configuration classpath;
 
     @Override
     public void apply(final Project project) {
         project.getPlugins().apply(JavaPlugin.class);
-        final SourceSet mainSourceSet = project.getConvention().getPlugin(JavaPluginConvention.class)
-                        .getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
+        final SourceSet mainSourceSet;
+        if (HAS_GRADLE_7) {
+            mainSourceSet = project.getExtensions().getByType(SourceSetContainer.class)
+              .getByName(SourceSet.MAIN_SOURCE_SET_NAME);
+        } else {
+            mainSourceSet = project.getConvention().getPlugin(JavaPluginConvention.class)
+              .getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
+        }
 
         final EventImplGenTask task = project.getTasks().create("genEventImpl", EventImplGenTask.class);
         task.source(mainSourceSet.getAllJava());
-        if (GradleVersion.current().compareTo(GradleVersion.version("7.0.0")) < 0) {
+        if (!HAS_GRADLE_7) {
             task.conventionMapping("destinationDir", () -> project.getLayout().getBuildDirectory().dir("generated/event-factory").get().getAsFile());
         }
-        if (GradleVersion.current().compareTo(GradleVersion.version("6.0.0")) >= 0) {
-            task.conventionMapping("destinationDirectory", () -> {
-                final DirectoryProperty dir = project.getObjects().directoryProperty();
-                dir.set(project.getLayout().getBuildDirectory().dir("generated/event-factory"));
-                return dir;
-            });
+        if (HAS_GRADLE_6) {
+            task.getDestinationDirectory()
+                .convention(project.getLayout().getBuildDirectory().dir("generated/event-factory"));
         }
-        task.conventionMapping("classpath", () -> this.classpath);
+        task.setClasspath(project.files(project.provider(() -> this.classpath)));
+        // task.conventionMapping("classpath", () -> this.classpath);
 
         // Include event factory classes in JAR
         ((CopySpec) project.getTasks().getByName(mainSourceSet.getJarTaskName())).from(task);
@@ -72,11 +84,32 @@ public class EventImplGenPlugin implements Plugin<Project> {
             // before we add the event factory. This needs to be done in afterEvaluate
             // however, so any dependencies added after event-impl-gen is applied will
             // be included in the Spoon classpath.
-            this.classpath = project1.getConfigurations().getByName(mainSourceSet.getCompileClasspathConfigurationName()).copyRecursive();
+            this.classpath = this.makeConfigurationCopy(project1.getConfigurations().getByName(mainSourceSet.getCompileClasspathConfigurationName()), project1);
 
             // Add the event factory to the compile dependencies
             project1.getDependencies().add(mainSourceSet.getApiConfigurationName(), project.files(task));
         });
+    }
+
+    // quick variant of copyRecursive that is less likely to trigger deprecation warnings
+    private Configuration makeConfigurationCopy(final Configuration incoming, final Project project) {
+        final ConfigurationContainer configs = project.getConfigurations();
+        final Configuration resolvable = configs.detachedConfiguration(incoming.getAllDependencies().toArray(new Dependency[0]));
+        resolvable.setCanBeResolved(true);
+
+        for (final ExcludeRule exclude : incoming.getExcludeRules()) {
+            resolvable.getExcludeRules().add(exclude);
+        }
+
+        final AttributeContainer resolvableAttr = resolvable.getAttributes(), incomingAttr = incoming.getAttributes();;
+        for (final Attribute<?> attr : incomingAttr.keySet()) {
+            this.transferAttr(incomingAttr, resolvableAttr, attr);
+        }
+        return resolvable;
+    }
+
+    private <T> void transferAttr(final AttributeContainer source, final AttributeContainer dest, final Attribute<T> attr) {
+        dest.attribute(attr, source.getAttribute(attr));
     }
 
 }

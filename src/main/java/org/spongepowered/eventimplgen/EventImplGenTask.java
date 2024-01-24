@@ -24,6 +24,7 @@
  */
 package org.spongepowered.eventimplgen;
 
+import java.util.Arrays;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.gradle.api.JavaVersion;
 import org.gradle.api.UncheckedIOException;
@@ -194,10 +195,18 @@ public class EventImplGenTask extends AbstractCompile {
         }
     }
 
+    private File destinationDir() {
+        if (EventImplGenPlugin.HAS_GRADLE_7) {
+            return this.getDestinationDirectory().get().getAsFile();
+        } else {
+            return this.getDestinationDir();
+        }
+    }
+
     @TaskAction
     public void generateClasses() throws IOException {
         // Clean the destination directory
-        getProject().delete(getDestinationDir());
+        getProject().delete(this.destinationDir());
 
         // Initialize spoon
         final SpoonAPI spoon = new Launcher();
@@ -239,7 +248,7 @@ public class EventImplGenTask extends AbstractCompile {
         final String packageName = this.outputFactory.substring(0, this.outputFactory.lastIndexOf('.'));
         final ClassGeneratorProvider provider = new ClassGeneratorProvider(packageName);
 
-        final Path destinationDir = this.getDestinationDir().toPath();
+        final Path destinationDir = this.destinationDir().toPath();
         // Create package directory
         Files.createDirectories(destinationDir.resolve(packageName.replace('.', File.separatorChar)));
 
