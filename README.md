@@ -5,12 +5,12 @@ templates formatted as Java interfaces using [Spoon](https://github.com/INRIA/sp
 
 ## Usage
 You can use `event-impl-gen` in your plugins to generate event implementations based on event interfaces. `event-impl-gen` is primarily tested on 
-Gradle 6+, but should work on 5.6.4 and up.
+Gradle 8+, but should work on 5.6.4 and up.
 To use it in your plugin, you need to apply it to your Gradle build script:
 
 ```gradle
 plugins {
-    id("org.spongepowered.gradle.event-impl-gen") version "7.0.0"
+    id("org.spongepowered.gradle.event-impl-gen") version "7.1.0"
 }
 
 genEventImpl {
