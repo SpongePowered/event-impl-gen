@@ -3,7 +3,7 @@ module org.spongepowered.eventimplgen {
 
     requires java.compiler;
     requires com.squareup.javapoet;
-    requires transitive dagger;
+    // requires transitive dagger;
     requires transitive org.spongepowered.eventimplgen.annotations;
 
     requires static transitive com.google.auto.service;

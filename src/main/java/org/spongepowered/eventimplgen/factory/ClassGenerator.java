@@ -439,7 +439,7 @@ public class ClassGenerator {
 
     AnnotationSpec generatedAnnotation() {
         final ClassName clazz;
-        if (this.targetVersion.ordinal() > SourceVersion.RELEASE_8.ordinal()) {
+        if (this.targetVersion.compareTo(SourceVersion.RELEASE_8) > 0) {
             clazz = ClassName.get("javax.annotation.processing", "Generated");
         } else {
             clazz = ClassName.get("javax.annotation", "Generated");

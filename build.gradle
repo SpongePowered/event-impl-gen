@@ -90,6 +90,8 @@ dependencies {
     // Tests
     testImplementation libs.assertj
     testImplementation libs.joor
+    testImplementation platform(libs.junit.bom)
     testImplementation libs.junit.api
     testRuntimeOnly libs.junit.engine
+    testRuntimeOnly libs.junit.launcher
 }
