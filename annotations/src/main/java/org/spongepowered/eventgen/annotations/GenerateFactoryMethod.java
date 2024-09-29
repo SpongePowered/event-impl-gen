@@ -22,34 +22,23 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.api.util.annotation.eventgen;
+package org.spongepowered.eventgen.annotations;
 
 import java.lang.annotation.ElementType;
+import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Used to mark fields which should be used by the class generator.
+ * Explicitly enables generation of an event factory method for an event class.
  *
- * <p>The class generator will reference the annotated field when
- * generating methods, and set it from the constructor arguments</p>
- *
- * <p>Any field in an abstract class without this field will not be
- * set automatically, even if it matches a property from the implemented
- * event.</p>
+ * <p>By default, an event which contains subinterfaces will not have
+ * an event factory method generated.</p>
  */
+@Inherited
 @Retention(RetentionPolicy.CLASS)
-@Target(ElementType.FIELD)
-public @interface UseField {
-
-    /**
-     * Indicates whether to use the annotated field directly in the
-     * generated '{@link #toString()}' method, rather than calling the
-     * normal accessor method.
-     *
-     * @return Whether to override the toString
-     */
-    boolean overrideToString() default false;
+@Target({ElementType.TYPE, ElementType.PACKAGE})
+public @interface GenerateFactoryMethod {
 
 }

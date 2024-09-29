@@ -24,7 +24,7 @@
  */
 package test.event;
 
-import org.spongepowered.api.util.annotation.eventgen.NoFactoryMethod;
+import org.spongepowered.eventgen.annotations.NoFactoryMethod;
 
 /**
  * Base interface for events.

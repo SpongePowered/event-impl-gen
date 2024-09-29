@@ -31,7 +31,7 @@ import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 import com.squareup.javapoet.TypeVariableName;
-import org.spongepowered.api.util.annotation.eventgen.internal.GeneratedEvent;
+import org.spongepowered.eventgen.annotations.internal.GeneratedEvent;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.eventgencore.PropertySorter;
 

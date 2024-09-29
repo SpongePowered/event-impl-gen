@@ -22,36 +22,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.api.util.annotation.eventgen.internal;
+package org.spongepowered.eventimplgen.demo;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-
-/**
- * Indicates that this is a generated event implementation or factory.
- *
- * <p>This annotation should not be used directly in source.</p>
- */
-@Retention(RetentionPolicy.CLASS)
-@Target(ElementType.TYPE)
-public @interface GeneratedEvent {
-
-    /**
-     * The interface this implementation was generated from.
-     *
-     * <p>If this is {@link Object}, that indicates this is
-     * an event factory.</p>
-     *
-     * @return the source interface
-     */
-    Class<?> source();
-
-    /**
-     * The version of {@code event-impl-gen} used to generate this
-     * implementation.
-     */
-    String version() default "<unknown>";
+public interface Event {
 
 }

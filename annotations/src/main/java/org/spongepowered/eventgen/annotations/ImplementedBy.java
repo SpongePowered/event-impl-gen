@@ -22,24 +22,38 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.api.util.annotation.eventgen;
+package org.spongepowered.eventgen.annotations;
 
 import java.lang.annotation.ElementType;
+import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Marks the annotated method as a factory method.
- * A matching method will be generated in the factory class, which forwards
- * to this method.
- *
- * <p>This annotation can be used to make backwards-compatible
- * changes to an event class. By creating a method matching the old
- * factory method signature, code expecting the old event signature
- * will continue to function.</p>
+ * Used to indicate the base class that a generated event class extends from.
  */
+@Inherited
+@Target(ElementType.TYPE)
 @Retention(RetentionPolicy.CLASS)
-@Target(ElementType.METHOD)
-public @interface FactoryMethod {
+public @interface ImplementedBy {
+
+    /**
+     * Gets the class which serves as the base class which the generated class
+     * for this event interface will extend.
+     *
+     * @return The base class to use
+     */
+    Class<?> value();
+
+    /**
+     * Gets the priority for this annotation, relative to other annotations in
+     * the same hierarchy of the event interface.
+     *
+     * <p>The annotation with the highest priority will be used.</p>
+     *
+     * @return The priority to use
+     */
+    int priority() default 1;
+
 }

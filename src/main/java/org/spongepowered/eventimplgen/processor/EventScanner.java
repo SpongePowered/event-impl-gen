@@ -25,23 +25,10 @@
 package org.spongepowered.eventimplgen.processor;
 
 import org.jetbrains.annotations.Nullable;
-import org.spongepowered.api.util.annotation.eventgen.FactoryMethod;
-import org.spongepowered.api.util.annotation.eventgen.internal.GeneratedEvent;
+import org.spongepowered.eventgen.annotations.FactoryMethod;
+import org.spongepowered.eventgen.annotations.internal.GeneratedEvent;
 import org.spongepowered.eventimplgen.AnnotationUtils;
 import org.spongepowered.eventimplgen.eventgencore.PropertySearchStrategy;
-
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Queue;
-import java.util.Set;
-import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
 import javax.annotation.processing.Messager;
 import javax.annotation.processing.RoundEnvironment;
@@ -61,6 +48,18 @@ import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Queue;
+import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 public class EventScanner {
 
@@ -287,19 +286,25 @@ public class EventScanner {
 
         Stream<PackageElement> childPackages() {
             return this.knownChildren.entrySet().stream()
-                .map(ent -> {
-                    final PackageNode node = ent.getValue();
-                    // this will fill in missing package elements, assuming that traverse the package tree top-down
-                    // that is true for EIG, but may not be true generally
-                    if (node.self == null && this.self != null) {
-                        node.self = EventScanner.this.elements.getPackageElement(this.self.getQualifiedName().toString() + '.' + ent.getKey());
+                .filter(Objects::nonNull)
+                .flatMap(entry -> {
+                    final PackageNode childNode = entry.getValue();
+
+                    // If `self` is null, attempt to retrieve it
+                    if (childNode.self == null && this.self != null) {
+                        // Build the full package name based on the parent's qualified name
+                        String packageName = this.self.getQualifiedName().toString() + '.' + entry.getKey();
+                        childNode.self = EventScanner.this.elements.getPackageElement(packageName);
                     }
-                    if (node.self == null) {
-                        if (EventScanner.this.debugMode) {
-                            EventScanner.this.messager.printMessage(Diagnostic.Kind.NOTE, "No self for node " + node + " as child of " + this);
-                        }
+
+                    // If `self` is still null, the package is empty but may have children
+                    if (childNode.self == null) {
+                        // Recursively explore the children of this empty package
+                        return childNode.childPackages();
                     }
-                    return node.self;
+
+                    // If the package is not empty, return the package along with any nested child packages
+                    return Stream.concat(Stream.of(childNode.self), childNode.childPackages());
                 })
                 .filter(Objects::nonNull);
         }

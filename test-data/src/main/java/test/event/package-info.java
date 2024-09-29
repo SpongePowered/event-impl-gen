@@ -25,4 +25,4 @@
 @GenerateFactoryMethod
 package test.event;
 
-import org.spongepowered.api.util.annotation.eventgen.GenerateFactoryMethod;
+import org.spongepowered.eventgen.annotations.GenerateFactoryMethod;

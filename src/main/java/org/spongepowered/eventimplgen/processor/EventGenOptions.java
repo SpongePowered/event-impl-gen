@@ -25,8 +25,8 @@
 package org.spongepowered.eventimplgen.processor;
 
 import org.jetbrains.annotations.Nullable;
-import org.spongepowered.api.util.annotation.eventgen.GenerateFactoryMethod;
-import org.spongepowered.api.util.annotation.eventgen.NoFactoryMethod;
+import org.spongepowered.eventgen.annotations.GenerateFactoryMethod;
+import org.spongepowered.eventgen.annotations.NoFactoryMethod;
 
 import java.util.Arrays;
 import java.util.Collections;

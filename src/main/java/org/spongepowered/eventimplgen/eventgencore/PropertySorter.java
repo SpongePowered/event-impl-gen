@@ -24,7 +24,7 @@
  */
 package org.spongepowered.eventimplgen.eventgencore;
 
-import org.spongepowered.api.util.annotation.eventgen.AbsoluteSortPosition;
+import org.spongepowered.eventgen.annotations.AbsoluteSortPosition;
 import org.spongepowered.eventimplgen.processor.EventGenOptions;
 
 import java.util.ArrayList;

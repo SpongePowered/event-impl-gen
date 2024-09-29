@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.api.util.annotation.eventgen;
+package org.spongepowered.eventgen.annotations.internal;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -30,29 +30,28 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Used to indicate that the return type of a method should be transformed by
- * calling a method on it, indicated by the {@link TransformWith} annotation.
+ * Indicates that this is a generated event implementation or factory.
  *
- * <p>This annotation should be placed on the method with the least specific
- * return type, if covariant return types are used.</p>
- *
- * <p>The return type of the annotation, or a superclass/superinterface of it,
- * must have a method annotated with {@link TransformWith}, with a matching
- * {@link #value()}.</p>
+ * <p>This annotation should not be used directly in source.</p>
  */
 @Retention(RetentionPolicy.CLASS)
-@Target(ElementType.METHOD)
-public @interface TransformResult {
+@Target(ElementType.TYPE)
+public @interface GeneratedEvent {
 
     /**
-     * Gets the name used to match this annotation to a {@link TransformWith}
-     * annotation.
+     * The interface this implementation was generated from.
      *
-     * <p>Changing this is only necessary when multiple {@link TransformWith}
-     * annotations are present in the annotated method's return type's class.
-     * </p>
+     * <p>If this is {@link Object}, that indicates this is
+     * an event factory.</p>
      *
-     * @return The name to use
+     * @return the source interface
      */
-    String value() default "";
+    Class<?> source();
+
+    /**
+     * The version of {@code event-impl-gen} used to generate this
+     * implementation.
+     */
+    String version() default "<unknown>";
+
 }

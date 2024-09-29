@@ -33,7 +33,7 @@ import com.squareup.javapoet.TypeSpec;
 import dagger.assisted.Assisted;
 import dagger.assisted.AssistedFactory;
 import dagger.assisted.AssistedInject;
-import org.spongepowered.api.util.annotation.eventgen.UseField;
+import org.spongepowered.eventgen.annotations.UseField;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 
 import java.util.Optional;

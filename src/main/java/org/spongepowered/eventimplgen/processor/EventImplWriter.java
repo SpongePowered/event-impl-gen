@@ -27,7 +27,7 @@ package org.spongepowered.eventimplgen.processor;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.JavaFile;
 import org.jetbrains.annotations.Nullable;
-import org.spongepowered.api.util.annotation.eventgen.ImplementedBy;
+import org.spongepowered.eventgen.annotations.ImplementedBy;
 import org.spongepowered.eventimplgen.AnnotationUtils;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.eventgencore.PropertySorter;

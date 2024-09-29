@@ -25,7 +25,7 @@
 package org.spongepowered.eventimplgen.processor;
 
 import com.google.auto.service.AutoService;
-import org.spongepowered.api.util.annotation.eventgen.internal.GeneratedEvent;
+import org.spongepowered.eventgen.annotations.internal.GeneratedEvent;
 
 import java.io.IOException;
 import java.util.HashSet;

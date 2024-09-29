@@ -34,14 +34,13 @@ import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 import com.squareup.javapoet.TypeVariableName;
 import org.jetbrains.annotations.Nullable;
-import org.spongepowered.api.util.annotation.eventgen.PropertySettings;
-import org.spongepowered.api.util.annotation.eventgen.UseField;
-import org.spongepowered.api.util.annotation.eventgen.internal.GeneratedEvent;
+import org.spongepowered.eventgen.annotations.PropertySettings;
+import org.spongepowered.eventgen.annotations.UseField;
+import org.spongepowered.eventgen.annotations.internal.GeneratedEvent;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.eventgencore.PropertySorter;
 import org.spongepowered.eventimplgen.factory.plugin.EventFactoryPlugin;
 import org.spongepowered.eventimplgen.processor.EventImplGenProcessor;
-import org.spongepowered.eventimplgen.signature.Descriptors;
 
 import java.util.List;
 import java.util.Objects;

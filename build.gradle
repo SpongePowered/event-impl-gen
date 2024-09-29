@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.indra.sonatype) apply false
     alias(libs.plugins.errorprone)
     alias(libs.plugins.eclipseApt)
+    id('java-library')
+    id("org.gradlex.extra-java-module-info") version "1.9"
 }
 
 // Default tasks
@@ -11,15 +13,32 @@ defaultTasks 'spotlessApply', 'build'
 // Basic project information
 group = "org.spongepowered"
 
+extraJavaModuleInfo {
+    deriveAutomaticModuleNamesFromFileNames = true
+    module("com.google.errorprone:javac-shaded", "com.google.errorprone.javac.shaded") {
+        exports("com.google.errorprone.javac.shaded")
+    }
+    module("io.soabase.java-composer:java-composer", "io.soabase.java.composer") {
+        exports("com.squareup.javapoet")
+        requiresTransitive("java.compiler")
+    }
+    module("org.jooq:joor-java-8", "org.jooq.joor") {
+        exports("org.joor")
+    }
+}
+
 allprojects {
     apply plugin: "org.spongepowered.gradle.sponge.dev"
     apply plugin: "net.kyori.indra.publishing"
     apply plugin: "net.ltgt.errorprone"
     apply plugin: "com.diffplug.eclipse.apt"
+    apply plugin: "java-library"
+    apply plugin: "eclipse"
 
     dependencies {
         errorprone libs.errorprone
     }
+
 
     eclipse {
         synchronizationTasks eclipseJdtApt, eclipseJdt, eclipseFactorypath
@@ -51,35 +70,30 @@ allprojects {
             )
         }
     }
+    indra {
+        javaVersions {
+            minimumToolchain(21)
+            target(21)
+        }
+    }
 
     indraSpotlessLicenser {
         property("name", rootProject.projectName)
     }
 }
 
-indra {
-    javaVersions {
-        testWith(8, 11, 17)
-    }
-}
 
-sourceSets {
-    main {
-        multirelease {
-            moduleName "org.spongepowered.eventimplgen"
-            alternateVersions 9, 13
-        }
-    }
-}
 
 // Project dependencies
 dependencies {
     implementation project(":event-impl-gen-annotations")
     api libs.javapoet
+    api libs.javaxInject
+    api libs.jakartaInject
 
     compileOnlyApi libs.errorprone.annotations
 
-    api libs.dagger.runtime
+    api(libs.dagger.runtime)
     annotationProcessor libs.dagger.compiler
 
     compileOnlyApi libs.autoService.annotations

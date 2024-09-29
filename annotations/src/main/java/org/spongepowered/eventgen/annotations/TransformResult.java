@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.api.util.annotation.eventgen;
+package org.spongepowered.eventgen.annotations;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -30,26 +30,29 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Used to indicate the absolute position of a property when sorted.
+ * Used to indicate that the return type of a method should be transformed by
+ * calling a method on it, indicated by the {@link TransformWith} annotation.
  *
- * <p>A value of 0 indicates that a property would always be sorted first,
- * a value of 1 indicates that a property would always be sorted second,
- * and so on.</p>
+ * <p>This annotation should be placed on the method with the least specific
+ * return type, if covariant return types are used.</p>
  *
- * <p>If a gap is left in the absolute ordering of properties, the
- * next-highest-numbered property will be placed next. For example,
- * properties with the absolute ordering 0, 1, and 3 will still be adjacent to
- * each other.</p>
+ * <p>The return type of the annotation, or a superclass/superinterface of it,
+ * must have a method annotated with {@link TransformWith}, with a matching
+ * {@link #value()}.</p>
  */
 @Retention(RetentionPolicy.CLASS)
 @Target(ElementType.METHOD)
-public @interface AbsoluteSortPosition {
+public @interface TransformResult {
 
     /**
-     * Gets the absolute position for the annotated property.
+     * Gets the name used to match this annotation to a {@link TransformWith}
+     * annotation.
      *
-     * @return the absolute position
+     * <p>Changing this is only necessary when multiple {@link TransformWith}
+     * annotations are present in the annotated method's return type's class.
+     * </p>
+     *
+     * @return The name to use
      */
-    int value();
-
+    String value() default "";
 }

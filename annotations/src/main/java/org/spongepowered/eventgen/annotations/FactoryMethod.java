@@ -22,17 +22,24 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.eventimplgen.processor;
+package org.spongepowered.eventgen.annotations;
 
-import javax.annotation.processing.ProcessingEnvironment;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * Multi-release shim for {@code isPreviewEnabled()}
+ * Marks the annotated method as a factory method.
+ * A matching method will be generated in the factory class, which forwards
+ * to this method.
+ *
+ * <p>This annotation can be used to make backwards-compatible
+ * changes to an event class. By creating a method matching the old
+ * factory method signature, code expecting the old event signature
+ * will continue to function.</p>
  */
-final class PreviewFeatureShim {
-
-    static boolean previewFeaturesEnabled(final ProcessingEnvironment environment) {
-        return environment.isPreviewEnabled();
-    }
-
+@Retention(RetentionPolicy.CLASS)
+@Target(ElementType.METHOD)
+public @interface FactoryMethod {
 }

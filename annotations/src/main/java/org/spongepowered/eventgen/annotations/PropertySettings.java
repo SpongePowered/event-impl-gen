@@ -22,38 +22,43 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.api.util.annotation.eventgen;
+package org.spongepowered.eventgen.annotations;
 
 import java.lang.annotation.ElementType;
-import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Used to indicate the base class that a generated event class extends from.
+ * Used to specify the settings used when generating code for a property.
+ *
+ * <p>This annotation should always be placed on the getter method of a
+ * property.</p>
  */
-@Inherited
-@Target(ElementType.TYPE)
 @Retention(RetentionPolicy.CLASS)
-public @interface ImplementedBy {
+@Target(ElementType.METHOD)
+public @interface PropertySettings {
 
     /**
-     * Gets the class which serves as the base class which the generated class
-     * for this event interface will extend.
+     * Indicates whether the annotated property is required to be passed in
+     * to the generated constructor.
      *
-     * @return The base class to use
+     * @return Whether the annotated property is required to be passed in to
+     *     the generated constructor.
      */
-    Class<?> value();
+    boolean requiredParameter() default true;
 
     /**
-     * Gets the priority for this annotation, relative to other annotations in
-     * the same hierarchy of the event interface.
+     * Indicates whether the annotated property should have methods generated
+     * for it.
      *
-     * <p>The annotation with the highest priority will be used.</p>
+     * <p>If this value is set to <code>true</code>,
+     * {@link #requiredParameter()} can only be set to <code>false</code> if
+     * the annotated property is a primitive.</p>
      *
-     * @return The priority to use
+     * @return Whether the annotated property should have methods generated
+     *     for it.
      */
-    int priority() default 1;
+    boolean generateMethods() default true;
 
 }

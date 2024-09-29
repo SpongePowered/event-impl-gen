@@ -26,12 +26,7 @@ package test.event;
 
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
-import test.TypeToken;
-import test.event.lifecycle.ConnectionEvent;
 import test.event.lifecycle.NestedTest;
-
-import java.nio.ByteBuffer;
-import java.util.Collections;
 
 class TestEventFactoryTest {
 

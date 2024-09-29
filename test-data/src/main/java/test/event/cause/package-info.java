@@ -25,4 +25,4 @@
 @NoFactoryMethod
 package test.event.cause;
 
-import org.spongepowered.api.util.annotation.eventgen.NoFactoryMethod;
+import org.spongepowered.eventgen.annotations.NoFactoryMethod;
