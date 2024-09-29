@@ -6,7 +6,7 @@ module org.spongepowered.eventimplgen {
     requires jakarta.inject;
     requires io.soabase.java.composer;
     requires transitive java.compiler;
-    requires transitive org.spongepowered.eventgen.annotations;
+    requires transitive org.spongepowered.eventimplgen.annotations;
 
     requires static transitive com.google.auto.service;
     requires static transitive org.jetbrains.annotations;
