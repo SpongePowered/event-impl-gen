@@ -40,7 +40,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.lang.model.type.UnionType;
 import javax.lang.model.type.WildcardType;
-import javax.lang.model.util.AbstractTypeVisitor8;
+import javax.lang.model.util.AbstractTypeVisitor14;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 
@@ -48,7 +48,7 @@ import javax.lang.model.util.Types;
  * A writer to convert a {@link javax.lang.model.type.TypeMirror} into its descriptor string.
  */
 @Singleton
-public class TypeToDescriptorWriter extends AbstractTypeVisitor8<StringBuilder, StringBuilder> {
+public class TypeToDescriptorWriter extends AbstractTypeVisitor14<StringBuilder, StringBuilder> {
 
     private final Types types;
     private final Elements elements;
@@ -60,26 +60,17 @@ public class TypeToDescriptorWriter extends AbstractTypeVisitor8<StringBuilder, 
     }
 
     static char descriptor(final PrimitiveType primitive) {
-        switch (primitive.getKind()) {
-            case BOOLEAN:
-                return 'Z';
-            case BYTE:
-                return 'B';
-            case SHORT:
-                return 'S';
-            case INT:
-                return 'I';
-            case LONG:
-                return 'J';
-            case CHAR:
-                return 'C';
-            case FLOAT:
-                return 'F';
-            case DOUBLE:
-                return 'D';
-            default:
-                throw new IllegalArgumentException("Unknown primitive type kind " + primitive.getKind());
-        }
+        return switch (primitive.getKind()) {
+            case BOOLEAN -> 'Z';
+            case BYTE -> 'B';
+            case SHORT -> 'S';
+            case INT -> 'I';
+            case LONG -> 'J';
+            case CHAR -> 'C';
+            case FLOAT -> 'F';
+            case DOUBLE -> 'D';
+            default -> throw new IllegalArgumentException("Unknown primitive type kind " + primitive.getKind());
+        };
     }
 
     @Override

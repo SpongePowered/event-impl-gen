@@ -27,6 +27,9 @@ junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-api = { module = "org.junit.jupiter:junit-jupiter-api" }
 junit-engine = { module = "org.junit.jupiter:junit-jupiter-engine" }
 junit-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+junit-params = { module = "org.junit.jupiter:junit-jupiter-params" }
+mockito-core = { module = "org.mockito:mockito-core", version = "3.11.2" }
+mockito-jupiter = { module = "org.mockito:mockito-junit-jupiter", version = "3.11.2" }
 
 [plugins]
 eclipseApt = { id = "com.diffplug.eclipse.apt", version = "3.44.0" }
