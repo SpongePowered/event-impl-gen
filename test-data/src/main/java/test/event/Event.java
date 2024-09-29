@@ -38,6 +38,8 @@ public interface Event {
 
     boolean cancelled();
 
-    void setCancelled(final boolean cancelled);
+    default void setCancelled(final boolean cancelled) {
+
+    }
 
 }

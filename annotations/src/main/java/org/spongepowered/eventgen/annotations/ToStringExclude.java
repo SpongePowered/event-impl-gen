@@ -30,10 +30,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Marks a defaulted method as the implementation of the method. This is useful
- * for interfaces that have defaulted a method that is intended to be used
+ * Marks the annotated field or method as excluded from being used in generating the {@link Object#toString()}
+ * method, which can come from using self-referencing fields.
  */
-@Target(ElementType.METHOD)
 @Retention(RetentionPolicy.CLASS)
-public @interface DefaultImplemented {
+@Target({ElementType.FIELD, ElementType.METHOD})
+public @interface ToStringExclude {
 }

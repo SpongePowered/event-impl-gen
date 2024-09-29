@@ -35,6 +35,7 @@ import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
+import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.annotation.processing.SupportedOptions;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
@@ -54,7 +55,21 @@ import javax.tools.Diagnostic;
     EventGenOptions.EXCLUSIVE_ANNOTATIONS,
     EventGenOptions.DEBUG
 })
+@SupportedAnnotationTypes({
+    "org.spongepowered.eventgen.annotations.AbsoluteSortPosition",
+    "org.spongepowered.eventgen.annotations.DefaultImplemented",
+    "org.spongepowered.eventgen.annotations.GenerateFactoryMethod",
+    "org.spongepowered.eventgen.annotations.NoFactoryMethod",
+    "org.spongepowered.eventgen.annotations.PropertySettings",
+    "org.spongepowered.eventgen.annotations.ToStringExclude",
+    "org.spongepowered.eventgen.annotations.TransformResult",
+    "org.spongepowered.eventgen.annotations.TransformWith",
+    "org.spongepowered.eventgen.annotations.UseField",
+})
 public class EventImplGenProcessor extends AbstractProcessor {
+
+    public EventImplGenProcessor() {
+    }
 
     private EventGenComponent component;
 

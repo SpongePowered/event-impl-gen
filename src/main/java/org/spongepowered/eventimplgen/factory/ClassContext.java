@@ -175,6 +175,7 @@ public final class ClassContext {
             if (useField != null) {
                 overrideToString = useField.overrideToString();
             }
+            final var toStringExclusion = ClassGenerator.getToStringExclude(parentType, property.getName());
 
             final Object value;
             if (overrideToString) {

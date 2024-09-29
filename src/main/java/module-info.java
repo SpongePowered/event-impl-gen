@@ -1,10 +1,16 @@
+@SuppressWarnings("requires-transitive-automatic")
 module org.spongepowered.eventimplgen {
     exports org.spongepowered.eventimplgen.processor;
+    exports org.spongepowered.eventimplgen.factory;
+    exports org.spongepowered.eventimplgen.factory.plugin;
+    exports org.spongepowered.eventimplgen.eventgencore;
+    exports org.spongepowered.eventimplgen.signature;
 
-    requires dagger;
-    requires javax.inject;
+
+    requires transitive dagger;
+    requires transitive javax.inject;
     requires jakarta.inject;
-    requires io.soabase.java.composer;
+    requires transitive io.soabase.java.composer;
     requires transitive java.compiler;
     requires transitive org.spongepowered.eventimplgen.annotations;
 

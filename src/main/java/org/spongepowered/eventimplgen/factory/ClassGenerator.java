@@ -35,6 +35,7 @@ import com.squareup.javapoet.TypeSpec;
 import com.squareup.javapoet.TypeVariableName;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.eventgen.annotations.PropertySettings;
+import org.spongepowered.eventgen.annotations.ToStringExclude;
 import org.spongepowered.eventgen.annotations.UseField;
 import org.spongepowered.eventgen.annotations.internal.GeneratedEvent;
 import org.spongepowered.eventimplgen.eventgencore.Property;
@@ -143,6 +144,24 @@ public class ClassGenerator {
         for (final VariableElement element : ElementFilter.fieldsIn(type.getEnclosedElements())) {
             if (element.getSimpleName().contentEquals(fieldName)) {
                 return element.getAnnotation(UseField.class);
+            }
+        }
+
+        return null;
+    }
+
+    static ToStringExclude getToStringExclude(final TypeMirror clazz, final String methodName) {
+        if (clazz.getKind() != TypeKind.DECLARED) {
+            return null;
+        }
+        final Element type = ((DeclaredType) clazz).asElement();
+        if (type == null) {
+            return null;
+        }
+
+        for (final ExecutableElement element : ElementFilter.methodsIn(type.getEnclosedElements())) {
+            if (element.getSimpleName().contentEquals(methodName)) {
+                return element.getAnnotation(ToStringExclude.class);
             }
         }
 
