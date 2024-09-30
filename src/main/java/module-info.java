@@ -12,6 +12,7 @@ module org.spongepowered.eventimplgen {
     requires jakarta.inject;
     requires transitive io.soabase.java.composer;
     requires transitive java.compiler;
+    requires transitive jdk.compiler;
     requires transitive org.spongepowered.eventimplgen.annotations;
 
     requires static transitive com.google.auto.service;

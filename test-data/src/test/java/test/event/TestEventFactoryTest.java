@@ -26,7 +26,10 @@ package test.event;
 
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
+import test.event.entity.EntityInteractEvent;
 import test.event.lifecycle.NestedTest;
+
+import java.util.List;
 
 class TestEventFactoryTest {
 
@@ -41,7 +44,15 @@ class TestEventFactoryTest {
     @Test
     void testIndirectlyAnnotatedPackageGenerated() {
         Assertions.assertThat(TestEventFactory.createPartyEvent(true, false, 100))
+                .isNotNull();
+    }
+
+    @Test
+    void testCompositedGenericEvent() {
+        EntityInteractEvent.Secondary secondary = TestEventFactory.createEntityInteractEventSecondary(true, false);
+        Assertions.assertThat(secondary)
             .isNotNull();
+        Assertions.assertThat(TestEventFactory.createEntityInteractEventSecondaryPost(secondary, List.of(), false, false)).isNotNull();
     }
 
 }

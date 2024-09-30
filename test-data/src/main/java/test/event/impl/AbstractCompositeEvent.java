@@ -22,18 +22,27 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.eventgen.annotations;
+package test.event.impl;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import org.spongepowered.eventgen.annotations.UseField;
+import test.event.CompositeEvent;
+import test.event.Event;
 
-/**
- * Marks the annotated field or method as excluded from being used in generating the {@link Object#toString()}
- * method, which can come from using self-referencing fields.
- */
-@Retention(RetentionPolicy.CLASS)
-@Target({ElementType.FIELD, ElementType.METHOD})
-public @interface ToStringExclude {
+import java.util.List;
+
+public abstract class AbstractCompositeEvent<E extends Event> implements CompositeEvent<E> {
+
+    @UseField
+    protected boolean cancelled;
+
+    @UseField
+    protected List<Event> children;
+
+    @Override
+    public void setCancelled(boolean cancelled) {
+        this.cancelled = cancelled;
+        this.children.forEach(c -> c.setCancelled(cancelled));
+    }
+
+
 }

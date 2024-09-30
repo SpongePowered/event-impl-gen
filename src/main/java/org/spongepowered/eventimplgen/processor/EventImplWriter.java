@@ -166,45 +166,9 @@ public class EventImplWriter implements PropertyConsumer {
     }
 
     private @Nullable DeclaredType getBaseClass(final TypeElement event) {
-        AnnotationMirror implementedBy = null;
-        int max = Integer.MIN_VALUE;
-
-        final Queue<TypeElement> queue = new ArrayDeque<>();
-
-        queue.add(event);
-        TypeElement scannedType;
-
-        while ((scannedType = queue.poll()) != null) {
-            final AnnotationMirror anno = AnnotationUtils.getAnnotation(scannedType, ImplementedBy.class);
-            Integer priority = AnnotationUtils.getValue(anno, "priority");
-            if (priority == null) {
-                priority = 1;
-            }
-
-            if (anno != null && priority >= max) {
-                implementedBy = anno;
-                max = priority;
-            }
-
-            for (final TypeMirror implInterface : scannedType.getInterfaces()) {
-                if (implInterface.getKind() != TypeKind.DECLARED) {
-                    continue;
-                }
-                final Element element = ((DeclaredType) implInterface).asElement();
-                if (element == null || !element.getKind().isInterface()) {
-                    // todo: error
-                    continue;
-                }
-                queue.offer((TypeElement) element);
-            }
-        }
-
-        if (implementedBy != null) {
-            final TypeMirror type = AnnotationUtils.getValue(implementedBy, "value");
-            if (type.getKind() == TypeKind.ERROR) {
-                return null;
-            }
-            return ((DeclaredType) type);
+        final var found = AnnotationUtils.getImplementedBy(event);
+        if (found != null) {
+            return found;
         }
         return (DeclaredType) this.elements.getTypeElement("java.lang.Object").asType();
     }

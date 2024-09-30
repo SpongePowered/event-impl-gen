@@ -168,6 +168,10 @@ public final class ClassContext {
         final TypeMirror parentType,
         final Property property
     ) {
+        final var settings = ClassGenerator.getPropertySettings(property);
+        if (settings != null && !settings.useInToString()) {
+            return;
+        }
 
         if (property.isLeastSpecificType(this.types) && (ClassGenerator.isRequired(property) || ClassGenerator.generateMethods(property))) {
             boolean overrideToString = false;
@@ -175,7 +179,6 @@ public final class ClassContext {
             if (useField != null) {
                 overrideToString = useField.overrideToString();
             }
-            final var toStringExclusion = ClassGenerator.getToStringExclude(parentType, property.getName());
 
             final Object value;
             if (overrideToString) {

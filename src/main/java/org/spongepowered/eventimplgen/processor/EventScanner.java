@@ -122,6 +122,7 @@ public class EventScanner {
 
         this.hydrateIncrementalPackageHierarchy(environment, annotations);
 
+
         /*
          * Scan elements for the appropriate annotations.
          *
@@ -192,6 +193,10 @@ public class EventScanner {
                 && active.getAnnotation(GeneratedEvent.class) != null) {
                 continue; // these implementation classes are indirectly annotated, but because we generated them we can ignore them.
             } else if (active.getKind() != ElementKind.ENUM) { // implicitly exclude enums, they are commonly declared nested in event interfaces
+                // Means we've got a class that can be abstract
+                if (active.getKind().isClass() && active.getModifiers().contains(Modifier.ABSTRACT)) {
+                    continue;
+                }
                 this.messager.printMessage(Diagnostic.Kind.ERROR, "This element (" + active.getKind() + " " + active.getSimpleName() + ")  was "
                     + "annotated directly or transitively, but it is not a package or interface", active);
                 failed = true;

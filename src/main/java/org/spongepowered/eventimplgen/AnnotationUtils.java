@@ -25,16 +25,19 @@
 package org.spongepowered.eventimplgen;
 
 import org.jetbrains.annotations.Nullable;
+import org.spongepowered.eventgen.annotations.ImplementedBy;
 
 import java.lang.annotation.Annotation;
+import java.util.ArrayDeque;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 
 import javax.lang.model.AnnotatedConstruct;
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.AnnotationValue;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.*;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 
 public final class AnnotationUtils {
 
@@ -57,6 +60,49 @@ public final class AnnotationUtils {
 
     public static @Nullable AnnotationMirror getAnnotation(final AnnotatedConstruct type, final Class<? extends Annotation> clazz) {
         return AnnotationUtils.getAnnotation(type, clazz.getName());
+    }
+
+    public static @Nullable DeclaredType getImplementedBy(final TypeElement iface) {
+        final Queue<TypeElement> queue = new ArrayDeque<>();
+        AnnotationMirror implementedBy = null;
+        int max = Integer.MIN_VALUE;
+
+        queue.add(iface);
+        TypeElement scannedType;
+
+        while ((scannedType = queue.poll()) != null) {
+            final AnnotationMirror anno = AnnotationUtils.getAnnotation(scannedType, ImplementedBy.class);
+            Integer priority = AnnotationUtils.getValue(anno, "priority");
+            if (priority == null) {
+                priority = 1;
+            }
+
+            if (anno != null && priority >= max) {
+                implementedBy = anno;
+                max = priority;
+            }
+
+            for (final TypeMirror implInterface : scannedType.getInterfaces()) {
+                if (implInterface.getKind() != TypeKind.DECLARED) {
+                    continue;
+                }
+                final Element element = ((DeclaredType) implInterface).asElement();
+                if (element == null || !element.getKind().isInterface()) {
+                    // todo: error
+                    continue;
+                }
+                queue.offer((TypeElement) element);
+            }
+        }
+
+        if (implementedBy != null) {
+            final TypeMirror type = AnnotationUtils.getValue(implementedBy, "value");
+            if (type.getKind() == TypeKind.ERROR) {
+                return null;
+            }
+            return ((DeclaredType) type);
+        }
+        return null;
     }
 
     public static @Nullable AnnotationMirror getAnnotation(final AnnotatedConstruct type, final String name) {

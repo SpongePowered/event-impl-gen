@@ -61,4 +61,15 @@ public @interface PropertySettings {
      */
     boolean generateMethods() default true;
 
+    /**
+     * Indicates whether the annotated property should be included in the
+     * generated {@link Object#toString()}. This can help prevent cyclic
+     * {@link Object#toString()} referencing each other that would cause
+     * an immediate {@link StackOverflowError}.
+     *
+     * @return Whether the annotated property should be included in generating
+     *      {@link Object#toString()}
+     */
+    boolean useInToString() default true;
+
 }

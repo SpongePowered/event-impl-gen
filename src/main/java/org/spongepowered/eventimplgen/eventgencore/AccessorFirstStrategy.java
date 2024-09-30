@@ -28,6 +28,8 @@ import dagger.assisted.Assisted;
 import dagger.assisted.AssistedFactory;
 import dagger.assisted.AssistedInject;
 import org.jetbrains.annotations.Nullable;
+import org.spongepowered.eventgen.annotations.ImplementedBy;
+import org.spongepowered.eventimplgen.AnnotationUtils;
 import org.spongepowered.eventimplgen.signature.Descriptors;
 
 import java.util.ArrayDeque;
@@ -176,11 +178,14 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
      * Find the corresponding mutator for an accessor method from a collection
      * of candidates.
      *
-     * @param accessor The accessor
-     * @param candidates The collection of candidates
+     * @param accessor      The accessor
+     * @param candidates    The collection of candidates
+     * @param implementedBy The abstract super type implementation to consider
      * @return A mutator, if found
      */
-    protected @Nullable ExecutableElement findMutator(final ExecutableElement accessor, final @Nullable Collection<ExecutableElement> candidates) {
+    protected @Nullable ExecutableElement findMutator(final ExecutableElement accessor,
+                                                      final @Nullable Collection<ExecutableElement> candidates,
+                                                      final DeclaredType implementedBy) {
         if (candidates == null) {
             return null;
         }
@@ -190,18 +195,39 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
         // Optional tests
         final boolean isOptionalReturn = expectedType.getKind() == TypeKind.DECLARED && this.types.isAssignable(this.types.erasure(expectedType), this.optional.asType());
         for (final ExecutableElement method : candidates) {
-            // TODO: Handle supertypes
-            final TypeMirror firstParam = method.getParameters().get(0).asType();
-            if (this.types.isSameType(firstParam, expectedType)) {
-                return method;
+            if (implementedBy != null) {
+                for (Element enclosedElement : implementedBy.asElement().getEnclosedElements()) {
+                    if (enclosedElement instanceof ExecutableElement ee) {
+                        // This means the implemented by has the actual method
+                        if (this.isMatchingMutator(ee, isOptionalReturn, expectedType) != null) {
+                            return null;
+                        }
+                    }
+                }
             }
-
-            if (isOptionalReturn && this.types.isSameType(firstParam, ((DeclaredType) expectedType).getTypeArguments().get(0))) {
-                return method;
+            final var candidate = this.isMatchingMutator(method, isOptionalReturn, expectedType);
+            if (candidate != null) {
+                return candidate;
             }
 
         }
 
+        return null;
+    }
+
+    private @Nullable ExecutableElement isMatchingMutator(ExecutableElement method, boolean optionalReturn, TypeMirror expectedType) {
+        if (method.getParameters().isEmpty()) {
+            return null;
+        }
+        // TODO: Handle supertypes
+        final TypeMirror firstParam = method.getParameters().get(0).asType();
+        if (this.types.isSameType(firstParam, expectedType)) {
+            return method;
+        }
+
+        if (optionalReturn && this.types.isSameType(firstParam, ((DeclaredType) expectedType).getTypeArguments().get(0))) {
+            return method;
+        }
         return null;
     }
 
@@ -263,7 +289,9 @@ public class AccessorFirstStrategy implements PropertySearchStrategy {
         for (final Map.Entry<String, Set<ExecutableElement>> entry : accessors.entrySet()) {
             for (final ExecutableElement accessor : entry.getValue()) {
                 final ExecutableType relativizedAccessor = (ExecutableType) this.types.asMemberOf(((DeclaredType) type.asType()), accessor);
-                final @Nullable ExecutableElement mutator = this.findMutator(accessor, mutators.get(entry.getKey()));
+                final @Nullable DeclaredType implementedBy = AnnotationUtils.getImplementedBy(type);
+
+                final @Nullable ExecutableElement mutator = this.findMutator(accessor, mutators.get(entry.getKey()), implementedBy);
                 result.add(new Property(
                     entry.getKey(),
                     relativizedAccessor.getReturnType(),

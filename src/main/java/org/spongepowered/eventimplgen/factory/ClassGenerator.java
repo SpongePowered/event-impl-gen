@@ -35,7 +35,6 @@ import com.squareup.javapoet.TypeSpec;
 import com.squareup.javapoet.TypeVariableName;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.eventgen.annotations.PropertySettings;
-import org.spongepowered.eventgen.annotations.ToStringExclude;
 import org.spongepowered.eventgen.annotations.UseField;
 import org.spongepowered.eventgen.annotations.internal.GeneratedEvent;
 import org.spongepowered.eventimplgen.eventgencore.Property;
@@ -43,24 +42,14 @@ import org.spongepowered.eventimplgen.eventgencore.PropertySorter;
 import org.spongepowered.eventimplgen.factory.plugin.EventFactoryPlugin;
 import org.spongepowered.eventimplgen.processor.EventImplGenProcessor;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import javax.annotation.processing.Messager;
 import javax.inject.Inject;
 import javax.lang.model.SourceVersion;
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Modifier;
-import javax.lang.model.element.Name;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.TypeParameterElement;
-import javax.lang.model.element.VariableElement;
+import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -102,7 +91,7 @@ public class ClassGenerator {
         this.targetVersion = targetVersion;
     }
 
-    private static PropertySettings getPropertySettings(final Property property) {
+    static PropertySettings getPropertySettings(final Property property) {
         // Check the most specific method first.
         // This ensures that users can add @PropertySettings on an
         // overridden method.
@@ -132,6 +121,14 @@ public class ClassGenerator {
         }
     }
 
+    static boolean useInToString(final Property property) {
+        final PropertySettings settings = ClassGenerator.getPropertySettings(property);
+        if (settings != null) {
+            return settings.useInToString();
+        }
+        return !property.getMostSpecificMethod().isDefault();
+    }
+
     static UseField getUseField(final TypeMirror clazz, final String fieldName) {
         if (clazz.getKind() != TypeKind.DECLARED) {
             return null;
@@ -144,24 +141,6 @@ public class ClassGenerator {
         for (final VariableElement element : ElementFilter.fieldsIn(type.getEnclosedElements())) {
             if (element.getSimpleName().contentEquals(fieldName)) {
                 return element.getAnnotation(UseField.class);
-            }
-        }
-
-        return null;
-    }
-
-    static ToStringExclude getToStringExclude(final TypeMirror clazz, final String methodName) {
-        if (clazz.getKind() != TypeKind.DECLARED) {
-            return null;
-        }
-        final Element type = ((DeclaredType) clazz).asElement();
-        if (type == null) {
-            return null;
-        }
-
-        for (final ExecutableElement element : ElementFilter.methodsIn(type.getEnclosedElements())) {
-            if (element.getSimpleName().contentEquals(methodName)) {
-                return element.getAnnotation(ToStringExclude.class);
             }
         }
 
@@ -354,6 +333,53 @@ public class ClassGenerator {
         }
     }
 
+    private void deriveParentTypeName(TypeSpec.Builder builder, DeclaredType parentType, TypeElement iface) {
+        final List<TypeVariableName> classTypeParameters = new ArrayList<>();
+        TypeName superClassName = TypeName.get(parentType);
+
+        if (iface instanceof Parameterizable pe) {
+            pe.getTypeParameters()
+                    .stream()
+                    .map(TypeVariableName::get)
+                    .forEach(classTypeParameters::add);
+        }
+        final var parentParameterMap = new HashMap<String, TypeName>();
+        // Inspect both the parent type and the interface we're implementing
+        // - If the interface we implement has NO type parameters, we can introspect the
+        //   extension for generic types declared on the parent's extension
+        // - If the parentType HAS type parameters, we must inject them
+        //   - If the interface has the matching parameters, do NOT duplicate
+        //   - If the interface does not, populate
+        if (parentType.asElement() instanceof TypeElement te) {
+            final var params = te.getTypeParameters()
+                    .stream()
+                    .map(tpe -> TypeName.get(tpe.asType()))
+                    .toArray(TypeName[]::new);
+            final ClassName newClassName = ClassName.get(te);
+            if (params.length == 0) {
+                // We won't add type parameters because the interface's type parameters would be added later
+                builder.superclass(superClassName);
+                return;
+            }
+
+            superClassName = ParameterizedTypeName.get(newClassName, params);
+            if (classTypeParameters.isEmpty()) {
+                final var innerParams = new ArrayList<TypeName>();
+                for (TypeMirror extended : iface.getInterfaces()) {
+                    if (extended instanceof DeclaredType de) {
+                        de.getTypeArguments()
+                                .stream()
+                                .map(TypeName::get)
+                                .forEach(innerParams::add);
+                    }
+                }
+                final var modifiedParams = innerParams.toArray(new TypeName[innerParams.size()]);
+                superClassName = ParameterizedTypeName.get(newClassName, modifiedParams);
+            }
+            builder.superclass(superClassName);
+        }
+    }
+
     /**
      * Create the event class.
      *
@@ -375,9 +401,11 @@ public class ClassGenerator {
         Objects.requireNonNull(parentType, "parentType");
 
         final TypeName implementedInterface = TypeName.get(type.asType());
+        List<TypeVariableName> classTypeParameters = new ArrayList<>();
+
         final TypeSpec.Builder classBuilder = TypeSpec.classBuilder(name)
             .addModifiers(Modifier.FINAL)
-            .superclass(TypeName.get(parentType))
+            .addTypeVariables(classTypeParameters)
             .addSuperinterface(implementedInterface)
             .addOriginatingElement(type)
             .addAnnotation(this.generatedAnnotation())
@@ -391,6 +419,7 @@ public class ClassGenerator {
                     .addMember("version", "$S", ClassGenerator.class.getPackage().getImplementationVersion())
                     .build()
             );
+        this.deriveParentTypeName(classBuilder, parentType, type);
         classBuilder.alwaysQualifiedNames.addAll(this.alwaysQualifiedImports(type));
         classBuilder.originatingElements.addAll(data.extraOrigins);
 

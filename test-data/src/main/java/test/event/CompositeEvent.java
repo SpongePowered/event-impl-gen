@@ -25,23 +25,21 @@
 package test.event;
 
 import org.spongepowered.eventgen.annotations.GenerateFactoryMethod;
-import org.spongepowered.eventgen.annotations.ToStringExclude;
+import org.spongepowered.eventgen.annotations.ImplementedBy;
+import org.spongepowered.eventgen.annotations.PropertySettings;
+import test.event.impl.AbstractCompositeEvent;
 
 import java.util.List;
 
+@ImplementedBy(AbstractCompositeEvent.class)
 @GenerateFactoryMethod
-public interface CompositeEvent<E extends CompositeEvent<E>> extends Event {
+public interface CompositeEvent<E extends Event> extends Event {
 
-    @ToStringExclude
+    // We explicitly exclude "ourselves" in the toString because we are the
+    // event itself.
+    @PropertySettings(useInToString = false)
     E baseEvent();
 
     List<Event> children();
 
-    @Override
-    default void setCancelled(final boolean cancelled) {
-        Event.super.setCancelled(cancelled);
-        for (var child : this.children()) {
-            child.setCancelled(cancelled);
-        }
-    }
 }

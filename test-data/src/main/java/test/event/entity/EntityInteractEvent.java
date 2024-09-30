@@ -31,7 +31,21 @@ import test.event.Event;
 public interface EntityInteractEvent extends Event {
 
     @GenerateFactoryMethod
-    interface Post extends CompositeEvent<Post> {
+    interface Secondary extends EntityInteractEvent {
 
+        boolean state();
+
+        interface Pre extends Secondary {
+
+            void setState(boolean state);
+
+        }
+
+        @GenerateFactoryMethod
+        interface Post extends CompositeEvent<Secondary>, Secondary {
+
+
+        }
     }
+
 }
