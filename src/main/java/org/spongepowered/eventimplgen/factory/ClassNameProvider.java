@@ -25,11 +25,15 @@
 package org.spongepowered.eventimplgen.factory;
 
 import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.ParameterizedTypeName;
+import com.squareup.javapoet.TypeName;
 import org.spongepowered.eventimplgen.processor.EventGenOptions;
 
 import javax.inject.Inject;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Provide class names for event interface generation.
@@ -64,6 +68,24 @@ public class ClassNameProvider {
             .append('_')
             .append(classifier)
             .toString());
+    }
+
+    public TypeName getImplementingInterfaceName(final TypeElement clazz) {
+        var original = TypeName.get(clazz.asType());
+        // In the off chance
+        if (!clazz.getNestingKind().isNested()) {
+            return original;
+        }
+        if (!clazz.getTypeParameters().isEmpty()) {
+            final List<TypeName> typeArguments = new ArrayList<>();
+            for (var typeParameter : clazz.getTypeParameters()) {
+                typeArguments.add(TypeName.get(typeParameter.asType()));
+            }
+            final var ifaceName = ClassName.get(clazz);
+
+            return ParameterizedTypeName.get(ifaceName, typeArguments.toArray(new TypeName[0]));
+        }
+        return ClassName.get(clazz);
     }
 
 }

@@ -28,6 +28,10 @@ import org.jetbrains.annotations.Nullable;
 import org.spongepowered.eventgen.annotations.GenerateFactoryMethod;
 import org.spongepowered.eventgen.annotations.NoFactoryMethod;
 
+import javax.annotation.processing.Messager;
+import javax.inject.Inject;
+import javax.inject.Singleton;
+import javax.tools.Diagnostic;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -36,11 +40,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
-
-import javax.annotation.processing.Messager;
-import javax.inject.Inject;
-import javax.inject.Singleton;
-import javax.tools.Diagnostic;
+import java.util.stream.Collectors;
 
 @Singleton
 public class EventGenOptions {
@@ -51,6 +51,8 @@ public class EventGenOptions {
 
   public static final String SORT_PRIORITY_PREFIX = "sortPriorityPrefix"; // default: original
   public static final String GROUPING_PREFIXES = "groupingPrefixes"; // <a>:<b>[,<a>:<b>]* default: from:to
+  public static final String INCLUSIVE_FOLDERS = "eventGenInclusiveFolders"; // default: empty, comma separated list of folders to include
+  public static final String EXCLUSIVE_FOLDERS = "eventGenExclusiveFolders"; // default: empty, comma separated list of folders to exclude
 
   // these two take fully qualified names to annotations that should include or exclude a certain element from implementation generation
   public static final String INCLUSIVE_ANNOTATIONS = "inclusiveAnnotations"; // default: GenerateFactoryMethod
@@ -72,6 +74,24 @@ public class EventGenOptions {
 
   public String generatedEventFactory() {
     return Objects.requireNonNull(this.options.get(EventGenOptions.GENERATED_EVENT_FACTORY), "invalid state, factory name not provided");
+  }
+
+  public Set<String> inclusivePackages() {
+    final var rawInclusiveFolders = this.options.get(EventGenOptions.INCLUSIVE_FOLDERS);
+    if (rawInclusiveFolders == null) {
+      return Collections.emptySet();
+    }
+    final var folders = rawInclusiveFolders.split(",");
+    return Arrays.stream(folders).map(s -> s.replace("/", ".")).collect(Collectors.toUnmodifiableSet());
+  }
+
+  public Set<String> exclusivePackages() {
+    final var rawExclusiveFolders = this.options.get(EventGenOptions.EXCLUSIVE_FOLDERS);
+    if (rawExclusiveFolders == null) {
+      return Collections.emptySet();
+    }
+    final var folders = rawExclusiveFolders.split(",");
+    return Arrays.stream(folders).map(s -> s.replace("/", ".")).collect(Collectors.toUnmodifiableSet());
   }
 
   public @Nullable String sortPriorityPrefix() {

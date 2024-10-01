@@ -24,9 +24,8 @@
  */
 package test.event;
 
-import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import test.event.entity.EntityInteractEvent;
 import test.event.lifecycle.NestedTest;
 
 import java.util.List;
@@ -37,22 +36,40 @@ class TestEventFactoryTest {
     void testTestEventFactory() {
         // Most of our validation is that the test set compiles, this just executes a basic implementation.
         final NestedTest.Post conn = TestEventFactory.createNestedTestPost(false, 5);
-        Assertions.assertThat(conn.toString())
-            .isEqualTo("Post{cancelled=false, count=5}");
+        Assertions.assertEquals(conn.toString(), "Post{cancelled=false, count=5}");
     }
 
     @Test
     void testIndirectlyAnnotatedPackageGenerated() {
-        Assertions.assertThat(TestEventFactory.createPartyEvent(true, false, 100))
-                .isNotNull();
+        Assertions.assertNotNull(TestEventFactory.createPartyEvent(true, false, 100));
     }
 
     @Test
-    void testCompositedGenericEvent() {
-        EntityInteractEvent.Secondary secondary = TestEventFactory.createEntityInteractEventSecondary(true, false);
-        Assertions.assertThat(secondary)
-            .isNotNull();
-        Assertions.assertThat(TestEventFactory.createEntityInteractEventSecondaryPost(secondary, List.of(), false, false)).isNotNull();
+    void testExplicitlyFilteredPackageByArgument() {
+        // The Listener class is not generated because the build.gradle explicitly filters the package out
+        Assertions.assertThrows(
+            NoSuchMethodException.class,
+            () -> TestEventFactory.class.getMethod("createListener")
+        );
+    }
+
+    @Test
+    void testExplicitlyAnnotatedPackageNotGenerated() {
+        // The NonGenerated class is not generated because it is annotated with @DoNotGenerate
+        Assertions.assertThrows(
+            NoSuchMethodException.class,
+            () -> TestEventFactory.class.getMethod("createNonGenerated")
+        );
+    }
+
+
+    @Test
+    void testImplicitlyAllowedByAnnotation() {
+        // The InclusiveEvent gets generated because test.event.cause package-info.java is
+        // annotated with @NoFactoryMethod(ignoreNested = true), which allows for nested packages to
+        // generate, with the exception when the package is explicitly filtered by annotation
+        // arguments.
+        Assertions.assertNotNull(TestEventFactory.createInclusiveEvent(List.of(), false));
     }
 
 }

@@ -22,29 +22,17 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.eventgen.annotations;
+package test.event.entity;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import test.event.Event;
 
-/**
- * Explicitly disables generation of an event factory method for an event class.
- *
- * <p>By default, an event which contains subinterfaces will not have
- * an event factory method generated.</p>
- */
-@Retention(RetentionPolicy.CLASS)
-@Target({ElementType.TYPE, ElementType.PACKAGE})
-public @interface NoFactoryMethod {
+public interface AnotherEvent extends Event {
 
-    /**
-     * Whether to ignore nested subclasses or sub packages when determining
-     * whether to generate a factory method.
-     *
-     * @return Whether to ignore nested subclasses or sub packages
-     */
-    boolean ignoreNested() default false;
+    interface Pre extends AnotherEvent {
 
+    }
+
+    interface Post extends AnotherEvent {
+
+    }
 }

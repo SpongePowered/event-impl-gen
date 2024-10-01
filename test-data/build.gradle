@@ -1,6 +1,7 @@
 dependencies {
     annotationProcessor project(":")
     compileOnlyApi project(":event-impl-gen-annotations")
+    api libs.javapoet
 
     // Tests
     testImplementation libs.assertj
@@ -11,7 +12,8 @@ dependencies {
 }
 
 tasks.named('compileJava').configure {
-    // options.compilerArgs << '-AeventGenFactory=test.event.TestEventFactory'
+    options.compilerArgs << '-AeventGenFactory=test.event.TestEventFactory'
+    options.compilerArgs << '-AeventGenExclusiveFolders=test/event/cause/filter'
     // options.compilerArgs << '-Xlint:-processing'
     
     aptOptions {

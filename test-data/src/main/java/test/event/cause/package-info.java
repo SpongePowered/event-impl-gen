@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-@NoFactoryMethod
+@NoFactoryMethod(ignoreNested = true)
 package test.event.cause;
 
 import org.spongepowered.eventgen.annotations.NoFactoryMethod;

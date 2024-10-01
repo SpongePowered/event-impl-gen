@@ -49,6 +49,8 @@ import javax.tools.Diagnostic;
 @AutoService(Processor.class)
 @SupportedOptions({
     EventGenOptions.GENERATED_EVENT_FACTORY,
+    EventGenOptions.INCLUSIVE_FOLDERS,
+    EventGenOptions.EXCLUSIVE_FOLDERS,
     EventGenOptions.SORT_PRIORITY_PREFIX,
     EventGenOptions.GROUPING_PREFIXES,
     EventGenOptions.INCLUSIVE_ANNOTATIONS,

@@ -26,6 +26,7 @@ package org.spongepowered.eventimplgen.processor;
 
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.eventgen.annotations.FactoryMethod;
+import org.spongepowered.eventgen.annotations.NoFactoryMethod;
 import org.spongepowered.eventgen.annotations.internal.GeneratedEvent;
 import org.spongepowered.eventimplgen.AnnotationUtils;
 import org.spongepowered.eventimplgen.eventgencore.PropertySearchStrategy;
@@ -35,7 +36,6 @@ import javax.annotation.processing.RoundEnvironment;
 import javax.inject.Inject;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.PackageElement;
@@ -73,6 +73,8 @@ public class EventScanner {
     private final Messager messager;
     private final PropertySearchStrategy strategy;
     private final RootNode packages = new RootNode();
+    private final Set<String> inclusivePackages;
+    private final Set<String> exclusivePackages;
 
     @Inject
     EventScanner(
@@ -85,6 +87,8 @@ public class EventScanner {
         this.inclusiveAnnotations = options.inclusiveAnnotations();
         this.exclusiveAnnotations = options.exclusiveAnnotations();
         this.debugMode = options.debug();
+        this.inclusivePackages = options.inclusivePackages();
+        this.exclusivePackages = options.exclusivePackages();
         this.types = types;
         this.elements = elemests;
         this.messager = messager;
@@ -121,6 +125,19 @@ public class EventScanner {
         }
 
         this.hydrateIncrementalPackageHierarchy(environment, annotations);
+        for (var inclusivePackage : this.inclusivePackages) {
+            var fixedPackage = inclusivePackage.replace('/', '.');
+            final PackageElement packageElement = this.elements.getPackageElement(fixedPackage);
+            if (packageElement == null) {
+                this.messager.printMessage(Diagnostic.Kind.ERROR, "Unable to resolve an inclusive package " + fixedPackage);
+                failed = true;
+            } else {
+                final PackageNode node = this.packages.get(packageElement);
+                if (node != null) {
+                    elements.add(OriginatedElement.root(packageElement));
+                }
+            }
+        }
 
 
         /*
@@ -144,70 +161,140 @@ public class EventScanner {
             if (this.debugMode) {
                 this.messager.printMessage(Diagnostic.Kind.NOTE, "Testing for events " + (active instanceof QualifiedNameable ? ((QualifiedNameable) active).getQualifiedName() : active.getSimpleName()));
             }
+            switch (active.getKind()) {
+                case PACKAGE -> {
+                    // add classes to consider
+                    final OriginatedElement finalPointer = pointer;
+                    active.getEnclosedElements().stream()
+                        .filter(el -> el.getKind().isInterface() || el.getKind().isClass())
+                        .forEach(el -> elements.add(new OriginatedElement(el, finalPointer)));
+                    // then add subpackages, if they aren't annotated with an excluded element
+                    final PackageNode node = this.packages.get((PackageElement) active);
 
-            if (active.getKind() == ElementKind.PACKAGE) {
-                // add classes to consider
-                final OriginatedElement finalPointer = pointer;
-                active.getEnclosedElements().stream()
-                    .filter(el -> el.getKind().isInterface() || el.getKind().isClass())
-                    .forEach(el -> elements.add(new OriginatedElement(el, finalPointer)));
-                // then add subpackages, if they aren't annotated with an excluded element
-                final PackageNode node = this.packages.get((PackageElement) active);
+                    if (node == null) {
+                        this.messager.printMessage(Diagnostic.Kind.ERROR, "Unable to query package metadata", active);
+                        failed = true;
+                        continue;
+                    }
 
-                if (node == null) {
-                    this.messager.printMessage(Diagnostic.Kind.ERROR, "Unable to query package metadata", active);
-                    failed = true;
-                    continue;
+                    node.childPackages()
+                        .filter(pkg -> !this.hasExclusiveAnnotation(pkg))
+                        .forEach(pkg -> elements.add(new OriginatedElement(pkg, finalPointer)));
                 }
-
-                node.childPackages()
-                    .filter(pkg -> !this.hasExclusiveAnnotation(pkg))
-                    .forEach(pkg -> elements.add(new OriginatedElement(pkg, finalPointer)));
-            } else if (active.getKind().isInterface()) {
-                final TypeElement event = (TypeElement) active;
-                if (!this.hasExclusiveAnnotation(event)) {
+                case ANNOTATION_TYPE -> {} // ignore annotations
+                case INTERFACE -> {
+                    final TypeElement event = (TypeElement) active;
+                    if (this.hasExclusiveAnnotation(event)) {
+                        continue;
+                    }
                     for (final Element el : event.getEnclosedElements()) {
                         if (el.getKind().isClass() || el.getKind().isInterface()) {
                             elements.add(new OriginatedElement(el, pointer));
                         }
                     }
-                    if (!this.isNonTransitivelyExcluded(event)) {
-                        if (this.debugMode) {
-                            this.messager.printMessage(Diagnostic.Kind.NOTE, "Generating for event " + event.getSimpleName());
-                        }
-                        final Set<Element> extraOriginating;
-                        if (pointer.parent == null) {
-                            extraOriginating = Collections.emptySet();
-                        } else {
-                            extraOriginating = new HashSet<>();
-                            OriginatedElement collector = pointer.parent;
-                            do {
-                                extraOriginating.add(collector.element);
-                            } while ((collector = collector.parent) != null);
-                        }
-                        consumer.propertyFound(event, this.strategy.findProperties(event), extraOriginating);
-                        consumer.forwardedMethods(this.findForwardedMethods(event));
+                    if (this.isNonTransitivelyExcluded(event)) {
+                        continue;
                     }
+                    if (this.debugMode) {
+                        this.messager.printMessage(Diagnostic.Kind.NOTE, "Generating for event " + event.getSimpleName());
+                    }
+                    final Set<Element> extraOriginating;
+                    if (pointer.parent == null) {
+                        extraOriginating = Collections.emptySet();
+                    } else {
+                        extraOriginating = new HashSet<>();
+                        OriginatedElement collector = pointer.parent;
+                        do {
+                            extraOriginating.add(collector.element);
+                        } while ((collector = collector.parent) != null);
+                    }
+                    consumer.propertyFound(event, this.strategy.findProperties(event), extraOriginating);
+                    consumer.forwardedMethods(this.findForwardedMethods(event));
                 }
-            } else if (active.getKind() == ElementKind.CLASS
-                && active.getAnnotation(GeneratedEvent.class) != null) {
-                continue; // these implementation classes are indirectly annotated, but because we generated them we can ignore them.
-            } else if (active.getKind() != ElementKind.ENUM) { // implicitly exclude enums, they are commonly declared nested in event interfaces
-                // Means we've got a class that can be abstract
-                if (active.getKind().isClass() && active.getModifiers().contains(Modifier.ABSTRACT)) {
-                    continue;
+                case ENUM -> {
+                    // We will occasionally scan enums anyways
                 }
-                this.messager.printMessage(Diagnostic.Kind.ERROR, "This element (" + active.getKind() + " " + active.getSimpleName() + ")  was "
-                    + "annotated directly or transitively, but it is not a package or interface", active);
-                failed = true;
+                case CLASS -> {
+                    if (active.getAnnotation(GeneratedEvent.class) != null) {
+                        continue; // these implementation classes are indirectly annotated, but because we generated them we can ignore them.
+                    }
+                    if (active.getModifiers().contains(Modifier.ABSTRACT)) {
+                        continue; // abstract classes are potentially implementations of events
+                    }
+                    if (this.hasExclusiveAnnotation(active)) {
+                        continue;
+                    }
+                    this.messager.printMessage(Diagnostic.Kind.ERROR, "This element (" + active.getKind() + " " + active.getSimpleName() + ")  was "
+                                                                      + "annotated directly or transitively, but it is not a package or interface", active);
+                    failed = true;
+                }
+                default -> {
+                    this.messager.printMessage(Diagnostic.Kind.ERROR, "This element (" + active.getKind() + " " + active.getSimpleName() + ")  was "
+                                                                      + "annotated directly or transitively, but it is not a package or interface", active);
+                    failed = true;
+                }
             }
         }
 
         return !failed;
     }
 
+    private boolean hasExclusiveAnnotationInherited(final Element candidate, boolean inherited) {
+        final var excludedByAnnotation = AnnotationUtils.containsAnnotation(candidate, this.exclusiveAnnotations);
+        if (excludedByAnnotation) {
+            if (!inherited) {
+                return true;
+            }
+            // Basically, last ditch effort, if using the NoFactoryMethod with ignoring nested being true,
+            // then we can permit the child
+            final var noFactory = AnnotationUtils.getAnnotation(candidate, NoFactoryMethod.class);
+            return noFactory == null || !AnnotationUtils.<Boolean>getValue(noFactory, "ignoreNested");
+        }
+        switch (candidate.getKind()) {
+            case PACKAGE -> {
+                if (AnnotationUtils.containsAnnotation(candidate, this.inclusiveAnnotations)) {
+                    return false;
+                }
+
+                final var qualifiedPackageName = ((PackageElement) candidate).getQualifiedName().toString();
+
+                // Stop Climbing the tree
+                if (this.inclusivePackages.contains(qualifiedPackageName)) {
+                    return false;
+                }
+                if (this.exclusivePackages.contains(qualifiedPackageName)) {
+                    return true;
+                }
+                // Otherwise, find the parent in this tree
+                final var lastDot = qualifiedPackageName.lastIndexOf('.');
+                if (lastDot == -1) {
+                    return false;
+                }
+                final var parentPackage = qualifiedPackageName.substring(0, lastDot);
+
+                final var parent = this.elements.getPackageElement(parentPackage);
+                if (parent == null) {
+                    return false;
+                }
+                return this.hasExclusiveAnnotationInherited(parent, true);
+            }
+            // For classes/interfaces, we need to check if the parent package (or find the package)
+            // to check for exclusions
+            case CLASS, INTERFACE -> {
+                final TypeElement typeElement = (TypeElement) candidate;
+                if (AnnotationUtils.containsAnnotation(candidate, this.inclusiveAnnotations)) {
+                    return false;
+                }
+
+                return this.hasExclusiveAnnotationInherited(typeElement.getEnclosingElement(), false);
+            }
+        }
+        return false;
+    }
+
+
     public boolean hasExclusiveAnnotation(final Element candidate) {
-        return AnnotationUtils.containsAnnotation(candidate, this.exclusiveAnnotations);
+       return hasExclusiveAnnotationInherited(candidate, false);
     }
 
     public boolean isNonTransitivelyExcluded(final TypeElement candidate) {
@@ -330,6 +417,19 @@ public class EventScanner {
                 if (seen.add(pkgname)) {
                     this.set(pkgname, pkg);
                 }
+                EventScanner.this.elements.getAllPackageElements("")
+                    .stream()
+                    .filter(potentialPkg -> {
+                        String pkgName = potentialPkg.getQualifiedName().toString();
+                        return pkgName.startsWith(pkgName + ".") &&
+                               pkgName.substring(pkgName.length() + 1).indexOf('.') == -1;
+                    })
+                    .forEachOrdered(childPackage -> {
+                        final var childPackageName = childPackage.getQualifiedName().toString();
+                        if (seen.add(childPackageName)) {
+                            this.set(childPackageName, childPackage);
+                        }
+                    });
             }
         }
 

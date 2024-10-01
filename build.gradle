@@ -1,6 +1,6 @@
 plugins {
     alias(libs.plugins.spongeConvention) apply false
-    alias(libs.plugins.indra.sonatype) apply false
+    alias(libs.plugins.indra.sonatype)
     alias(libs.plugins.errorprone)
     alias(libs.plugins.eclipseApt)
     id('java-library')
@@ -75,11 +75,19 @@ allprojects {
             minimumToolchain(21)
             target(21)
         }
+        configurePublications {
+            artifactId(project.name.toLowerCase())
+        }
     }
 
     indraSpotlessLicenser {
         property("name", rootProject.projectName)
     }
+//    tasks.withType(JavaCompile).configureEach {
+//        options.forkOptions.jvmArgs = [
+//                '-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005'
+//        ]
+//    }
 }
 
 

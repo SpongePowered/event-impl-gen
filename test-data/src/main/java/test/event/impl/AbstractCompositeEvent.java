@@ -33,6 +33,9 @@ import java.util.List;
 public abstract class AbstractCompositeEvent<E extends Event> implements CompositeEvent<E> {
 
     @UseField
+    protected E baseEvent;
+
+    @UseField
     protected boolean cancelled;
 
     @UseField
@@ -41,6 +44,7 @@ public abstract class AbstractCompositeEvent<E extends Event> implements Composi
     @Override
     public void setCancelled(boolean cancelled) {
         this.cancelled = cancelled;
+        this.baseEvent.setCancelled(cancelled);
         this.children.forEach(c -> c.setCancelled(cancelled));
     }
 

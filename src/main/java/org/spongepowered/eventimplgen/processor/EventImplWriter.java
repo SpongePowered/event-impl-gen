@@ -27,7 +27,6 @@ package org.spongepowered.eventimplgen.processor;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.JavaFile;
 import org.jetbrains.annotations.Nullable;
-import org.spongepowered.eventgen.annotations.ImplementedBy;
 import org.spongepowered.eventimplgen.AnnotationUtils;
 import org.spongepowered.eventimplgen.eventgencore.Property;
 import org.spongepowered.eventimplgen.eventgencore.PropertySorter;
@@ -37,27 +36,21 @@ import org.spongepowered.eventimplgen.factory.FactoryInterfaceGenerator;
 import org.spongepowered.eventimplgen.factory.NullPolicy;
 import org.spongepowered.eventimplgen.factory.plugin.EventFactoryPlugin;
 
-import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
-import java.util.TreeMap;
-
 import javax.annotation.processing.Filer;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 
 /**
  * A consumer of computed event information, that will generate individual

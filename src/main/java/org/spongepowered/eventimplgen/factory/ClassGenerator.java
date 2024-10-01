@@ -46,6 +46,7 @@ import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import javax.annotation.processing.Generated;
 import javax.annotation.processing.Messager;
 import javax.inject.Inject;
 import javax.lang.model.SourceVersion;
@@ -121,14 +122,6 @@ public class ClassGenerator {
         }
     }
 
-    static boolean useInToString(final Property property) {
-        final PropertySettings settings = ClassGenerator.getPropertySettings(property);
-        if (settings != null) {
-            return settings.useInToString();
-        }
-        return !property.getMostSpecificMethod().isDefault();
-    }
-
     static UseField getUseField(final TypeMirror clazz, final String fieldName) {
         if (clazz.getKind() != TypeKind.DECLARED) {
             return null;
@@ -197,13 +190,17 @@ public class ClassGenerator {
         this.nullPolicy = Objects.requireNonNull(nullPolicy, "nullPolicy");
     }
 
-    private Set<String> alwaysQualifiedImports(final TypeElement element) {
+    private void alwaysQualifiedImports(TypeSpec.Builder classBuilder, final TypeElement element) {
         // always qualify the return types of properties in properties
-        return this.elements.getAllMembers(element)
+        final Set<String> alwaysQualified = new HashSet<>();
+        this.elements.getAllMembers(element)
             .stream()
             .filter(el -> el.getKind().isClass() || el.getKind().isInterface())
+            .filter(el -> ((TypeElement) el).getNestingKind().isNested())
             .map(el -> el.getSimpleName().toString())
-            .collect(Collectors.toSet());
+            .forEach(alwaysQualified::add);
+
+        classBuilder.alwaysQualify(alwaysQualified.toArray(new String[0]));
     }
 
     private boolean hasNullable(final ExecutableElement method) {
@@ -244,12 +241,22 @@ public class ClassGenerator {
             classWriter.addField(property);
         } else if (field.getModifiers().contains(Modifier.PRIVATE)) {
             this.messager.printMessage(Diagnostic.Kind.ERROR, "You've annotated the field " + property.getName() + " with @UseField, "
-                + "but it's private. This just won't work.", field);
+                                                              + "but it's private. This just won't work.", field);
             return false;
-        } else if (!this.types.isSubtype(field.asType(), property.getType())) {
-            this.messager.printMessage(Diagnostic.Kind.ERROR, String.format("In event %s with parent %s - you've specified field '%s' of type %s"
-                    + " but the property has the expected type of %s", this.elements.getBinaryName((TypeElement) property.getAccessor().getEnclosingElement()),
-                parentType, field.getSimpleName(), field.asType(), property.getType()), field);
+        } else if (!this.types.isSubtype(this.types.erasure(field.asType()),this.types.erasure(property.getType()))) {
+            // We need to handle generics and if the field is a subtype of the property, then it fits.
+            if (this.types.isAssignable(this.types.erasure(property.getType()), this.types.erasure(field.asType()))) {
+                return true;
+            }
+            this.messager.printMessage(Diagnostic.Kind.ERROR,
+                String.format(
+                    "In event %s with parent %s - you've specified field '%s' of type %s" + " but the property has the expected type of %s",
+                    this.elements.getBinaryName((TypeElement) property.getAccessor().getEnclosingElement()),
+                    parentType,
+                    field.getSimpleName(),
+                    field.asType(),
+                    property.getType()),
+                field);
             return false;
         }
         return true;
@@ -266,24 +273,24 @@ public class ClassGenerator {
         final CodeBlock.Builder initializer = CodeBlock.builder();
         for (final Property property : requiredProperties) {
             builder.addParameter(TypeName.get(property.getType()), property.getName(), Modifier.FINAL);
-                // Only if we have a null policy:
-                // if (value == null) throw new NullPointerException(...)
-                if (this.nullPolicy != NullPolicy.DISABLE_PRECONDITIONS) {
-                    final boolean useNullTest = !property.getType().getKind().isPrimitive()
-                        && (((this.nullPolicy == NullPolicy.NON_NULL_BY_DEFAULT && !this.hasNullable(property.getAccessor()))
-                        || (this.nullPolicy == NullPolicy.NULL_BY_DEFAULT && this.hasNonNull(property.getAccessor())))
-                        && ClassGenerator.isRequired(property));
+            // Only if we have a null policy:
+            // if (value == null) throw new NullPointerException(...)
+            if (this.nullPolicy != NullPolicy.DISABLE_PRECONDITIONS) {
+                final boolean useNullTest = !property.getType().getKind().isPrimitive()
+                                            && (((this.nullPolicy == NullPolicy.NON_NULL_BY_DEFAULT && !this.hasNullable(property.getAccessor()))
+                                                 || (this.nullPolicy == NullPolicy.NULL_BY_DEFAULT && this.hasNonNull(property.getAccessor())))
+                                                && ClassGenerator.isRequired(property));
 
-                    if (useNullTest) {
-                        initializer.addStatement(
-                            "this.$1L = $2T.requireNonNull($1L, $3S)",
-                            property.getName(),
-                            ClassGenerator.OBJECTS,
-                            "The property '" + property.getName() + "' was not provided!"
-                        );
-                        continue;
-                    }
+                if (useNullTest) {
+                    initializer.addStatement(
+                        "this.$1L = $2T.requireNonNull($1L, $3S)",
+                        property.getName(),
+                        ClassGenerator.OBJECTS,
+                        "The property '" + property.getName() + "' was not provided!"
+                    );
+                    continue;
                 }
+            }
 
             // no null test
             initializer.addStatement("this.$1L = $1L", property.getName());
@@ -339,11 +346,11 @@ public class ClassGenerator {
 
         if (iface instanceof Parameterizable pe) {
             pe.getTypeParameters()
-                    .stream()
-                    .map(TypeVariableName::get)
-                    .forEach(classTypeParameters::add);
+                .stream()
+                .map(TypeVariableName::get)
+                .forEach(classTypeParameters::add);
         }
-        final var parentParameterMap = new HashMap<String, TypeName>();
+
         // Inspect both the parent type and the interface we're implementing
         // - If the interface we implement has NO type parameters, we can introspect the
         //   extension for generic types declared on the parent's extension
@@ -352,9 +359,9 @@ public class ClassGenerator {
         //   - If the interface does not, populate
         if (parentType.asElement() instanceof TypeElement te) {
             final var params = te.getTypeParameters()
-                    .stream()
-                    .map(tpe -> TypeName.get(tpe.asType()))
-                    .toArray(TypeName[]::new);
+                .stream()
+                .map(tpe -> TypeName.get(tpe.asType()))
+                .toArray(TypeName[]::new);
             final ClassName newClassName = ClassName.get(te);
             if (params.length == 0) {
                 // We won't add type parameters because the interface's type parameters would be added later
@@ -368,12 +375,18 @@ public class ClassGenerator {
                 for (TypeMirror extended : iface.getInterfaces()) {
                     if (extended instanceof DeclaredType de) {
                         de.getTypeArguments()
-                                .stream()
-                                .map(TypeName::get)
-                                .forEach(innerParams::add);
+                            .stream()
+                            .map(ite -> {
+                                if (ite instanceof DeclaredType dte) {
+                                    final var nte = (TypeElement) dte.asElement();
+                                    return ClassName.get(nte);
+                                }
+                                return TypeName.get(ite);
+                            })
+                            .forEach(innerParams::add);
                     }
                 }
-                final var modifiedParams = innerParams.toArray(new TypeName[innerParams.size()]);
+                final var modifiedParams = innerParams.toArray(new TypeName[0]);
                 superClassName = ParameterizedTypeName.get(newClassName, modifiedParams);
             }
             builder.superclass(superClassName);
@@ -383,8 +396,8 @@ public class ClassGenerator {
     /**
      * Create the event class.
      *
-     * @param type The type
-     * @param name The canonical of the generated class
+     * @param type       The type
+     * @param name       The canonical of the generated class
      * @param parentType The parent type
      * @return The class' contents, or {@code null} if an error was reported while generating the class
      */
@@ -400,7 +413,7 @@ public class ClassGenerator {
         Objects.requireNonNull(name, "name");
         Objects.requireNonNull(parentType, "parentType");
 
-        final TypeName implementedInterface = TypeName.get(type.asType());
+        TypeName implementedInterface = this.classNameProvider.getImplementingInterfaceName(type);
         List<TypeVariableName> classTypeParameters = new ArrayList<>();
 
         final TypeSpec.Builder classBuilder = TypeSpec.classBuilder(name)
@@ -413,14 +426,15 @@ public class ClassGenerator {
                 AnnotationSpec.builder(GeneratedEvent.class)
                     .addMember("source", "$T.class",
                         implementedInterface instanceof ParameterizedTypeName
-                        ? ((ParameterizedTypeName) implementedInterface).rawType
-                        : implementedInterface
+                            ? ((ParameterizedTypeName) implementedInterface).rawType
+                            : implementedInterface
                     )
                     .addMember("version", "$S", ClassGenerator.class.getPackage().getImplementationVersion())
                     .build()
             );
         this.deriveParentTypeName(classBuilder, parentType, type);
-        classBuilder.alwaysQualifiedNames.addAll(this.alwaysQualifiedImports(type));
+        this.alwaysQualifiedImports(classBuilder, type);
+        classBuilder.avoidClashesWithNestedClasses(type);
         classBuilder.originatingElements.addAll(data.extraOrigins);
 
         for (final TypeParameterElement param : type.getTypeParameters()) {
@@ -485,14 +499,7 @@ public class ClassGenerator {
     }
 
     AnnotationSpec generatedAnnotation() {
-        final ClassName clazz;
-        if (this.targetVersion.compareTo(SourceVersion.RELEASE_8) > 0) {
-            clazz = ClassName.get("javax.annotation.processing", "Generated");
-        } else {
-            clazz = ClassName.get("javax.annotation", "Generated");
-        }
-
-        return AnnotationSpec.builder(clazz)
+        return AnnotationSpec.builder(Generated.class)
             .addMember("value", "$S", EventImplGenProcessor.class.getName())
             .build();
     }
