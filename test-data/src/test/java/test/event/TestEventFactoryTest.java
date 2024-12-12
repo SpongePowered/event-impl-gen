@@ -28,6 +28,9 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import test.event.lifecycle.NestedTest;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.List;
 
 class TestEventFactoryTest {
@@ -72,4 +75,14 @@ class TestEventFactoryTest {
         Assertions.assertNotNull(TestEventFactory.createInclusiveEvent(List.of(), false));
     }
 
+    @Test
+    void testJsonFileExists() throws IOException {
+        Assertions.assertTrue(Files.exists(Paths.get("fileList.json")));
+    }
+
+    @Test
+    void testJsonFileContents() throws IOException {
+        String jsonContent = Files.readString(Paths.get("fileList.json"));
+        Assertions.assertTrue(jsonContent.contains("test.event.lifecycle.NestedTest"));
+    }
 }
