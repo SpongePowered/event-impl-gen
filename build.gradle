@@ -109,6 +109,8 @@ dependencies {
 
     compileOnlyApi libs.jetbrainsAnnotations
 
+    api(libs.gson)
+
     // Tests
     testImplementation libs.assertj
     testImplementation libs.joor
