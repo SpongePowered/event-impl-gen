@@ -44,13 +44,18 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.util.Elements;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 /**
  * A consumer of computed event information, that will generate individual
@@ -96,6 +101,7 @@ public class EventImplWriter implements PropertyConsumer {
         this.outputFactory = options.generatedEventFactory();
         this.factoryGenerator = factoryGenerator;
         this.generator = generator;
+        this.readFileList();
     }
 
     @Override
@@ -148,6 +154,7 @@ public class EventImplWriter implements PropertyConsumer {
 
         this.allFoundProperties.putAll(this.roundFoundProperties);
         this.roundFoundProperties.clear();
+        this.serializeFileList();
     }
 
     public void dumpFinal() throws IOException {
@@ -164,5 +171,47 @@ public class EventImplWriter implements PropertyConsumer {
             return found;
         }
         return (DeclaredType) this.elements.getTypeElement("java.lang.Object").asType();
+    }
+
+    private void serializeFileList() throws IOException {
+        Gson gson = new Gson();
+        try (FileWriter writer = new FileWriter("fileList.json")) {
+            gson.toJson(this.allFoundProperties.keySet().stream()
+                .map(e -> this.elements.getBinaryName(e).toString())
+                .toList(), writer);
+        }
+    }
+
+    private List<String> deserializeFileList() throws IOException {
+        Gson gson = new Gson();
+        try (var reader = Files.newBufferedReader(Paths.get("fileList.json"))) {
+            return gson.fromJson(reader, new TypeToken<List<String>>() {}.getType());
+        }
+    }
+
+    public void validateFileList() throws IOException {
+        List<String> fileList = deserializeFileList();
+        for (String fileName : fileList) {
+            if (this.elements.getTypeElement(fileName) == null) {
+                this.allFoundProperties.clear();
+                this.roundFoundProperties.clear();
+                this.classesWritten = false;
+                break;
+            }
+        }
+    }
+
+    private void readFileList() {
+        try {
+            List<String> fileList = deserializeFileList();
+            for (String fileName : fileList) {
+                TypeElement element = this.elements.getTypeElement(fileName);
+                if (element != null) {
+                    this.allFoundProperties.put(element, new EventData(new ArrayList<>(), Set.of()));
+                }
+            }
+        } catch (IOException e) {
+            // Handle exception
+        }
     }
 }
