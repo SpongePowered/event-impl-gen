@@ -18,10 +18,6 @@ extraJavaModuleInfo {
     module("com.google.errorprone:javac-shaded", "com.google.errorprone.javac.shaded") {
         exports("com.google.errorprone.javac.shaded")
     }
-    module("io.soabase.java-composer:java-composer", "io.soabase.java.composer") {
-        exports("com.squareup.javapoet")
-        requiresTransitive("java.compiler")
-    }
     module("org.jooq:joor-java-8", "org.jooq.joor") {
         exports("org.joor")
     }

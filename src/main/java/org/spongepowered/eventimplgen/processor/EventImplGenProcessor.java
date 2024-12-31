@@ -25,11 +25,6 @@
 package org.spongepowered.eventimplgen.processor;
 
 import com.google.auto.service.AutoService;
-import org.spongepowered.eventgen.annotations.internal.GeneratedEvent;
-
-import java.io.IOException;
-import java.util.HashSet;
-import java.util.Set;
 
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -37,11 +32,14 @@ import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.annotation.processing.SupportedOptions;
+import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
 import javax.tools.Diagnostic;
+import java.io.IOException;
+import java.util.Set;
 
 /**
  * The entry point for the generator, starting as an AP.
@@ -55,8 +53,9 @@ import javax.tools.Diagnostic;
     EventGenOptions.GROUPING_PREFIXES,
     EventGenOptions.INCLUSIVE_ANNOTATIONS,
     EventGenOptions.EXCLUSIVE_ANNOTATIONS,
-    EventGenOptions.DEBUG
+    EventGenOptions.DEBUG,
 })
+@SupportedSourceVersion(SourceVersion.RELEASE_21)
 @SupportedAnnotationTypes({
     "org.spongepowered.eventgen.annotations.AbsoluteSortPosition",
     "org.spongepowered.eventgen.annotations.DefaultImplemented",
@@ -67,6 +66,7 @@ import javax.tools.Diagnostic;
     "org.spongepowered.eventgen.annotations.TransformResult",
     "org.spongepowered.eventgen.annotations.TransformWith",
     "org.spongepowered.eventgen.annotations.UseField",
+    "org.gradle.annotation.processing.isolating"
 })
 public class EventImplGenProcessor extends AbstractProcessor {
 
@@ -93,18 +93,6 @@ public class EventImplGenProcessor extends AbstractProcessor {
     }
 
     @Override
-    public Set<String> getSupportedAnnotationTypes() {
-        final Set<String> supported = new HashSet<>(this.component.options().inclusiveAnnotations());
-        supported.add(GeneratedEvent.class.getName());
-        return supported;
-    }
-
-    @Override
-    public SourceVersion getSupportedSourceVersion() {
-        return SourceVersion.latestSupported(); // todo: limit to a max tested version
-    }
-
-    @Override
     public boolean process(final Set<? extends TypeElement> annotations, final RoundEnvironment roundEnv) {
         if (!this.component.options().validate()) {
             return false;
@@ -121,7 +109,7 @@ public class EventImplGenProcessor extends AbstractProcessor {
             writer.dumpRound(roundEnv.getRootElements());
             // If this is the last round, then let's do the actual generation
             if (roundEnv.processingOver()) {
-                writer.dumpFinal();
+               writer.dumpFinal();
             }
         } catch (final IOException ex) {
             this.processingEnv.getMessager()

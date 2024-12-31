@@ -24,15 +24,15 @@
  */
 package org.spongepowered.eventimplgen.factory;
 
-import com.squareup.javapoet.AnnotationSpec;
-import com.squareup.javapoet.ClassName;
-import com.squareup.javapoet.CodeBlock;
-import com.squareup.javapoet.JavaFile;
-import com.squareup.javapoet.MethodSpec;
-import com.squareup.javapoet.ParameterizedTypeName;
-import com.squareup.javapoet.TypeName;
-import com.squareup.javapoet.TypeSpec;
-import com.squareup.javapoet.TypeVariableName;
+import com.palantir.javapoet.AnnotationSpec;
+import com.palantir.javapoet.ClassName;
+import com.palantir.javapoet.CodeBlock;
+import com.palantir.javapoet.JavaFile;
+import com.palantir.javapoet.MethodSpec;
+import com.palantir.javapoet.ParameterizedTypeName;
+import com.palantir.javapoet.TypeName;
+import com.palantir.javapoet.TypeSpec;
+import com.palantir.javapoet.TypeVariableName;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.eventgen.annotations.PropertySettings;
 import org.spongepowered.eventgen.annotations.UseField;
@@ -344,8 +344,8 @@ public class ClassGenerator {
         final List<TypeVariableName> classTypeParameters = new ArrayList<>();
         TypeName superClassName = TypeName.get(parentType);
 
-        if (iface instanceof Parameterizable pe) {
-            pe.getTypeParameters()
+        if (iface != null) {
+            iface.getTypeParameters()
                 .stream()
                 .map(TypeVariableName::get)
                 .forEach(classTypeParameters::add);
@@ -426,7 +426,7 @@ public class ClassGenerator {
                 AnnotationSpec.builder(GeneratedEvent.class)
                     .addMember("source", "$T.class",
                         implementedInterface instanceof ParameterizedTypeName
-                            ? ((ParameterizedTypeName) implementedInterface).rawType
+                            ? ((ParameterizedTypeName) implementedInterface).rawType()
                             : implementedInterface
                     )
                     .addMember("version", "$S", ClassGenerator.class.getPackage().getImplementationVersion())
@@ -435,14 +435,14 @@ public class ClassGenerator {
         this.deriveParentTypeName(classBuilder, parentType, type);
         this.alwaysQualifiedImports(classBuilder, type);
         classBuilder.avoidClashesWithNestedClasses(type);
-        classBuilder.originatingElements.addAll(data.extraOrigins);
+        data.extraOrigins().forEach(classBuilder::addOriginatingElement);
 
         for (final TypeParameterElement param : type.getTypeParameters()) {
             classBuilder.addTypeVariable(TypeVariableName.get(param));
         }
 
         // Create the constructor
-        classBuilder.addMethod(this.generateConstructor(parentType, sorter.sortProperties(data.properties)));
+        classBuilder.addMethod(this.generateConstructor(parentType, sorter.sortProperties(data.properties())));
 
         final ClassContext ctx = this.classContextFactory.create(classBuilder);
 
@@ -455,7 +455,7 @@ public class ClassGenerator {
         // "ClassName{param1=value1, param2=value2, ...}"
 
         // Create the accessors and mutators, and fill out the toString method
-        if (!this.generateWithPlugins(ctx, type, parentType, data.properties, plugins)) {
+        if (!this.generateWithPlugins(ctx, type, parentType, data.properties(), plugins)) {
             return null;
         }
 

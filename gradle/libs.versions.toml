@@ -3,7 +3,6 @@ version = "1.0"
 
 [versions]
 autoService = "1.1.1"
-checkerQual = "3.26.0"
 dagger = "2.52"
 errorprone = "2.28.0"
 junit = "5.10.2"
@@ -15,8 +14,8 @@ dagger-runtime = { module = "com.google.dagger:dagger", version.ref = "dagger" }
 dagger-compiler = { module = "com.google.dagger:dagger-compiler", version.ref = "dagger" }
 errorprone = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
 errorprone-annotations = { module = "com.google.errorprone:error_prone_annotations", version.ref = "errorprone" }
-javapoet = { module = "io.soabase.java-composer:java-composer", version = "1.0" }
-jetbrainsAnnotations = { module = "org.jetbrains:annotations", version = "24.1.0"}
+javapoet = { module = "com.palantir.javapoet:javapoet", version = "0.6.0" }
+jetbrainsAnnotations = { module = "org.jetbrains:annotations", version = "24.1.0" }
 jakartaInject = { module = "jakarta.inject:jakarta.inject-api", version = "2.0.1" }
 javaxInject = { module = "javax.inject:javax.inject", version = "1" }
 

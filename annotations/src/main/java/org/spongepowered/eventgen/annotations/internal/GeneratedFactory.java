@@ -22,18 +22,26 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.eventimplgen.factory;
+package org.spongepowered.eventgen.annotations.internal;
 
-import org.spongepowered.eventimplgen.eventgencore.Property;
-
-import java.util.List;
-import java.util.Set;
-
-import javax.lang.model.element.Element;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * Data associated with a generated event
+ * Indicates that this is a generated event implementation or factory.
+ *
+ * <p>This annotation should not be used directly in source.</p>
  */
-public record EventData(List<Property> properties, Set<? extends Element> extraOrigins) {
+@Retention(RetentionPolicy.CLASS)
+@Target(ElementType.TYPE)
+public @interface GeneratedFactory {
+
+    /**
+     * The version of {@code event-impl-gen} used to generate this
+     * implementation.
+     */
+    String version() default "<unknown>";
 
 }

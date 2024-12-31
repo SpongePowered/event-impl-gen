@@ -24,8 +24,8 @@
  */
 package org.spongepowered.eventimplgen.factory.plugin;
 
-import com.squareup.javapoet.MethodSpec;
-import com.squareup.javapoet.TypeName;
+import com.palantir.javapoet.MethodSpec;
+import com.palantir.javapoet.TypeName;
 import org.spongepowered.eventgen.annotations.TransformResult;
 import org.spongepowered.eventgen.annotations.TransformWith;
 import org.spongepowered.eventimplgen.eventgencore.Property;

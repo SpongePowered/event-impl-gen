@@ -250,46 +250,46 @@ public class EventScanner {
             final var noFactory = AnnotationUtils.getAnnotation(candidate, NoFactoryMethod.class);
             return noFactory == null || !AnnotationUtils.<Boolean>getValue(noFactory, "ignoreNested");
         }
-        switch (candidate.getKind()) {
+        return switch (candidate.getKind()) {
             case PACKAGE -> {
                 if (AnnotationUtils.containsAnnotation(candidate, this.inclusiveAnnotations)) {
-                    return false;
+                    yield false;
                 }
 
                 final var qualifiedPackageName = ((PackageElement) candidate).getQualifiedName().toString();
 
                 // Stop Climbing the tree
                 if (this.inclusivePackages.contains(qualifiedPackageName)) {
-                    return false;
+                    yield false;
                 }
                 if (this.exclusivePackages.contains(qualifiedPackageName)) {
-                    return true;
+                    yield true;
                 }
                 // Otherwise, find the parent in this tree
                 final var lastDot = qualifiedPackageName.lastIndexOf('.');
                 if (lastDot == -1) {
-                    return false;
+                    yield false;
                 }
                 final var parentPackage = qualifiedPackageName.substring(0, lastDot);
 
                 final var parent = this.elements.getPackageElement(parentPackage);
                 if (parent == null) {
-                    return false;
+                    yield false;
                 }
-                return this.hasExclusiveAnnotationInherited(parent, true);
+                yield this.hasExclusiveAnnotationInherited(parent, true);
             }
             // For classes/interfaces, we need to check if the parent package (or find the package)
             // to check for exclusions
             case CLASS, INTERFACE -> {
                 final TypeElement typeElement = (TypeElement) candidate;
                 if (AnnotationUtils.containsAnnotation(candidate, this.inclusiveAnnotations)) {
-                    return false;
+                    yield false;
                 }
 
-                return this.hasExclusiveAnnotationInherited(typeElement.getEnclosingElement(), false);
+                yield this.hasExclusiveAnnotationInherited(typeElement.getEnclosingElement(), false);
             }
-        }
-        return false;
+            default -> false;
+        };
     }
 
 

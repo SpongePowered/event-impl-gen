@@ -24,8 +24,8 @@
  */
 package org.spongepowered.eventimplgen.processor;
 
-import com.squareup.javapoet.ClassName;
-import com.squareup.javapoet.JavaFile;
+import com.palantir.javapoet.ClassName;
+import com.palantir.javapoet.JavaFile;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.eventimplgen.AnnotationUtils;
 import org.spongepowered.eventimplgen.eventgencore.Property;
