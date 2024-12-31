@@ -70,7 +70,6 @@ public class ClassGenerator {
     private final Elements elements;
     private final Messager messager;
     private final ClassContext.Factory classContextFactory;
-    private final SourceVersion targetVersion;
     private final ClassNameProvider classNameProvider;
 
     private NullPolicy nullPolicy = NullPolicy.DISABLE_PRECONDITIONS;
@@ -81,15 +80,13 @@ public class ClassGenerator {
         final Types types,
         final Elements elements,
         final Messager messager,
-        final ClassContext.Factory classContextFactory,
-        final SourceVersion targetVersion
+        final ClassContext.Factory classContextFactory
     ) {
         this.classNameProvider = classNameProvider;
         this.types = types;
         this.elements = elements;
         this.messager = messager;
         this.classContextFactory = classContextFactory;
-        this.targetVersion = targetVersion;
     }
 
     static PropertySettings getPropertySettings(final Property property) {

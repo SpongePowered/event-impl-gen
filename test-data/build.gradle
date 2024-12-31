@@ -19,7 +19,7 @@ tasks.named('compileJava').configure {
     aptOptions {
         processorArgs = [
             'eventGenFactory': 'test.event.TestEventFactory',
-            'eventGenDebug': 'true'
+            'eventGenDebug': 'false'
         ]
     }
 }

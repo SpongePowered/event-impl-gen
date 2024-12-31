@@ -16,7 +16,7 @@ module org.spongepowered.eventimplgen {
 
     requires static transitive com.google.auto.service;
     requires static transitive org.jetbrains.annotations;
-    requires com.palantir.javapoet;
+    requires transitive com.palantir.javapoet;
 
     provides javax.annotation.processing.Processor with org.spongepowered.eventimplgen.processor.EventImplGenProcessor;
 }
