@@ -5,7 +5,7 @@ version = "1.0"
 autoService = "1.1.1"
 dagger = "2.54"
 errorprone = "2.28.0"
-junit = "5.10.2"
+junit = "5.11.4"
 
 [libraries]
 autoService-annotations = { module = "com.google.auto.service:auto-service-annotations", version.ref = "autoService" }
